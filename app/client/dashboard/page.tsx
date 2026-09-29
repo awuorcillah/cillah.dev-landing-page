@@ -37,6 +37,11 @@ export default function ClientDashboard() {
 
         if (error) throw error
         setProfile(data)
+
+        if (data?.role === 'admin') {
+          window.location.href = '/admin/dashboard'
+          return
+        }
       } catch (err: any) {
         toast.error('Failed to load user profile', { position: 'top-left' })
       } finally {

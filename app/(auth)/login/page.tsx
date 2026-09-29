@@ -54,9 +54,9 @@ export default function LoginPage() {
         })
 
         if (userRole === 'admin') {
-          router.push('/admin/dashboard')
+          window.location.href = '/admin/dashboard'
         } else {
-          router.push('/client/dashboard')
+          window.location.href = '/client/dashboard'
         }
       }
     } catch (err: any) {
