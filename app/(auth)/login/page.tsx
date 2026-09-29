@@ -55,8 +55,10 @@ export default function LoginPage() {
 
         if (userRole === 'admin') {
           window.location.href = '/admin/dashboard'
-        } else {
+        } else if (userRole === 'client') {
           window.location.href = '/client/dashboard'
+        } else {
+          window.location.href = '/user/dashboard'
         }
       }
     } catch (err: any) {

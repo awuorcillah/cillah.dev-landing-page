@@ -161,8 +161,12 @@ erDiagram
 │   ├── signup/page.tsx              # User Registration
 │   ├── profile/page.tsx             # User Profile & Security Settings
 │   └── logout/route.ts              # Session Termination
+├── dashboard/page.tsx                # Unified Role Router (/dashboard -> /user, /client, or /admin)
+├── unauthorized/page.tsx             # 403 Not Authorized Security Guard Page
+├── user/
+│   └── dashboard/page.tsx           # User Portal (Book a Session CTAs, Live Masterclasses & Webinars)
 ├── client/
-│   ├── dashboard/page.tsx           # Client Portal Dashboard (Upcoming sessions, action items)
+│   ├── dashboard/page.tsx           # Client Portal (Upcoming Booked Session, Reschedule/Cancel, Deliverables)
 │   ├── bookings/
 │   │   ├── page.tsx                 # Client Bookings List & Filter
 │   │   └── [slug]/page.tsx          # Unique slug page for specific booking details & cancellation

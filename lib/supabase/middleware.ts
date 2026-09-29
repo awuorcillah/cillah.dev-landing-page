@@ -37,7 +37,7 @@ export async function updateSession(request: NextRequest) {
 
   const url = request.nextUrl.clone()
 
-  // Protect /admin routes
+  // Protect /admin routes -> Only 'admin' role allowed. Non-admins redirected to /unauthorized 403 page
   if (url.pathname.startsWith('/admin')) {
     if (!user) {
       url.pathname = '/login'
@@ -51,13 +51,32 @@ export async function updateSession(request: NextRequest) {
       .single()
 
     if (profile?.role !== 'admin') {
-      url.pathname = '/client/dashboard'
+      url.pathname = '/unauthorized'
       return NextResponse.redirect(url)
     }
   }
 
-  // Protect /client routes
+  // Protect /client routes -> Only 'client' or 'admin' allowed
   if (url.pathname.startsWith('/client')) {
+    if (!user) {
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role === 'user') {
+      url.pathname = '/user/dashboard'
+      return NextResponse.redirect(url)
+    }
+  }
+
+  // Protect /user routes -> Any authenticated user
+  if (url.pathname.startsWith('/user')) {
     if (!user) {
       url.pathname = '/login'
       return NextResponse.redirect(url)
