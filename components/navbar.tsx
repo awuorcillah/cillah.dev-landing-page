@@ -58,16 +58,20 @@ export function Navbar() {
           ))}
         </nav>
 
-        {/* CLIENT PORTAL CTA */}
-        <div className="hidden md:block">
-          <a 
-            href={clientPortalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+        {/* DESKTOP NAV CTA BUTTONS */}
+        <div className="hidden md:flex items-center gap-4">
+          <Link
+            href="/login"
+            className="text-[15px] font-medium text-[#F9F7F6]/80 hover:text-[#C9A66B] px-3 py-2 transition-colors duration-300"
+          >
+            Log In
+          </Link>
+          <Link 
+            href="/signup"
             className="inline-flex items-center justify-center bg-[#C9A66B] text-[#1C1C1C] hover:bg-[#C9A66B]/90 font-heading font-medium rounded-[16px] px-6 py-2.5 text-[15px] tracking-wide transition-all duration-300 hover:shadow-[0_4px_20px_rgba(201,166,107,0.15)]"
           >
-            Client Portal
-          </a>
+            Sign Up
+          </Link>
         </div>
 
         {/* MOBILE MENU BUTTON */}
@@ -100,15 +104,22 @@ export function Navbar() {
             ))}
           </nav>
           
-          <a 
-            href={clientPortalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => setIsOpen(false)}
-            className="w-full text-center bg-[#C9A66B] text-[#1C1C1C] hover:bg-[#C9A66B]/90 font-heading font-medium rounded-[16px] py-4 text-[16px] tracking-wide transition-all duration-300"
-          >
-            Client Portal
-          </a>
+          <div className="flex flex-col gap-3 pt-2">
+            <Link 
+              href="/login"
+              onClick={() => setIsOpen(false)}
+              className="w-full text-center border border-[#C9A66B]/30 text-[#F9F7F6] hover:bg-[#F4E7E7]/5 font-heading font-medium rounded-[16px] py-3 text-[16px] tracking-wide transition-all duration-300"
+            >
+              Log In
+            </Link>
+            <Link 
+              href="/signup"
+              onClick={() => setIsOpen(false)}
+              className="w-full text-center bg-[#C9A66B] text-[#1C1C1C] hover:bg-[#C9A66B]/90 font-heading font-medium rounded-[16px] py-3 text-[16px] tracking-wide transition-all duration-300"
+            >
+              Sign Up
+            </Link>
+          </div>
         </div>
       )}
     </header>
