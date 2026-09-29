@@ -1,0 +1,10 @@
+fragment UseCasesParts on UseCases {
+  __typename
+  title
+  slug
+  teaser
+  featuredImage
+  content
+  publishedAt
+  featured
+}
