@@ -310,105 +310,11 @@ export type UseCasesMutation = {
   featured?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
-export type UseCasesPartsFragment = { __typename: 'UseCases', title: string, slug: string, teaser: string, featuredImage?: string | null, content?: any | null, publishedAt?: string | null, featured?: boolean | null };
 
-export type UseCasesQueryVariables = Exact<{
-  relativePath: Scalars['String']['input'];
-}>;
-
-
-export type UseCasesQuery = { __typename?: 'Query', useCases: { __typename: 'UseCases', id: string, title: string, slug: string, teaser: string, featuredImage?: string | null, content?: any | null, publishedAt?: string | null, featured?: boolean | null, _sys: { __typename?: 'SystemInfo', filename: string, basename: string, hasReferences?: boolean | null, breadcrumbs: Array<string>, path: string, relativePath: string, extension: string } } };
-
-export type UseCasesConnectionQueryVariables = Exact<{
-  before?: InputMaybe<Scalars['String']['input']>;
-  after?: InputMaybe<Scalars['String']['input']>;
-  first?: InputMaybe<Scalars['Float']['input']>;
-  last?: InputMaybe<Scalars['Float']['input']>;
-  sort?: InputMaybe<Scalars['String']['input']>;
-  filter?: InputMaybe<UseCasesFilter>;
-}>;
-
-
-export type UseCasesConnectionQuery = { __typename?: 'Query', useCasesConnection: { __typename?: 'UseCasesConnection', totalCount: number, pageInfo: { __typename?: 'PageInfo', hasPreviousPage: boolean, hasNextPage: boolean, startCursor: string, endCursor: string }, edges?: Array<{ __typename?: 'UseCasesConnectionEdges', cursor: string, node?: { __typename: 'UseCases', id: string, title: string, slug: string, teaser: string, featuredImage?: string | null, content?: any | null, publishedAt?: string | null, featured?: boolean | null, _sys: { __typename?: 'SystemInfo', filename: string, basename: string, hasReferences?: boolean | null, breadcrumbs: Array<string>, path: string, relativePath: string, extension: string } } | null } | null> | null } };
-
-export const UseCasesPartsFragmentDoc = gql`
-    fragment UseCasesParts on UseCases {
-  __typename
-  title
-  slug
-  teaser
-  featuredImage
-  content
-  publishedAt
-  featured
-}
-    `;
-export const UseCasesDocument = gql`
-    query useCases($relativePath: String!) {
-  useCases(relativePath: $relativePath) {
-    ... on Document {
-      _sys {
-        filename
-        basename
-        hasReferences
-        breadcrumbs
-        path
-        relativePath
-        extension
-      }
-      id
-    }
-    ...UseCasesParts
-  }
-}
-    ${UseCasesPartsFragmentDoc}`;
-export const UseCasesConnectionDocument = gql`
-    query useCasesConnection($before: String, $after: String, $first: Float, $last: Float, $sort: String, $filter: UseCasesFilter) {
-  useCasesConnection(
-    before: $before
-    after: $after
-    first: $first
-    last: $last
-    sort: $sort
-    filter: $filter
-  ) {
-    pageInfo {
-      hasPreviousPage
-      hasNextPage
-      startCursor
-      endCursor
-    }
-    totalCount
-    edges {
-      cursor
-      node {
-        ... on Document {
-          _sys {
-            filename
-            basename
-            hasReferences
-            breadcrumbs
-            path
-            relativePath
-            extension
-          }
-          id
-        }
-        ...UseCasesParts
-      }
-    }
-  }
-}
-    ${UseCasesPartsFragmentDoc}`;
 export type Requester<C= {}> = <R, V>(doc: DocumentNode, vars?: V, options?: C) => Promise<R>
   export function getSdk<C>(requester: Requester<C>) {
     return {
-      useCases(variables: UseCasesQueryVariables, options?: C): Promise<{data: UseCasesQuery, errors?: { message: string, locations: { line: number, column: number }[], path: string[] }[], variables: UseCasesQueryVariables, query: string}> {
-        return requester<{data: UseCasesQuery, errors?: { message: string, locations: { line: number, column: number }[], path: string[] }[], variables: UseCasesQueryVariables, query: string}, UseCasesQueryVariables>(UseCasesDocument, variables, options);
-      },
-    useCasesConnection(variables?: UseCasesConnectionQueryVariables, options?: C): Promise<{data: UseCasesConnectionQuery, errors?: { message: string, locations: { line: number, column: number }[], path: string[] }[], variables: UseCasesConnectionQueryVariables, query: string}> {
-        return requester<{data: UseCasesConnectionQuery, errors?: { message: string, locations: { line: number, column: number }[], path: string[] }[], variables: UseCasesConnectionQueryVariables, query: string}, UseCasesConnectionQueryVariables>(UseCasesConnectionDocument, variables, options);
-      }
+  
     };
   }
   export type Sdk = ReturnType<typeof getSdk>;
