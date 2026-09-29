@@ -48,6 +48,7 @@ erDiagram
 
     profiles {
         uuid id PK
+        string email UK
         string full_name
         string phone_number
         string company_name
