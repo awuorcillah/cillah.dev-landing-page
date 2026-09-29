@@ -204,33 +204,33 @@ erDiagram
 
 ## 6. Detailed Implementation Steps
 
-### Phase 1: Database Infrastructure & Supabase Client Setup
-1. Create SQL Migration file containing table definitions, ENUMs, triggers for automatic `profiles` row creation upon `auth.users` insert, and RLS policies.
-2. Setup `@supabase/ssr` or `@supabase/supabase-js` helpers in `lib/supabase/client.ts`, `lib/supabase/server.ts`, and `lib/supabase/middleware.ts`.
-3. Configure `Toaster` with `position="top-left"` in root layout.
+### Phase 1: Database Schema, Auth & Roles Testing Setup (Immediate Focus)
+1. **SQL Migration & Supabase Setup:**
+   - Create SQL migration script with `profiles` table (roles: `user`, `client`, `admin`, status: `active`, `rejected`, `banned`).
+   - Include automatic `profiles` row creation trigger upon `auth.users` registration.
+   - Set up Row Level Security (RLS) policies for `profiles`.
+2. **Supabase Client Helpers:**
+   - Configure `@supabase/ssr` / `@supabase/supabase-js` in `lib/supabase/client.ts`, `lib/supabase/server.ts`, and `lib/supabase/middleware.ts` for role-based route protection.
+3. **Auth Pages (`/signup`, `/login`, `/profile`):**
+   - Build `/signup` page capturing full name, email, phone number, company name.
+   - Build `/login` page handling credentials and auditing logins.
+   - Implement automatic middleware redirection based on user role (`admin` -> `/admin/dashboard`, `user`/`client` -> `/client/dashboard`).
+4. **Mockup Dashboards for Role Testing:**
+   - Build Mockup Admin Dashboard (`/admin/dashboard`) showing role status, user stats, and admin indicators.
+   - Build Mockup User/Client Dashboard (`/client/dashboard`) showing user profile details and role indicator.
+   - Test full flow: User Signup -> Automatic Profile Creation -> Role Assignment -> Manual Admin Role Update in Supabase -> Dashboard Access Verification.
 
-### Phase 2: Auth & User Profile System
-1. Build `app/(auth)/signup/page.tsx` with name, email, phone number, company name.
-2. Build `app/(auth)/login/page.tsx` capturing login audit records into `auth_audit_logs`.
-3. Build `app/(auth)/profile/page.tsx` for profile updating.
+### Phase 2: Session Types, Booking System & Availability Rules
+1. Build dynamic session types CRUD table and availability rules manager.
+2. Implement booking flow and slot generator.
 
-### Phase 3: Admin Portal & Session Management
-1. Build `/admin/dashboard/page.tsx` displaying KPI metrics (total bookings, revenue, upcoming sessions, active clients).
-2. Build `/admin/sessions/page.tsx` for complete CRUD of session types (Max slots, pricing, location, cancel policy).
-3. Build `/admin/sessions/availability/page.tsx` for controlling weekly scheduling rules and blackout exceptions.
-4. Build `/admin/clients/page.tsx` & `/admin/clients/[id]/page.tsx` for client directory management and banning/rejecting users.
-5. Build `/admin/history/page.tsx` with tabbed views for Auth Logs, Session History Logs, and Booking Logs.
-6. Build `/admin/reporting/page.tsx` with M-Pesa transaction analytics.
+### Phase 3: M-Pesa Daraja Integration & Webhooks
+1. Implement Safaricom Daraja STK Push payment flow.
+2. Handle asynchronous webhooks, payment receipt recording, and automatic role elevation (`user` -> `client`).
 
-### Phase 4: Client Portal & Booking Management
-1. Build `/client/dashboard/page.tsx` for client session overview and quick actions.
-2. Build `/client/bookings/page.tsx` listing all active and historical bookings.
-3. Build `/client/bookings/[slug]/page.tsx` for detailed session view, location link, and cancellation modal with reason capture.
-4. Build `/client/deliverables/page.tsx` for accessing shared audit documents and strategy assets.
-
-### Phase 5: M-Pesa Daraja Integration & Webhooks
-1. Implement `app/api/mpesa/stkpush/route.ts` with OAuth token retrieval & production payload.
-2. Implement `app/api/mpesa/callback/route.ts` handling M-Pesa callback payload, receipt recording, status transition, and role elevation.
+### Phase 4: Full Admin & Client Portals Polish
+1. Expand Admin Portal (client directory, reporting, system history logs).
+2. Expand Client Portal (booking cancellation, deliverable media storage).
 
 ---
 
