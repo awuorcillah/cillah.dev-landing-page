@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Menu, X } from "lucide-react"
 
 export function Navbar() {
   const supabase = createClient();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<any>(null)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   useEffect(() => {
