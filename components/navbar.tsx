@@ -1,23 +1,35 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Menu, X } from "lucide-react"
 
 export function Navbar() {
-  const supabase = createClient();
+  const supabase = createClient()
   const [user, setUser] = useState<any>(null)
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const profileRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     async function fetchUser() {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
     }
-    fetchUser();
-  }, []);
+    fetchUser()
+  }, [])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const [isOpen, setIsOpen] = useState(false)
   const pathname = usePathname()
@@ -69,32 +81,42 @@ export function Navbar() {
               {item.name}
             </Link>
           ))}
-          {/* Profile Avatar */}
-          <div className="relative" onMouseLeave={() => setProfileMenuOpen(false)}>
+          {/* Profile Avatar Dropdown */}
+          <div className="relative" ref={profileRef}>
             <button
-              className="flex items-center gap-2 text-[#F9F7F6] hover:text-[#C9A66B]"
+              className="flex items-center gap-2 text-[#F9F7F6] hover:text-[#C9A66B] focus:outline-none"
               onClick={() => setProfileMenuOpen(!profileMenuOpen)}
             >
               <img
                 src={user?.user_metadata?.avatar_url || '/placeholder-avatar.png'}
                 alt="Avatar"
-                className="h-8 w-8 rounded-full border border-[#C9A66B]/30"
+                className="h-9 w-9 rounded-full border-2 border-[#C9A66B]/40 object-cover"
               />
             </button>
             {profileMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-[#1C1C1C] border border-[#F4E7E7]/10 rounded-md shadow-lg z-20">
-                <Link href="/user/profile" className="block px-4 py-2 text-sm text-[#F9F7F6] hover:bg-[#C9A66B]/20">
+              <div className="absolute right-0 top-full mt-2 w-48 bg-[#1C1C1C] border border-[#F4E7E7]/15 rounded-xl shadow-2xl z-50 overflow-hidden">
+                <Link
+                  href="/user/profile"
+                  onClick={() => setProfileMenuOpen(false)}
+                  className="flex items-center gap-2 px-4 py-3 text-sm text-[#F9F7F6] hover:bg-[#C9A66B]/20 transition-colors"
+                >
                   Profile
                 </Link>
-                <Link href="/dashboard" className="block px-4 py-2 text-sm text-[#F9F7F6] hover:bg-[#C9A66B]/20">
+                <Link
+                  href="/dashboard"
+                  onClick={() => setProfileMenuOpen(false)}
+                  className="flex items-center gap-2 px-4 py-3 text-sm text-[#F9F7F6] hover:bg-[#C9A66B]/20 transition-colors"
+                >
                   Dashboard
                 </Link>
+                <div className="h-px bg-white/5 mx-3" />
                 <button
                   onClick={async () => {
-                    await supabase.auth.signOut();
-                    window.location.href = '/login';
+                    setProfileMenuOpen(false)
+                    await supabase.auth.signOut()
+                    window.location.href = '/login'
                   }}
-                  className="w-full text-left px-4 py-2 text-sm text-[#F9F7F6] hover:bg-[#C9A66B]/20"
+                  className="w-full text-left flex items-center gap-2 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
                 >
                   Log Out
                 </button>
