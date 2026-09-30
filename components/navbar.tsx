@@ -1,11 +1,23 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 import { Menu, X } from "lucide-react"
 
 export function Navbar() {
+  const supabase = createClient();
+  const [user, setUser] = useState(null);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    async function fetchUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    }
+    fetchUser();
+  }, []);
+
   const [isOpen, setIsOpen] = useState(false)
   const pathname = usePathname()
 
@@ -56,6 +68,38 @@ export function Navbar() {
               {item.name}
             </Link>
           ))}
+          {/* Profile Avatar */}
+          <div className="relative" onMouseLeave={() => setProfileMenuOpen(false)}>
+            <button
+              className="flex items-center gap-2 text-[#F9F7F6] hover:text-[#C9A66B]"
+              onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+            >
+              <img
+                src={user?.user_metadata?.avatar_url || '/placeholder-avatar.png'}
+                alt="Avatar"
+                className="h-8 w-8 rounded-full border border-[#C9A66B]/30"
+              />
+            </button>
+            {profileMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-[#1C1C1C] border border-[#F4E7E7]/10 rounded-md shadow-lg z-20">
+                <Link href="/user/profile" className="block px-4 py-2 text-sm text-[#F9F7F6] hover:bg-[#C9A66B]/20">
+                  Profile
+                </Link>
+                <Link href="/dashboard" className="block px-4 py-2 text-sm text-[#F9F7F6] hover:bg-[#C9A66B]/20">
+                  Dashboard
+                </Link>
+                <button
+                  onClick={async () => {
+                    await supabase.auth.signOut();
+                    window.location.href = '/login';
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-[#F9F7F6] hover:bg-[#C9A66B]/20"
+                >
+                  Log Out
+                </button>
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* DESKTOP NAV CTA BUTTONS */}
