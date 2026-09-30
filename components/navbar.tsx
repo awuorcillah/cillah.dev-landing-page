@@ -9,6 +9,7 @@ import { Menu, X } from "lucide-react"
 export function Navbar() {
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
+  const [role, setRole] = useState<string | null>(null)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
 
@@ -16,6 +17,14 @@ export function Navbar() {
     async function fetchUser() {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role, avatar_url')
+          .eq('id', user.id)
+          .single()
+        if (profile) setRole(profile.role)
+      }
     }
     fetchUser()
   }, [])
@@ -92,6 +101,9 @@ export function Navbar() {
                 alt="Avatar"
                 className="h-9 w-9 rounded-full border-2 border-[#C9A66B]/40 object-cover"
               />
+              {role === 'admin' && (
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#C9A66B]">Admin</span>
+              )}
             </button>
             {profileMenuOpen && (
               <div className="absolute right-0 top-full mt-2 w-48 bg-[#1C1C1C] border border-[#F4E7E7]/15 rounded-xl shadow-2xl z-50 overflow-hidden">
@@ -109,6 +121,15 @@ export function Navbar() {
                 >
                   Dashboard
                 </Link>
+                {role === 'admin' && (
+                  <Link
+                    href="/admin/dashboard"
+                    onClick={() => setProfileMenuOpen(false)}
+                    className="flex items-center gap-2 px-4 py-3 text-sm text-[#C9A66B] hover:bg-[#C9A66B]/20 transition-colors font-semibold"
+                  >
+                    ⚙ Admin Panel
+                  </Link>
+                )}
                 <div className="h-px bg-white/5 mx-3" />
                 <button
                   onClick={async () => {
