@@ -198,7 +198,11 @@ export default function AdminDashboard() {
                 <Table>
                   <TableHeader className="bg-slate-950">
                     <TableRow className="border-slate-800 hover:bg-transparent">
-                      <TableHead className="text-slate-400">Full Name</TableHead>
+                      <TableHead className="text-slate-400">First Name</TableHead>
+                      <TableHead className="text-slate-400">Last Name</TableHead>
+                      <TableHead className="text-slate-400">Phone</TableHead>
+                      <TableHead className="text-slate-400">City</TableHead>
+                      <TableHead className="text-slate-400">Country</TableHead>
                       <TableHead className="text-slate-400">Company</TableHead>
                       <TableHead className="text-slate-400">Role</TableHead>
                       <TableHead className="text-slate-400">Status</TableHead>
@@ -208,9 +212,13 @@ export default function AdminDashboard() {
                   <TableBody>
                     {allProfiles.map((p) => (
                       <TableRow key={p.id} className="border-slate-800 hover:bg-slate-800/40">
-                        <TableCell className="font-medium text-slate-200">
-                          {p.full_name || 'N/A'}
+                        <TableCell className="font-medium text-slate-200">{p.first_name || '—'}</TableCell>
+                        <TableCell className="text-slate-300">{p.last_name || '—'}</TableCell>
+                        <TableCell className="text-slate-400 font-mono text-xs">
+                          {p.phone_prefix || p.phone_number ? `${p.phone_prefix || ''} ${p.phone_number || ''}`.trim() : '—'}
                         </TableCell>
+                        <TableCell className="text-slate-400">{p.city || '—'}</TableCell>
+                        <TableCell className="text-slate-400">{p.country || '—'}</TableCell>
                         <TableCell className="text-slate-400">{p.company_name || '—'}</TableCell>
                         <TableCell>
                           <Badge className={

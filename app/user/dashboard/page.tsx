@@ -131,7 +131,9 @@ export default function UserDashboard() {
             </div>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-xl font-extrabold text-slate-100">{profile?.full_name || 'Valued User'}</h1>
+                <h1 className="text-xl font-extrabold text-slate-100">
+                  {profile?.full_name || [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'Valued User'}
+                </h1>
                 <Badge className="bg-slate-800 text-slate-300 border-slate-700 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider">
                   User Portal
                 </Badge>
@@ -149,6 +151,58 @@ export default function UserDashboard() {
             >
               <LogOut className="w-4 h-4 mr-2" /> Log Out
             </Button>
+          </div>
+        </div>
+
+        {/* SECTION 0: Profile Summary */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-200 flex items-center gap-2">
+              <User className="w-5 h-5 text-cyan-400" /> Your Profile Summary
+            </h2>
+            <Button asChild size="sm" variant="outline" className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800">
+              <Link href="/user/profile">Edit Profile</Link>
+            </Button>
+          </div>
+          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">First Name</p>
+              <p className="text-slate-200 font-medium">{profile?.first_name || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">Last Name</p>
+              <p className="text-slate-200 font-medium">{profile?.last_name || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">Phone</p>
+              <p className="text-slate-200 font-medium">
+                {profile?.phone_prefix || profile?.phone_number ? `${profile?.phone_prefix || ''} ${profile?.phone_number || ''}`.trim() : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">Address Line 1</p>
+              <p className="text-slate-200 font-medium">{profile?.address_line1 || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">Address Line 2</p>
+              <p className="text-slate-200 font-medium">{profile?.address_line2 || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">City</p>
+              <p className="text-slate-200 font-medium">{profile?.city || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">County / State</p>
+              <p className="text-slate-200 font-medium">{profile?.county || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">Post Code</p>
+              <p className="text-slate-200 font-medium">{profile?.post_code || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">Country</p>
+              <p className="text-slate-200 font-medium">{profile?.country || '—'}</p>
+            </div>
           </div>
         </div>
 
