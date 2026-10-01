@@ -315,5 +315,252 @@ ADMIN_NOTIFICATION_EMAIL="cheryl@cillah.dev"
 NEXT_PUBLIC_CALENDLY_URL=https://calendly.com/your-calendly-link
 NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
 NEXT_PUBLIC_META_PIXEL_ID=XXXXXXXXXXXXXXX
+
 ```
 
+---
+
+## 9. Phase 2 — Admin Dashboard Checklist
+
+> **Status**: 🔲 Not Started | ✅ Done | 🔄 In Progress
+> **GitHub Issues**: #1 (Schema), #2 (Dashboard UI), #3 (Session CRUD)
+> **Last Updated**: 2026-10-01
+
+---
+
+### 9.1 Confirmed Design Decisions
+
+| Decision | Choice |
+|----------|--------|
+| Sidebar default (desktop) | **Open** |
+| Sidebar on mobile | **Hidden, toggle on demand** |
+| Notifications strategy | **Supabase Realtime** (live push, no polling lag) |
+| Google Meet links | **Manual paste now** → Auto-generate via Google Workspace API (Phase 3) |
+| Mock data | **Yes — all UI built with mock data first, approved before wiring real data** |
+| Branding | `bg-slate-950`, `border-slate-800`, gold `#C9A66B`, `cyan-400` accents |
+
+---
+
+### 9.2 Supabase Schema Migrations
+
+#### New Tables to Create
+- [ ] **`session_categories`** — organise session types (Webinars, Consultations, etc.)
+  ```sql
+  id, name, slug (unique), description, icon (lucide name), sort_order, is_active, created_at
+  ```
+- [ ] **`sessions`** — individual scheduled events/webinars (instances)
+  ```sql
+  id, session_type_id (FK), title, description, scheduled_at, end_at,
+  meet_link, status (scheduled|live|completed|cancelled),
+  max_attendees, is_public, is_paid, price_kes, price_usd,
+  created_by (FK → profiles), created_at, updated_at
+  ```
+- [ ] **`session_registrations`** — attendee sign-ups for group sessions/webinars
+  ```sql
+  id, session_id (FK), user_id (FK), status (registered|attended|cancelled|no_show),
+  payment_status (free|pending|paid|refunded), amount_paid, created_at
+  ```
+- [ ] **`session_waitlist`** — waitlist when session is full *(approved suggestion)*
+  ```sql
+  id, session_id (FK), user_id (FK), position, notified_at, created_at
+  ```
+- [ ] **`notifications`** — real-time admin notification center
+  ```sql
+  id, recipient_id (FK → profiles), type (new_booking|cancellation|payment_received|new_user|role_change),
+  title, message, is_read, action_url, metadata (jsonb), created_at
+  ```
+- [ ] **`client_notes`** — private admin notes per client *(approved suggestion)*
+  ```sql
+  id, client_id (FK → profiles), admin_id (FK → profiles), note, created_at, updated_at
+  ```
+
+#### ALTER TABLE Migrations
+- [ ] `session_types` → add `category_id` (uuid FK → session_categories)
+- [ ] `session_types` → add `session_format` (text: `webinar|consultation_free|consultation_paid`)
+- [ ] `session_types` → add `updated_at` (timestamptz default now())
+- [ ] `availability_rules` → add `recurrence_rule` (jsonb: `{"type":"weekly","interval":1}`)
+- [ ] `availability_exceptions` → add `session_type_id` (uuid FK → session_types)
+
+#### RLS Policies
+- [ ] All new tables: `RLS ENABLED`
+- [ ] `notifications`: only recipient_id or admin can SELECT
+- [ ] `client_notes`: only admin can SELECT/INSERT/UPDATE/DELETE
+- [ ] `session_waitlist`: user can see own position; admin sees all
+
+---
+
+### 9.3 Admin Dashboard Layout
+
+#### Shell & Navigation
+- [ ] **Left Sidebar** — collapsible, open by default on desktop
+  - [ ] Logo + app name at top
+  - [ ] Navigation sections: Sessions ▸ | Clients | Bookings
+  - [ ] Sessions sub-items (expandable): Categories, Session Types, All Sessions, Availability
+  - [ ] Collapse toggle button (◀ / ▶) at bottom
+  - [ ] Sidebar state persisted in `localStorage`
+  - [ ] Icon-only mode when collapsed (tooltip labels on hover)
+- [ ] **Header Bar**
+  - [ ] Left: hamburger toggle + breadcrumbs (small text, e.g. `Admin > Sessions > Categories`)
+  - [ ] Right: 🔔 Notification bell (with unread count badge) + Avatar + Name + Dropdown
+  - [ ] Profile dropdown: matches root landing page nav dropdown style (dark glass)
+    - Items: View Profile | Edit Profile | ─── | Log Out
+
+#### Dashboard Overview Page (`/admin/dashboard`)
+- [ ] **Metrics Cards** (4-card grid) with mock data:
+  - Total Users | Active Clients | Total Bookings | Revenue (KES)
+  - Each card: big number + trend arrow (↑↓) + % vs previous period + period label
+- [ ] **Date Range Filter** (top right of cards section):
+  - Tabs: Today | Last 7 days | Last 30 days | Custom range
+  - Filter updates all 4 card values + trend %
+- [ ] **Quick Actions** section (icon + label buttons):
+  - ➕ New Session | 📅 Set Availability | 👥 Manage Clients | 📋 View Bookings
+- [ ] **Recent Bookings** — mini table, last 5 bookings (mock)
+- [ ] **Upcoming Sessions** — next 3 scheduled events (mock)
+- [ ] **Revenue Tab** *(approved suggestion)*:
+  - KES vs USD breakdown
+  - M-Pesa receipts log table
+  - Monthly revenue bar chart (mock data)
+
+---
+
+### 9.4 Session Management
+
+#### `/admin/sessions/categories` — Category CRUD
+- [ ] Table: Icon | Name | Slug | Sessions count | Active toggle | Sort order | Edit | Delete
+- [ ] Create modal: name (auto-slug), description, icon picker (lucide names), sort order
+- [ ] Edit modal (pre-filled)
+- [ ] Delete with confirmation dialog
+- [ ] Drag-to-reorder sort (future)
+
+#### `/admin/sessions/types` — Session Types CRUD
+- [ ] Table: Title | Category | Format badge (Webinar/Free/Paid) | Duration | Price KES | Price USD | Active | Edit | Delete | **Clone** *(approved suggestion)*
+- [ ] Create/Edit modal: all fields including `session_format`, `category_id`, `location_type`, `meet_link`, pricing, max slots
+- [ ] **Clone button** — duplicates session type, opens edit modal pre-filled with "(Copy)" suffix
+- [ ] Active toggle inline
+- [ ] Auto-slug generation from title
+
+#### `/admin/sessions` — All Sessions List
+- [ ] Filter tabs: Upcoming | Live | Past | Cancelled
+- [ ] Table: Title | Type | Date & Time | Attendees / Max | Waitlist count | Status | Meet Link | Actions
+- [ ] Actions: Edit | Cancel | Clone | View Registrations
+
+#### `/admin/sessions/new` — Create Session/Event
+- [ ] Form fields: session type, title, description, date+time, end time, Google Meet link (manual), max attendees, is paid, price, is public, notes
+- [ ] **Booking Status Timeline preview** *(approved suggestion)* — shows what steps users will see
+
+#### `/admin/availability` — Availability Rules
+- [ ] Weekly grid view: Mon–Sun columns, shows configured time slots per session type
+- [ ] **Add Rule** form: session type, day of week, start time, end time, slot duration
+- [ ] **Add Exception** form: session type, date picker, available/blocked toggle, reason note
+- [ ] Delete rule / Delete exception with confirmation
+- [ ] Recurrence JSONB: `{ "type": "weekly", "interval": 1 }`
+
+---
+
+### 9.5 Client Management
+
+#### `/admin/clients` — Client Directory
+- [ ] Search bar (by name, email)
+- [ ] Filter by role: All | User | Client | Admin
+- [ ] Table: Avatar | Name | Email | Phone | Company | Role badge | Status | Joined | Actions
+- [ ] **Inline role assignment** — dropdown in table row (user → client → admin)
+- [ ] **Bulk role assignment** — select multiple → assign role *(approved suggestion)*
+- [ ] View client detail panel (slide-out or modal):
+  - Profile info, booking history, payment history
+  - **Admin Notes section** *(approved suggestion)*: add/edit/delete private notes
+- [ ] **CSV Export** button *(approved suggestion)* — exports filtered clients list
+
+---
+
+### 9.6 Bookings Management
+
+#### `/admin/bookings` — All Bookings
+- [ ] Filter: All | Pending | Confirmed | Completed | Cancelled
+- [ ] Date range filter
+- [ ] Table: Ref# | Client | Session | Scheduled | Status | Payment | Actions
+- [ ] Actions: Confirm | Cancel | Reschedule | View Details
+- [ ] **Booking Status Timeline** *(approved suggestion)* — visual stepper on each booking detail:
+  ```
+  ● Requested (2026-10-01 09:00)
+  ● Confirmed  (2026-10-01 09:15) ← admin confirmed
+  ○ Completed  (pending)
+  ```
+- [ ] **CSV Export** *(approved suggestion)* — export filtered bookings
+
+---
+
+### 9.7 Real-Time Notification Center
+
+#### Strategy: **Supabase Realtime**
+- Subscribe to `notifications` table `INSERT` events filtered by `recipient_id = admin_id`
+- No polling — instant push when new notifications arrive
+- Unread count badge updates live
+
+#### Notification Bell (Header)
+- [ ] Bell icon with animated red badge (count of unread)
+- [ ] Click opens dropdown (max 5 recent notifications):
+  ```
+  🟢 New booking — Sarah K. booked Strategy Call    2m ago
+  💰 Payment received — KES 5,000 from James M.    15m ago
+  👤 New user registered: peter@email.com           1h ago
+  📋 Role changed: jane@email.com → client          2h ago
+  ✅ Mark all as read | 📋 View all →
+  ```
+- [ ] Mark individual as read (click notification)
+- [ ] Mark all as read button
+
+#### `/admin/notifications` — Full Notifications Page
+- [ ] Full list paginated
+- [ ] Filter by type: All | Bookings | Payments | Users
+- [ ] Read/Unread toggle filter
+
+#### Notification Triggers (Supabase DB Functions)
+- [ ] `on INSERT to bookings` → insert notification (type: `new_booking`)
+- [ ] `on UPDATE bookings.status = 'cancelled'` → notification (type: `cancellation`)
+- [ ] `on UPDATE bookings.payment_status = 'paid'` → notification (type: `payment_received`)
+- [ ] `on INSERT to profiles` → notification (type: `new_user`)
+- [ ] `on UPDATE profiles.role` → notification (type: `role_change`)
+
+---
+
+### 9.8 Approved Additional Features (Phase 2)
+
+- [ ] **Session Waitlist** — users join queue when session is full; auto-notified when slot opens
+- [ ] **Booking Status Timeline** — visual step tracker on each booking (Requested → Confirmed → Completed)
+- [ ] **Revenue Tab** — KES/USD breakdown on dashboard, M-Pesa receipts log, monthly chart
+- [ ] **Session Clone** — duplicate session type with one click, opens pre-filled edit modal
+- [ ] **Admin Client Notes** — private internal notes per client, only visible to admin
+- [ ] **CSV Export** — downloadable exports for both clients list and bookings list
+
+---
+
+### 9.9 Future Phase Roadmap (NOT Phase 2)
+
+- [ ] Google Meet auto-generation via Google Workspace API
+- [ ] Zoom as alternative meeting platform
+- [ ] Session recording links (attach after session)
+- [ ] Auto-email on booking confirmation (Resend — already in .env)
+- [ ] Google Calendar / iCal export
+- [ ] Session tags for filtering
+- [ ] Keyboard shortcuts (N=new session, C=clients, B=bookings)
+- [ ] Full analytics: attendance rate, revenue per session type, conversion funnel
+
+---
+
+### 9.10 Execution Order
+
+| Step | Task | GitHub Issue | Status |
+|------|------|-------------|--------|
+| 1 | Run Supabase schema migrations (new tables + columns) | #1 | 🔲 |
+| 2 | Build admin layout shell (sidebar + header + breadcrumbs) | #2 | 🔲 |
+| 3 | Build dashboard overview (cards + date filter + quick actions) | #2 | 🔲 |
+| 4 | Build notification center (Realtime + bell + dropdown) | #2 | 🔲 |
+| 5 | Build revenue tab on dashboard | #2 | 🔲 |
+| 6 | Build session categories CRUD | #3 | 🔲 |
+| 7 | Build session types CRUD (with Clone) | #3 | 🔲 |
+| 8 | Build sessions list + create form + waitlist | #3 | 🔲 |
+| 9 | Build availability rules + exceptions UI | #3 | 🔲 |
+| 10 | Build clients directory + role management + admin notes + CSV export | #2 | 🔲 |
+| 11 | Build bookings management + timeline + CSV export | #2 | 🔲 |
+| 12 | Wire all mock data to real Supabase queries | #2 #3 | 🔲 |
+| 13 | Design review & approval | — | 🔲 |
