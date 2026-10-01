@@ -80,8 +80,8 @@ export default function PrivacyPolicy() {
                 <p>
                   If you have any questions about this Privacy Policy, please contact us at:
                   <br />
-                  <a href="mailto:info@cillah.dev" className="text-[#C9A66B] hover:underline mt-2 inline-block">
-                    info@cillah.dev
+                  <a href="mailto:atulah@cillah.dev" className="text-[#C9A66B] hover:underline mt-2 inline-block">
+                    atulah@cillah.dev
                   </a>
                 </p>
               </div>

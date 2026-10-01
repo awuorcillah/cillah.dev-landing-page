@@ -17,7 +17,7 @@ export function Footer() {
   const tagline = "The Operating System Behind High-Performing Real Estate Agencies"
   const currentYear = new Date().getFullYear()
 
-  const contactEmail = "info@cillah.dev"
+  const contactEmail = "atulah@cillah.dev"
   const phone = "+254759442265"
   const linkedIn = "https://www.linkedin.com/in/cheryl-cilla-77a125415?utm_source=share_via&utm_content=profile&utm_medium=member_android"
   const instagram = "https://www.instagram.com/cheryl_cilla"

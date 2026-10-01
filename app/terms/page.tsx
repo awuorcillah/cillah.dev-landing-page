@@ -94,8 +94,8 @@ export default function TermsOfService() {
                 </h2>
                 <p>
                   Questions about these terms:&nbsp;
-                  <a href="mailto:info@cillah.dev" className="text-[#C9A66B] hover:underline">
-                    info@cillah.dev
+                  <a href="mailto:atulah@cillah.dev" className="text-[#C9A66B] hover:underline">
+                    atulah@cillah.dev
                   </a>
                 </p>
               </div>
