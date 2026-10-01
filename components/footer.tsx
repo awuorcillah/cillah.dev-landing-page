@@ -154,6 +154,14 @@ export function Footer() {
                   Privacy Policy
                 </Link>
               </li>
+              <li>
+                <Link 
+                  href="/terms" 
+                  className="text-[#F9F7F6]/60 hover:text-[#C9A66B] text-[15px] transition-colors duration-300"
+                >
+                  Terms
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

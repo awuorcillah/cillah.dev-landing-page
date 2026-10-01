@@ -4,7 +4,7 @@ import { motion } from "framer-motion"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 
-export default function PrivacyPolicy() {
+export default function TermsOfService() {
   return (
     <>
       <Navbar />
@@ -19,7 +19,7 @@ export default function PrivacyPolicy() {
               transition={{ duration: 0.8, ease: "easeOut" }}
             >
               <h1 className="font-heading font-light text-[36px] md:text-[52px] leading-tight text-[#F9F7F6] mb-4">
-                Privacy Policy
+                Terms of Service
               </h1>
               <p className="text-sm text-[#F9F7F6]/40 uppercase tracking-widest font-sans font-medium">
                 Last Updated: October 2026
@@ -28,59 +28,73 @@ export default function PrivacyPolicy() {
           </div>
         </section>
 
-        {/* POLICY CONTENT */}
+        {/* TERMS CONTENT */}
         <section className="pb-32 bg-[#1C1C1C]">
           <div className="container mx-auto max-w-3xl px-6">
             <div className="prose prose-invert max-w-none space-y-12 font-sans font-light text-[17px] leading-relaxed text-[#F9F7F6]/70">
               <div>
+                <p>These terms govern the use of cillah.dev.</p>
+              </div>
+
+              <div>
                 <h2 className="font-heading font-normal text-[24px] text-[#F9F7F6] mb-4 border-b border-[#F4E7E7]/10 pb-2">
-                  Information We Collect
+                  1. Services
                 </h2>
                 <p>
-                  We may collect names, email addresses, phone numbers, WhatsApp contact
-                  information, Instagram messages, chatbot conversations, and information
-                  submitted through forms on our website. When the site owner connects their
-                  own Google account to our internal automation tooling, we access that
-                  account&apos;s Gmail and Google Sheets data solely to operate automated
-                  workflows (such as email outreach campaigns) at the direction of the account
-                  owner. This access is limited to accounts that have explicitly granted
-                  permission through Google&apos;s OAuth consent screen, and the only
-                  authorized user is the site owner.
+                  Cillah.dev provides AI automation services, including workflow automation,
+                  chatbot development, and email outreach campaigns.
                 </p>
               </div>
 
               <div>
                 <h2 className="font-heading font-normal text-[24px] text-[#F9F7F6] mb-4 border-b border-[#F4E7E7]/10 pb-2">
-                  How We Use Information
+                  2. Accounts
                 </h2>
                 <p>
-                  We use this information to provide AI automation services, respond to
-                  inquiries, qualify leads, and improve our services. Google account data
-                  accessed through OAuth (Gmail, Google Sheets) is used exclusively to send
-                  and track email campaigns and to read and write spreadsheets on behalf of
-                  the account owner, and is never sold, shared, or used for advertising.
+                  Access to client portals and internal tools is restricted to authorized
+                  users. Users are responsible for maintaining the confidentiality of their
+                  credentials.
                 </p>
               </div>
 
               <div>
                 <h2 className="font-heading font-normal text-[24px] text-[#F9F7F6] mb-4 border-b border-[#F4E7E7]/10 pb-2">
-                  Third-Party Services
+                  3. Third-Party Integrations
                 </h2>
                 <p>
-                  We may use Meta (Facebook, Instagram, WhatsApp), Google (Gmail, Google
-                  Sheets), OpenAI, Make.com, Airtable, GitHub, and Vercel to provide our
-                  services.
+                  Our services may connect to third-party platforms (including Meta, Google,
+                  OpenAI, Make.com, Airtable, GitHub, and Vercel). Use of those platforms is
+                  additionally governed by their own terms.
                 </p>
               </div>
 
               <div>
                 <h2 className="font-heading font-normal text-[24px] text-[#F9F7F6] mb-4 border-b border-[#F4E7E7]/10 pb-2">
-                  Contact
+                  4. Acceptable Use
                 </h2>
                 <p>
-                  If you have any questions about this Privacy Policy, please contact us at:
-                  <br />
-                  <a href="mailto:info@cillah.dev" className="text-[#C9A66B] hover:underline mt-2 inline-block">
+                  Clients agree not to use our services to send spam, unlawful content, or
+                  material that violates any third party&apos;s rights.
+                </p>
+              </div>
+
+              <div>
+                <h2 className="font-heading font-normal text-[24px] text-[#F9F7F6] mb-4 border-b border-[#F4E7E7]/10 pb-2">
+                  5. Liability
+                </h2>
+                <p>
+                  Services are provided &apos;as is&apos; without warranties of any kind.
+                  Cillah.dev is not liable for indirect or consequential damages.
+                </p>
+              </div>
+
+              <div>
+                <h2 className="font-heading font-normal text-[24px] text-[#F9F7F6] mb-4 border-b border-[#F4E7E7]/10 pb-2">
+                  6. Contact
+                </h2>
+                <p>
+                  Questions about these terms:&nbsp;
+                  <a href="mailto:info@cillah.dev" className="text-[#C9A66B] hover:underline">
                     info@cillah.dev
                   </a>
                 </p>
