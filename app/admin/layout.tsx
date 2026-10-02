@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Calendar,
   Users,
+  UserCheck,
   BookOpen,
   FolderOpen,
   Bell,
@@ -54,6 +55,7 @@ const PATH_LABELS: Record<string, string> = {
   types: 'Session Types',
   availability: 'Availability',
   clients: 'Clients',
+  users: 'Users',
   bookings: 'Bookings',
   notifications: 'Notifications',
   new: 'New',
@@ -218,8 +220,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Clients */}
           <Link href="/admin/clients" className={navCls(isActive('/admin/clients'))}>
-            <Users className="w-4 h-4 flex-shrink-0" />
+            <UserCheck className="w-4 h-4 flex-shrink-0" />
             {expanded && <span>Clients</span>}
+          </Link>
+
+          {/* Users */}
+          <Link href="/admin/users" className={navCls(isActive('/admin/users'))}>
+            <Users className="w-4 h-4 flex-shrink-0" />
+            {expanded && <span>Users</span>}
           </Link>
 
           {/* Bookings */}

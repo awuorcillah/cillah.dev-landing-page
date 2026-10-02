@@ -5,8 +5,84 @@ export function gql(strings, ...args) {
   });
   return str;
 }
+export const UseCasesPartsFragmentDoc = gql`
+    fragment UseCasesParts on UseCases {
+  __typename
+  title
+  slug
+  teaser
+  featuredImage
+  content
+  publishedAt
+  featured
+}
+    `;
+export const UseCasesDocument = gql`
+    query useCases($relativePath: String!) {
+  useCases(relativePath: $relativePath) {
+    ... on Document {
+      _sys {
+        filename
+        basename
+        hasReferences
+        breadcrumbs
+        path
+        relativePath
+        extension
+      }
+      id
+    }
+    ...UseCasesParts
+  }
+}
+    ${UseCasesPartsFragmentDoc}`;
+export const UseCasesConnectionDocument = gql`
+    query useCasesConnection($before: String, $after: String, $first: Float, $last: Float, $sort: String, $filter: UseCasesFilter) {
+  useCasesConnection(
+    before: $before
+    after: $after
+    first: $first
+    last: $last
+    sort: $sort
+    filter: $filter
+  ) {
+    pageInfo {
+      hasPreviousPage
+      hasNextPage
+      startCursor
+      endCursor
+    }
+    totalCount
+    edges {
+      cursor
+      node {
+        ... on Document {
+          _sys {
+            filename
+            basename
+            hasReferences
+            breadcrumbs
+            path
+            relativePath
+            extension
+          }
+          id
+        }
+        ...UseCasesParts
+      }
+    }
+  }
+}
+    ${UseCasesPartsFragmentDoc}`;
 export function getSdk(requester) {
-  return {};
+  return {
+    useCases(variables, options) {
+      return requester(UseCasesDocument, variables, options);
+    },
+    useCasesConnection(variables, options) {
+      return requester(UseCasesConnectionDocument, variables, options);
+    }
+  };
 }
 import { createClient } from "tinacms/dist/client";
 const generateRequester = (client) => {
