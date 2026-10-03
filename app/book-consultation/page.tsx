@@ -62,10 +62,10 @@ const ADMIN_SESSIONS = [
     badgeColor: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
     priceKES: 0,
     priceUSD: 0,
-    duration: "30 mins",
-    description: "Complimentary 30-min discovery call to audit lead handling & identify instant automation opportunities.",
+    duration: "15 mins",
+    description: "Complimentary 15-min discovery call to audit lead handling & identify instant automation opportunities.",
     features: [
-      "30-min discovery audit call",
+      "15-min discovery audit call",
       "Current sales pipeline review",
       "Lead leakage & delay report",
       "No-obligation recommendations"
