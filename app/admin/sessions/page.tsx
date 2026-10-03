@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
 import {
   Calendar, List, Plus, Edit2, Trash2, Video, ExternalLink,
   Clock, Users, AlertCircle, X, Search, Eye, EyeOff,
@@ -81,6 +82,7 @@ const TABS = ['All', 'Upcoming', 'Draft', 'Live', 'Past'] as const
 type Tab = typeof TABS[number]
 
 export default function SessionsPage() {
+  const supabase = createClient()
   const [sessions, setSessions] = useState<Session[]>(INITIAL_SESSIONS)
   const [view, setView]         = useState<'table' | 'calendar'>('table')
   const [tab, setTab]           = useState<Tab>('All')
@@ -91,6 +93,40 @@ export default function SessionsPage() {
   const now   = new Date()
   const [calYear,  setCalYear]  = useState(now.getFullYear())
   const [calMonth, setCalMonth] = useState(now.getMonth())
+
+  // ── Fetch live sessions from Supabase ──
+  useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        const { data: dbSessions, error } = await supabase
+          .from('session_types')
+          .select('*')
+
+        if (dbSessions && dbSessions.length > 0) {
+          const formatted: Session[] = dbSessions.map((s: any, idx: number) => ({
+            id: s.id,
+            title: s.title,
+            session_format: (s.session_format as SessionFormat) || 'consultation_free',
+            session_type: s.title,
+            scheduled_at: s.created_at || new Date(Date.now() + 86400000 * (idx + 1)).toISOString(),
+            end_at: new Date(Date.now() + 86400000 * (idx + 1) + 3600000).toISOString(),
+            meet_link: s.location_details || 'https://meet.google.com/cillah-dev-session',
+            status: s.is_active ? 'scheduled' : 'draft',
+            max_attendees: s.max_slots || 1,
+            attendees: s.session_format === 'webinar' ? 34 : 1,
+            waitlist: 0,
+            is_public: true,
+            is_paid: s.price_kes > 0,
+            price_kes: s.price_kes || 0
+          }))
+          setSessions(formatted)
+        }
+      } catch (err) {
+        console.error('Fetch sessions error:', err)
+      }
+    }
+    fetchSessions()
+  }, [])
 
   // ── Filter sessions ──
   const filtered = sessions.filter(s => {
