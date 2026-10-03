@@ -575,158 +575,163 @@ export default function HomePage() {
 
               {/* Leads Table Section */}
               <div className="border border-white/10 rounded-[18px] bg-white/[0.01] overflow-hidden">
-                <div className="p-5 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white/[0.02]">
+                <div className="p-4 sm:p-5 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/[0.02]">
                   <div>
-                    <h4 className="font-heading font-medium text-[#F9F7F6] text-base">Assigned Leads Table</h4>
-                    <p className="text-xs text-[#F9F7F6]/50 font-light">Live stream of captured inquiries with buyer interest, timeline, & assigned sales agent.</p>
+                    <h4 className="font-heading font-medium text-[#F9F7F6] text-base flex items-center gap-2">
+                      Assigned Leads Table
+                      <span className="md:hidden text-[10px] text-[#C9A66B] bg-[#C9A66B]/10 px-2 py-0.5 rounded font-mono font-normal">
+                        Swipe &rarr;
+                      </span>
+                    </h4>
+                    <p className="text-xs text-[#F9F7F6]/50 font-light">Live stream of captured inquiries with assigned sales agent & buyer timeline.</p>
                   </div>
-                  <div className="text-xs text-[#C9A66B] bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg font-mono">
+                  <div className="text-xs text-[#C9A66B] bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg font-mono self-start sm:self-auto">
                     Total Assigned: 344 Leads
                   </div>
                 </div>
 
-                {/* Table Container */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs font-sans">
+                {/* Mobile-Optimized Table Container */}
+                <div className="overflow-x-auto w-full scrollbar-thin">
+                  <table className="w-full min-w-[840px] text-left text-xs font-sans">
                     <thead>
                       <tr className="border-b border-white/10 bg-white/[0.03] text-[#F9F7F6]/50 uppercase tracking-wider text-[10px] font-medium">
-                        <th className="py-3.5 px-4">Lead Name</th>
-                        <th className="py-3.5 px-4">Phone Number</th>
-                        <th className="py-3.5 px-4">Source</th>
-                        <th className="py-3.5 px-4">Property Interest</th>
-                        <th className="py-3.5 px-4">Timeline</th>
-                        <th className="py-3.5 px-4">Sales Agent Assigned</th>
+                        <th className="py-3.5 px-4 whitespace-nowrap">Lead Name</th>
+                        <th className="py-3.5 px-4 whitespace-nowrap">Phone Number</th>
+                        <th className="py-3.5 px-4 whitespace-nowrap">Assigned Sales Agent</th>
+                        <th className="py-3.5 px-4 whitespace-nowrap">Property Interest</th>
+                        <th className="py-3.5 px-4 whitespace-nowrap">Purchase Timeline</th>
+                        <th className="py-3.5 px-4 whitespace-nowrap">Source</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5 text-[#F9F7F6]/85">
                       
                       {/* Row 1 */}
                       <tr className="hover:bg-white/[0.02] transition-colors">
-                        <td className="py-4 px-4 font-medium text-[#F9F7F6]">
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6] whitespace-nowrap">
                           Mary Wanjiku
                         </td>
-                        <td className="py-4 px-4 font-mono text-[#F9F7F6]/70">
+                        <td className="py-4 px-4 font-mono text-[#F9F7F6]/70 whitespace-nowrap">
                           +254 794 357 912
                         </td>
-                        <td className="py-4 px-4">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#25D366]/10 text-[#25D366] border border-[#25D366]/20 text-[11px] font-medium">
-                            <MessageCircle className="h-3 w-3" /> WhatsApp
-                          </span>
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6]/90 whitespace-nowrap">
+                          Sarah M. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Senior Realtor)</span>
                         </td>
-                        <td className="py-4 px-4 font-light text-[#F9F7F6]/90">
+                        <td className="py-4 px-4 font-light text-[#F9F7F6]/90 whitespace-nowrap">
                           <span className="text-[#C9A66B] font-medium">Residential</span> &bull; 2-Bed Luxury Apt, Kilimani
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-4 whitespace-nowrap">
                           <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold uppercase tracking-wider">
                             Immediately
                           </span>
                         </td>
-                        <td className="py-4 px-4 font-medium text-[#F9F7F6]/90">
-                          Sarah M. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Senior Realtor)</span>
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#25D366]/10 text-[#25D366] border border-[#25D366]/20 text-[11px] font-medium">
+                            <MessageCircle className="h-3 w-3" /> WhatsApp
+                          </span>
                         </td>
                       </tr>
 
                       {/* Row 2 */}
                       <tr className="hover:bg-white/[0.02] transition-colors">
-                        <td className="py-4 px-4 font-medium text-[#F9F7F6]">
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6] whitespace-nowrap">
                           James Omondi
                         </td>
-                        <td className="py-4 px-4 font-mono text-[#F9F7F6]/70">
+                        <td className="py-4 px-4 font-mono text-[#F9F7F6]/70 whitespace-nowrap">
                           +254 712 684 201
                         </td>
-                        <td className="py-4 px-4">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#C9A66B]/10 text-[#C9A66B] border border-[#C9A66B]/20 text-[11px] font-medium">
-                            <Globe className="h-3 w-3" /> Website
-                          </span>
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6]/90 whitespace-nowrap">
+                          David K. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Commercial Lead)</span>
                         </td>
-                        <td className="py-4 px-4 font-light text-[#F9F7F6]/90">
+                        <td className="py-4 px-4 font-light text-[#F9F7F6]/90 whitespace-nowrap">
                           <span className="text-[#F2B6C1] font-medium">Commercial</span> &bull; 250 sqft Office, Westlands
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-4 whitespace-nowrap">
                           <span className="px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-[10px] font-semibold uppercase tracking-wider">
                             3 Months
                           </span>
                         </td>
-                        <td className="py-4 px-4 font-medium text-[#F9F7F6]/90">
-                          David K. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Commercial Lead)</span>
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#C9A66B]/10 text-[#C9A66B] border border-[#C9A66B]/20 text-[11px] font-medium">
+                            <Globe className="h-3 w-3" /> Website
+                          </span>
                         </td>
                       </tr>
 
                       {/* Row 3 */}
                       <tr className="hover:bg-white/[0.02] transition-colors">
-                        <td className="py-4 px-4 font-medium text-[#F9F7F6]">
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6] whitespace-nowrap">
                           Caroline Njuguna
                         </td>
-                        <td className="py-4 px-4 font-mono text-[#F9F7F6]/70">
+                        <td className="py-4 px-4 font-mono text-[#F9F7F6]/70 whitespace-nowrap">
                           +254 722 913 450
                         </td>
-                        <td className="py-4 px-4">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E1306C]/10 text-[#E1306C] border border-[#E1306C]/20 text-[11px] font-medium">
-                            <Instagram className="h-3 w-3" /> Instagram
-                          </span>
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6]/90 whitespace-nowrap">
+                          Alex O. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Luxury Estates)</span>
                         </td>
-                        <td className="py-4 px-4 font-light text-[#F9F7F6]/90">
+                        <td className="py-4 px-4 font-light text-[#F9F7F6]/90 whitespace-nowrap">
                           <span className="text-[#C9A66B] font-medium">Residential</span> &bull; 4-Bed Villa, Runda
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-4 whitespace-nowrap">
                           <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold uppercase tracking-wider">
                             Immediately
                           </span>
                         </td>
-                        <td className="py-4 px-4 font-medium text-[#F9F7F6]/90">
-                          Alex O. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Luxury Estates)</span>
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E1306C]/10 text-[#E1306C] border border-[#E1306C]/20 text-[11px] font-medium">
+                            <Instagram className="h-3 w-3" /> Instagram
+                          </span>
                         </td>
                       </tr>
 
                       {/* Row 4 */}
                       <tr className="hover:bg-white/[0.02] transition-colors">
-                        <td className="py-4 px-4 font-medium text-[#F9F7F6]">
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6] whitespace-nowrap">
                           Kelvin Mutua
                         </td>
-                        <td className="py-4 px-4 font-mono text-[#F9F7F6]/70">
+                        <td className="py-4 px-4 font-mono text-[#F9F7F6]/70 whitespace-nowrap">
                           +254 733 820 194
                         </td>
-                        <td className="py-4 px-4">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 text-[11px] font-medium">
-                            <Facebook className="h-3 w-3" /> Facebook
-                          </span>
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6]/90 whitespace-nowrap">
+                          Faith N. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Land Specialist)</span>
                         </td>
-                        <td className="py-4 px-4 font-light text-[#F9F7F6]/90">
+                        <td className="py-4 px-4 font-light text-[#F9F7F6]/90 whitespace-nowrap">
                           <span className="text-[#C9A66B] font-medium">Residential</span> &bull; 0.5 Acre Plot, Karen
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-4 whitespace-nowrap">
                           <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-semibold uppercase tracking-wider">
                             6 Months
                           </span>
                         </td>
-                        <td className="py-4 px-4 font-medium text-[#F9F7F6]/90">
-                          Faith N. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Land Specialist)</span>
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 text-[11px] font-medium">
+                            <Facebook className="h-3 w-3" /> Facebook
+                          </span>
                         </td>
                       </tr>
 
                       {/* Row 5 */}
                       <tr className="hover:bg-white/[0.02] transition-colors">
-                        <td className="py-4 px-4 font-medium text-[#F9F7F6]">
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6] whitespace-nowrap">
                           Amina Hassan
                         </td>
-                        <td className="py-4 px-4 font-mono text-[#F9F7F6]/70">
+                        <td className="py-4 px-4 font-mono text-[#F9F7F6]/70 whitespace-nowrap">
                           +254 701 472 839
                         </td>
-                        <td className="py-4 px-4">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#25D366]/10 text-[#25D366] border border-[#25D366]/20 text-[11px] font-medium">
-                            <MessageCircle className="h-3 w-3" /> WhatsApp
-                          </span>
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6]/90 whitespace-nowrap">
+                          Brian K. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Commercial Agent)</span>
                         </td>
-                        <td className="py-4 px-4 font-light text-[#F9F7F6]/90">
+                        <td className="py-4 px-4 font-light text-[#F9F7F6]/90 whitespace-nowrap">
                           <span className="text-[#F2B6C1] font-medium">Commercial</span> &bull; Retail Storefront, Lavington
                         </td>
-                        <td className="py-4 px-4">
+                        <td className="py-4 px-4 whitespace-nowrap">
                           <span className="px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/30 text-[10px] font-semibold uppercase tracking-wider">
                             Just Browsing
                           </span>
                         </td>
-                        <td className="py-4 px-4 font-medium text-[#F9F7F6]/90">
-                          Brian K. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Commercial Agent)</span>
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#25D366]/10 text-[#25D366] border border-[#25D366]/20 text-[11px] font-medium">
+                            <MessageCircle className="h-3 w-3" /> WhatsApp
+                          </span>
                         </td>
                       </tr>
 
