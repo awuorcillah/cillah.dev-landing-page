@@ -19,7 +19,10 @@ import {
   CheckCircle2,
   CalendarDays,
   Clock,
-  ExternalLink
+  ExternalLink,
+  Video,
+  Users,
+  Zap
 } from "lucide-react"
 import {
   Select,
@@ -29,9 +32,70 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-type Step = 1 | 2 | 3 | 4 // Step 1: Contact, Step 2: Payment, Step 3: Calendar, Step 4: Success
+type Step = 1 | 2 | 3 | 4 // Step 1: Contact, Step 2: Calendar, Step 3: Payment, Step 4: Success
+
+const ADMIN_SESSIONS = [
+  {
+    id: "strategy-call",
+    title: "1-on-1 AI Strategy & Architecture Call",
+    category: "Consultations",
+    badge: "Paid 1:1 Call",
+    badgeColor: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+    priceKES: 5000,
+    priceUSD: 40,
+    duration: "60 mins",
+    description: "Deep-dive 60-min session designing custom AI agents, database syncing, and multi-channel workflows for your business.",
+    features: [
+      "60-min private 1-on-1 video call",
+      "Custom AI workflow blueprint",
+      "CRM & Meta/WhatsApp API mapping",
+      "Post-session implementation checklist"
+    ],
+    buttonText: "Book 1-on-1 Strategy Call",
+    isPaid: true
+  },
+  {
+    id: "free-audit",
+    title: "Free Automation Audit",
+    category: "Consultations",
+    badge: "Free 1:1 Call",
+    badgeColor: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+    priceKES: 0,
+    priceUSD: 0,
+    duration: "30 mins",
+    description: "Complimentary 30-min discovery call to audit lead handling & identify instant automation opportunities.",
+    features: [
+      "30-min discovery audit call",
+      "Current sales pipeline review",
+      "Lead leakage & delay report",
+      "No-obligation recommendations"
+    ],
+    buttonText: "Book Free Audit",
+    isPaid: false
+  },
+  {
+    id: "ai-webinar",
+    title: "Upcoming AI Automation Webinar",
+    category: "Webinars",
+    badge: "Group Webinar",
+    badgeColor: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+    priceKES: 2500,
+    priceUSD: 20,
+    duration: "90 mins",
+    description: "Interactive 90-min group webinar covering AI tools, live CRM routing, and real-world case studies.",
+    features: [
+      "90-min live webinar & Q&A",
+      "Live AI agent demonstration",
+      "Access to recording & templates",
+      "Exclusive attendee resource kit"
+    ],
+    buttonText: "Register for Webinar",
+    isPaid: true
+  }
+]
 
 export default function BookConsultationPage() {
+  const [selectedSession, setSelectedSession] = useState(ADMIN_SESSIONS[0])
   const [step, setStep] = useState<Step>(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,8 +113,7 @@ export default function BookConsultationPage() {
   const [receiptNumber, setReceiptNumber] = useState("")
 
   const [isLocalhost, setIsLocalhost] = useState(false)
-  const amountVal = process.env.NEXT_PUBLIC_CONSULTATION_AMOUNT || "2000"
-  const formattedAmount = Number(amountVal).toLocaleString("en-US")
+  const formattedAmount = selectedSession.priceKES === 0 ? "FREE" : selectedSession.priceKES.toLocaleString("en-US")
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -435,8 +498,89 @@ export default function BookConsultationPage() {
 
       <main className="min-h-screen bg-gradient-to-b from-[#FBECE8] to-[#FFF9F6] text-[#1E1E1E] overflow-x-hidden font-sans font-light pt-32 md:pt-40 pb-24">
         
+        {/* Available Admin Backend Sessions Header & Selection Grid */}
+        <section className="container mx-auto max-w-5xl px-4 sm:px-6 md:px-12 mb-12">
+          <div className="text-center max-w-3xl mx-auto mb-10">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#C9A66B]/10 border border-[#C9A66B]/20 text-[#C9A66B] mb-4 text-xs font-semibold">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Configured Admin Sessions</span>
+            </div>
+            <h1 className="font-heading font-light text-[32px] sm:text-[42px] text-[#1E1E1E] leading-tight mb-3">
+              Select Your Session
+            </h1>
+            <p className="text-sm sm:text-base text-[#1E1E1E]/65 font-light">
+              Choose from the available sessions configured in our backend: 1-on-1 strategy calls, free automation audits, or live webinars.
+            </p>
+          </div>
+
+          {/* Session Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {ADMIN_SESSIONS.map((sess) => {
+              const isSelected = selectedSession.id === sess.id
+              return (
+                <div
+                  key={sess.id}
+                  className={`rounded-[22px] p-6 bg-[#FFFDFB] border transition-all duration-300 flex flex-col justify-between relative overflow-hidden ${
+                    isSelected
+                      ? "border-[#C9A66B] shadow-[0_10px_30px_rgba(201,166,107,0.18)] ring-2 ring-[#C9A66B]/30"
+                      : "border-[#C9A66B]/20 hover:border-[#C9A66B]/50 hover:shadow-lg"
+                  }`}
+                >
+                  <div>
+                    {/* Header Badge & Price */}
+                    <div className="flex items-center justify-between gap-2 mb-4">
+                      <span className={`text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border ${sess.badgeColor}`}>
+                        {sess.badge}
+                      </span>
+                      <span className="font-heading font-bold text-base text-[#1E1E1E]">
+                        {sess.priceKES === 0 ? "FREE" : `KES ${sess.priceKES.toLocaleString()}`}
+                      </span>
+                    </div>
+
+                    <h3 className="font-heading font-medium text-[18px] text-[#1E1E1E] mb-2 leading-snug">
+                      {sess.title}
+                    </h3>
+
+                    <p className="text-xs text-[#1E1E1E]/60 mb-5 leading-relaxed font-light">
+                      {sess.description}
+                    </p>
+
+                    {/* Features list */}
+                    <ul className="space-y-2 mb-6 pt-4 border-t border-black/5">
+                      {sess.features.map((feat, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-[#1E1E1E]/80 font-light">
+                          <Check className="h-3.5 w-3.5 text-[#C9A66B] shrink-0 mt-0.5" />
+                          <span>{feat}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Action Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedSession(sess)
+                      const el = document.getElementById("booking-wizard")
+                      if (el) el.scrollIntoView({ behavior: "smooth" })
+                    }}
+                    className={`w-full py-3.5 px-4 rounded-[14px] font-heading font-semibold text-xs tracking-wide transition-all duration-300 flex items-center justify-center gap-2 ${
+                      isSelected
+                        ? "bg-[#C9A66B] text-white shadow-[0_4px_15px_rgba(201,166,107,0.3)]"
+                        : "bg-black/5 text-[#1E1E1E] hover:bg-[#C9A66B] hover:text-white"
+                    }`}
+                  >
+                    {sess.buttonText}
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+
         {/* Step Indicator Header */}
-        <section className="container mx-auto max-w-3xl px-6 mb-12">
+        <section id="booking-wizard" className="container mx-auto max-w-3xl px-6 mb-12 pt-4">
           <div className="flex items-center justify-between relative max-w-md mx-auto">
             {/* Connecting lines */}
             <div className="absolute left-0 top-1/2 w-full h-[2px] bg-black/5 -translate-y-1/2 -z-10" />
@@ -829,12 +973,32 @@ export default function BookConsultationPage() {
 
                       <button
                         type="button"
-                        onClick={() => setStep(3)}
-                        disabled={!selectedDate || !selectedTime}
+                        onClick={() => {
+                          if (!selectedSession.isPaid) {
+                            handleBookingSubmit()
+                          } else {
+                            setStep(3)
+                          }
+                        }}
+                        disabled={!selectedDate || !selectedTime || loading}
                         className="w-full py-4 mt-6 bg-[#C9A66B] text-[#FFF9F6] hover:bg-[#C9A66B]/90 font-heading font-semibold rounded-[16px] transition-all flex items-center justify-center gap-2 hover:shadow-[0_6px_20px_rgba(201,166,107,0.2)] disabled:opacity-40"
                       >
-                        Proceed to Payment
-                        <ArrowRight className="h-4 w-4" />
+                        {loading ? (
+                          <>
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            Finalizing Booking...
+                          </>
+                        ) : !selectedSession.isPaid ? (
+                          <>
+                            Confirm Free Booking
+                            <Check className="h-4 w-4" />
+                          </>
+                        ) : (
+                          <>
+                            Proceed to Payment ({formattedAmount} KES)
+                            <ArrowRight className="h-4 w-4" />
+                          </>
+                        )}
                       </button>
                     </div>
                   </motion.div>
