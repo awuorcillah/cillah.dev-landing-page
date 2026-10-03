@@ -4,19 +4,26 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
-  Users, BookOpen, TrendingUp, TrendingDown, DollarSign,
-  Calendar, PlusCircle, Clock, Video, ArrowUpRight,
-  CheckCircle2, AlertCircle, RefreshCw, Download,
-  ChevronRight, Zap, Activity, Loader2, ShieldCheck
+  Users, BookOpen, DollarSign,
+  Calendar, PlusCircle, Clock, Video,
+  RefreshCw, Download,
+  ChevronRight, Zap, Activity, Loader2, ShieldCheck, Filter
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
-// ─── Date Range Tabs ──────────────────────────────────────────────────────────
-const DATE_RANGES = ['Today', 'Last 7 days', 'Last 30 days', 'Last 90 days'] as const
-type DateRange = typeof DATE_RANGES[number]
+type DateFilterOption = 'today' | '7days' | '30days' | '90days' | 'custom' | 'all'
+
+const DATE_OPTIONS = [
+  { value: 'today', label: 'Today' },
+  { value: '7days', label: 'Last 7 Days' },
+  { value: '30days', label: 'Last 30 Days' },
+  { value: '90days', label: 'Last 90 Days' },
+  { value: 'custom', label: 'Custom Date Range' },
+  { value: 'all', label: 'All Time' },
+]
 
 interface BookingItem {
   id: string
@@ -49,81 +56,6 @@ const KNOWN_PROFILES: Record<string, { full_name: string; email: string }> = {
   '1fbfb50e-07cd-452e-b542-78bf5355f4f6': { full_name: 'Awuor Cilla', email: 'awuorcillah@gmail.com' }
 }
 
-const SAMPLE_RECENT_BOOKINGS: BookingItem[] = [
-  {
-    id: 'ea366db5-33d4-4ac1-9811-b1c7f86082f0',
-    client: 'awuorc207',
-    email: 'awuorc207@gmail.com',
-    session: 'AI Strategy & Architecture Call (60 min)',
-    date: 'Oct 6, 2026 — 10:00 AM',
-    status: 'confirmed',
-    payment: 'paid',
-    amount: 'KES 5,000',
-    created_at: new Date().toISOString()
-  },
-  {
-    id: '20deeffb-5006-4504-b47d-2c54c9f60b40',
-    client: 'cherrylatulah2000',
-    email: 'cherrylatulah2000@gmail.com',
-    session: 'Free Automation Audit (30 min)',
-    date: 'Oct 8, 2026 — 02:30 PM',
-    status: 'pending',
-    payment: 'free',
-    amount: '—',
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'BK-1003',
-    client: 'Awuor Cilla',
-    email: 'awuorcillah@gmail.com',
-    session: 'AI Automation Webinar',
-    date: 'Oct 12, 2026 — 03:00 PM',
-    status: 'completed',
-    payment: 'paid',
-    amount: 'KES 2,500',
-    created_at: new Date().toISOString()
-  }
-]
-
-const SAMPLE_UPCOMING_SESSIONS: SessionItem[] = [
-  {
-    id: '59418227-c9bb-406d-b095-fff4f436577e',
-    title: 'AI Strategy & Architecture Call (60 min)',
-    type: 'Paid Call',
-    date: 'Oct 6, 2026',
-    time: '10:00 AM EAT',
-    attendees: 1,
-    max: 1,
-    status: 'confirmed',
-    paid: true,
-    price: 'KES 5,000'
-  },
-  {
-    id: '4b1cd065-e08a-46bc-b7e0-ec4005d01a3f',
-    title: 'Free Automation Audit (30 min)',
-    type: 'Free Consult',
-    date: 'Oct 8, 2026',
-    time: '02:30 PM EAT',
-    attendees: 1,
-    max: 1,
-    status: 'scheduled',
-    paid: false,
-    price: 'Free'
-  },
-  {
-    id: 'ed226053-7724-4298-bb53-bec1952ebcb7',
-    title: 'AI Automation Webinar',
-    type: 'Webinar',
-    date: 'Oct 12, 2026',
-    time: '03:00 PM EAT',
-    attendees: 34,
-    max: 100,
-    status: 'scheduled',
-    paid: true,
-    price: 'KES 2,500'
-  }
-]
-
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     confirmed: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
@@ -139,30 +71,19 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function TrendPill({ value }: { value: number }) {
-  const up = value >= 0
-  return (
-    <span className={`inline-flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${up ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
-      {up ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-      {up ? '+' : ''}{value}%
-    </span>
-  )
-}
-
 export default function AdminDashboardPage() {
   const supabase = createClient()
 
-  const [range, setRange] = useState<DateRange>('Last 30 days')
+  const [dateFilter, setDateFilter] = useState<DateFilterOption>('all')
+  const [customStartDate, setCustomStartDate] = useState<string>('')
+  const [customEndDate, setCustomEndDate] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  // Live Supabase state
-  const [totalUsers, setTotalUsers] = useState<number>(3)
-  const [activeClients, setActiveClients] = useState<number>(1)
-  const [bookingsCount, setBookingsCount] = useState<number>(2)
-  const [totalRevenue, setTotalRevenue] = useState<number>(7500)
-  const [recentBookings, setRecentBookings] = useState<BookingItem[]>(SAMPLE_RECENT_BOOKINGS)
-  const [upcomingSessions, setUpcomingSessions] = useState<SessionItem[]>(SAMPLE_UPCOMING_SESSIONS)
+  // Live Supabase Raw Data State
+  const [rawProfiles, setRawProfiles] = useState<any[]>([])
+  const [rawBookings, setRawBookings] = useState<any[]>([])
+  const [rawSessions, setRawSessions] = useState<any[]>([])
 
   // ── Fetch Live Data from Supabase ──
   const fetchDashboardData = async (isManualRefresh = false) => {
@@ -172,14 +93,12 @@ export default function AdminDashboardPage() {
     try {
       // 1. Fetch Profiles (Users & Clients)
       const { data: dbProfiles } = await supabase.from('profiles').select('*')
-      if (dbProfiles && dbProfiles.length > 0) {
-        setTotalUsers(dbProfiles.length)
-        const clients = dbProfiles.filter(p => p.role === 'client' || p.client_type === 'retainer' || p.client_type === 'consultation')
-        setActiveClients(clients.length || 1)
+      if (dbProfiles) {
+        setRawProfiles(dbProfiles)
       }
 
       // 2. Fetch Bookings with Relations
-      const { data: dbBookings, error: bErr } = await supabase
+      const { data: dbBookings } = await supabase
         .from('bookings')
         .select(`
           *,
@@ -188,58 +107,14 @@ export default function AdminDashboardPage() {
         `)
         .order('created_at', { ascending: false })
 
-      if (dbBookings && dbBookings.length > 0) {
-        setBookingsCount(dbBookings.length)
-
-        let revSum = 0
-        const formatted: BookingItem[] = dbBookings.map((b: any) => {
-          const profile = Array.isArray(b.profiles) ? b.profiles[0] : b.profiles
-          const sessionType = Array.isArray(b.session_types) ? b.session_types[0] : b.session_types
-          const dt = b.scheduled_at ? new Date(b.scheduled_at) : new Date()
-
-          const known = KNOWN_PROFILES[b.user_id]
-          const client = profile?.full_name || b.client_name || b.name || known?.full_name || 'awuorc207'
-          const email = profile?.email || b.client_email || b.email || known?.email || 'awuorc207@gmail.com'
-          const session = sessionType?.title || b.session_title || b.title || '1-on-1 AI Strategy Call'
-          const priceKes = sessionType?.price_kes || (b.payment_status === 'paid' ? 5000 : 0)
-
-          if (b.payment_status === 'paid' || priceKes > 0) {
-            revSum += priceKes
-          }
-
-          return {
-            id: b.id,
-            client,
-            email,
-            session,
-            date: dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' — ' + dt.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' }),
-            status: b.status || 'confirmed',
-            payment: b.payment_status === 'paid' ? 'paid' : (priceKes === 0 ? 'free' : 'unpaid'),
-            amount: priceKes > 0 ? `KES ${priceKes.toLocaleString()}` : '—',
-            created_at: b.created_at
-          }
-        })
-
-        setTotalRevenue(revSum > 0 ? revSum : 7500)
-        setRecentBookings(formatted)
+      if (dbBookings) {
+        setRawBookings(dbBookings)
       }
 
-      // 3. Fetch Session Types
+      // 3. Fetch Active Session Types
       const { data: dbSessions } = await supabase.from('session_types').select('*').eq('is_active', true)
-      if (dbSessions && dbSessions.length > 0) {
-        const formattedSessions: SessionItem[] = dbSessions.slice(0, 3).map((s: any) => ({
-          id: s.id,
-          title: s.title,
-          type: s.session_format === 'webinar' ? 'Webinar' : s.session_format === 'consultation_free' ? 'Free Consult' : 'Paid Call',
-          date: new Date(s.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          time: '10:00 AM EAT',
-          attendees: s.session_format === 'webinar' ? 34 : 1,
-          max: s.max_slots || 1,
-          status: 'scheduled',
-          paid: s.price_kes > 0,
-          price: s.price_kes > 0 ? `KES ${s.price_kes.toLocaleString()}` : 'Free'
-        }))
-        setUpcomingSessions(formattedSessions)
+      if (dbSessions) {
+        setRawSessions(dbSessions)
       }
 
       if (isManualRefresh) {
@@ -247,6 +122,7 @@ export default function AdminDashboardPage() {
       }
     } catch (err) {
       console.error('Dashboard fetch error:', err)
+      toast.error('Failed to load live data')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -257,7 +133,114 @@ export default function AdminDashboardPage() {
     fetchDashboardData()
   }, [])
 
-  // ── CSV Export ──
+  // ── Date Filtering Helper ──
+  const isDateInRange = (dateStr: string | null | undefined) => {
+    if (!dateStr) return false
+    const itemTime = new Date(dateStr).getTime()
+    if (isNaN(itemTime)) return false
+
+    const now = new Date()
+
+    if (dateFilter === 'all') return true
+
+    if (dateFilter === 'today') {
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+      const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).getTime()
+      return itemTime >= startOfDay && itemTime <= endOfDay
+    }
+
+    if (dateFilter === '7days') {
+      const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).getTime()
+      return itemTime >= start
+    }
+
+    if (dateFilter === '30days') {
+      const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).getTime()
+      return itemTime >= start
+    }
+
+    if (dateFilter === '90days') {
+      const start = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).getTime()
+      return itemTime >= start
+    }
+
+    if (dateFilter === 'custom') {
+      let startOk = true
+      let endOk = true
+      if (customStartDate) {
+        const s = new Date(customStartDate + 'T00:00:00').getTime()
+        if (!isNaN(s)) startOk = itemTime >= s
+      }
+      if (customEndDate) {
+        const e = new Date(customEndDate + 'T23:59:59').getTime()
+        if (!isNaN(e)) endOk = itemTime <= e
+      }
+      return startOk && endOk
+    }
+
+    return true
+  }
+
+  // Filter Bookings by Selected Date Filter
+  const filteredBookings = rawBookings.filter(b => isDateInRange(b.created_at || b.scheduled_at))
+
+  // Filter Profiles (if date created is tracked)
+  const filteredProfiles = rawProfiles.filter(p => p.created_at ? isDateInRange(p.created_at) : true)
+
+  // Derived Metrics
+  const totalUsers = dateFilter === 'all' ? rawProfiles.length : filteredProfiles.length
+  const activeClients = (dateFilter === 'all' ? rawProfiles : filteredProfiles).filter(
+    p => p.role === 'client' || p.client_type === 'retainer' || p.client_type === 'consultation'
+  ).length
+  const bookingsCount = filteredBookings.length
+
+  let totalRevenue = 0
+  const recentBookings: BookingItem[] = filteredBookings.map((b: any) => {
+    const profile = Array.isArray(b.profiles) ? b.profiles[0] : b.profiles
+    const sessionType = Array.isArray(b.session_types) ? b.session_types[0] : b.session_types
+    const dt = b.scheduled_at ? new Date(b.scheduled_at) : (b.created_at ? new Date(b.created_at) : new Date())
+
+    const known = KNOWN_PROFILES[b.user_id]
+    const client = profile?.full_name || b.client_name || b.name || known?.full_name || 'Client'
+    const email = profile?.email || b.client_email || b.email || known?.email || '—'
+    const session = sessionType?.title || b.session_title || b.title || 'Consultation Call'
+    const priceKes = sessionType?.price_kes || 0
+
+    if (b.payment_status === 'paid' || priceKes > 0) {
+      totalRevenue += priceKes
+    }
+
+    return {
+      id: b.id,
+      client,
+      email,
+      session,
+      date: dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' — ' + dt.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' }),
+      status: b.status || 'confirmed',
+      payment: b.payment_status === 'paid' ? 'paid' : (priceKes === 0 ? 'free' : 'unpaid'),
+      amount: priceKes > 0 ? `KES ${priceKes.toLocaleString()}` : 'Free',
+      created_at: b.created_at
+    }
+  })
+
+  // Format Upcoming Sessions
+  const upcomingSessions: SessionItem[] = rawSessions.map((s: any) => {
+    const sessionBookings = rawBookings.filter(b => b.session_type_id === s.id)
+    return {
+      id: s.id,
+      title: s.title,
+      type: s.session_format === 'webinar' ? 'Webinar' : s.session_format === 'consultation_free' ? 'Free Consult' : 'Paid Call',
+      date: new Date(s.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      time: '10:00 AM EAT',
+      attendees: sessionBookings.length,
+      max: s.max_slots || 1,
+      status: 'scheduled',
+      paid: s.price_kes > 0,
+      price: s.price_kes > 0 ? `KES ${s.price_kes.toLocaleString()}` : 'Free'
+    }
+  })
+
+  // CSV Export
   const handleExportCSV = () => {
     try {
       const headers = ['Booking ID', 'Client Name', 'Client Email', 'Session Title', 'Date', 'Status', 'Payment', 'Amount']
@@ -286,43 +269,42 @@ export default function AdminDashboardPage() {
     }
   }
 
+  // Selected date filter label
+  const activeLabel = DATE_OPTIONS.find(o => o.value === dateFilter)?.label || 'Selected Period'
+
   // Cards layout configuration
   const CARDS = [
     {
       label: 'Total Users',
       value: totalUsers.toLocaleString(),
-      trend: 25,
       icon: Users,
       iconColor: 'text-cyan-400',
       iconBg: 'bg-cyan-500/10 border-cyan-500/20',
-      sub: 'registered accounts in Supabase',
+      sub: 'registered accounts',
     },
     {
       label: 'Active Clients',
       value: activeClients.toLocaleString(),
-      trend: 50,
       icon: Activity,
       iconColor: 'text-emerald-400',
       iconBg: 'bg-emerald-500/10 border-emerald-500/20',
-      sub: 'promoted client accounts',
+      sub: 'client role accounts',
     },
     {
       label: 'Total Bookings',
       value: bookingsCount.toLocaleString(),
-      trend: 33,
       icon: BookOpen,
       iconColor: 'text-purple-400',
       iconBg: 'bg-purple-500/10 border-purple-500/20',
-      sub: 'live database sessions',
+      sub: `${activeLabel.toLowerCase()} sessions`,
     },
     {
       label: 'Revenue (KES)',
       value: `KES ${totalRevenue.toLocaleString()}`,
-      trend: 40,
       icon: DollarSign,
       iconColor: 'text-amber-400',
       iconBg: 'bg-amber-500/10 border-amber-500/20',
-      sub: 'M-Pesa & invoice revenue',
+      sub: `${activeLabel.toLowerCase()} total`,
     },
   ]
 
@@ -371,21 +353,42 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* ── Date Range Filter ── */}
-      <div className="flex items-center gap-1 bg-slate-900/60 border border-slate-800 rounded-xl p-1 w-fit">
-        {DATE_RANGES.map(r => (
-          <button
-            key={r}
-            onClick={() => setRange(r)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              range === r
-                ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 shadow'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
+      {/* ── Date Range Dropdown Filter ── */}
+      <div className="flex flex-wrap items-center gap-3 bg-slate-900/80 border border-slate-800 rounded-xl p-3 shadow-md">
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-cyan-400" />
+          <span className="text-xs font-semibold text-slate-300">Filter by Date:</span>
+          <select
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value as DateFilterOption)}
+            className="bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer font-medium"
           >
-            {r}
-          </button>
-        ))}
+            {DATE_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {dateFilter === 'custom' && (
+          <div className="flex flex-wrap items-center gap-2 pl-2 border-l border-slate-800">
+            <span className="text-xs text-slate-400">From:</span>
+            <input
+              type="date"
+              value={customStartDate}
+              onChange={(e) => setCustomStartDate(e.target.value)}
+              className="bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-500"
+            />
+            <span className="text-xs text-slate-400">To:</span>
+            <input
+              type="date"
+              value={customEndDate}
+              onChange={(e) => setCustomEndDate(e.target.value)}
+              className="bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-500"
+            />
+          </div>
+        )}
       </div>
 
       {/* ── Metrics Cards ── */}
@@ -400,11 +403,7 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-slate-100 leading-none">{card.value}</div>
-              <div className="flex items-center justify-between mt-2">
-                <p className="text-[11px] text-slate-500">{card.sub}</p>
-                <TrendPill value={card.trend} />
-              </div>
-              <p className="text-[10px] text-slate-600 mt-1">vs {range.toLowerCase()}</p>
+              <p className="text-[11px] text-slate-500 mt-2">{card.sub}</p>
             </CardContent>
           </Card>
         ))}
@@ -439,15 +438,21 @@ export default function AdminDashboardPage() {
         {/* Recent Bookings (wider) */}
         <div className="xl:col-span-3 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Recent Bookings</h2>
+            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
+              Recent Bookings ({recentBookings.length})
+            </h2>
             <Link href="/admin/bookings" className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors">
               View all bookings <ChevronRight className="w-3 h-3" />
             </Link>
           </div>
-          <div className="bg-slate-900/70 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+          <div className="bg-slate-900/70 border border-slate-800 rounded-xl overflow-hidden shadow-xl min-h-[160px]">
             {loading ? (
               <div className="p-8 flex items-center justify-center text-slate-500 gap-2 text-xs">
-                <Loader2 className="w-4 h-4 animate-spin text-cyan-400" /> Loading bookings...
+                <Loader2 className="w-4 h-4 animate-spin text-cyan-400" /> Loading live bookings...
+              </div>
+            ) : recentBookings.length === 0 ? (
+              <div className="p-8 text-center text-slate-500 text-xs">
+                No bookings found for the selected date filter.
               </div>
             ) : (
               <div className="divide-y divide-slate-800">
@@ -475,42 +480,54 @@ export default function AdminDashboardPage() {
         {/* Upcoming Sessions */}
         <div className="xl:col-span-2 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Upcoming Sessions</h2>
+            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
+              Session Types ({upcomingSessions.length})
+            </h2>
             <Link href="/admin/sessions" className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors">
               View all <ChevronRight className="w-3 h-3" />
             </Link>
           </div>
           <div className="space-y-3">
-            {upcomingSessions.map(s => (
-              <div key={s.id} className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-colors shadow-lg">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-slate-200 leading-snug truncate">{s.title}</p>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${
-                        s.type === 'Webinar' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
-                        : s.type === 'Free Consult' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                      }`}>{s.type}</span>
-                      <span className="text-[10px] text-slate-500 font-mono">{s.price}</span>
-                    </div>
-                  </div>
-                  <StatusBadge status={s.status} />
-                </div>
-                <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-800">
-                  <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-                    <Calendar className="w-3 h-3" />
-                    <span>{s.date}</span>
-                    <span>·</span>
-                    <Clock className="w-3 h-3" />
-                    <span>{s.time}</span>
-                  </div>
-                  <span className="text-[10px] text-slate-500 font-medium">
-                    {s.attendees}/{s.max} seats
-                  </span>
-                </div>
+            {loading ? (
+              <div className="p-8 flex items-center justify-center text-slate-500 gap-2 text-xs">
+                <Loader2 className="w-4 h-4 animate-spin text-cyan-400" /> Loading sessions...
               </div>
-            ))}
+            ) : upcomingSessions.length === 0 ? (
+              <div className="p-6 text-center text-slate-500 text-xs bg-slate-900/70 border border-slate-800 rounded-xl">
+                No active session types configured.
+              </div>
+            ) : (
+              upcomingSessions.map(s => (
+                <div key={s.id} className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-colors shadow-lg">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-slate-200 leading-snug truncate">{s.title}</p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${
+                          s.type === 'Webinar' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                          : s.type === 'Free Consult' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                          : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                        }`}>{s.type}</span>
+                        <span className="text-[10px] text-slate-500 font-mono">{s.price}</span>
+                      </div>
+                    </div>
+                    <StatusBadge status={s.status} />
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-800">
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                      <Calendar className="w-3 h-3" />
+                      <span>{s.date}</span>
+                      <span>·</span>
+                      <Clock className="w-3 h-3" />
+                      <span>{s.time}</span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      {s.attendees}/{s.max} bookings
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
             <Link
               href="/admin/sessions/new"
               className="flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-slate-700 text-xs text-slate-400 hover:text-cyan-400 hover:border-cyan-500/40 transition-all bg-slate-900/40"
