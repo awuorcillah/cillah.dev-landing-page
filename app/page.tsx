@@ -95,37 +95,39 @@ export default function HomePage() {
         <section className="relative pt-32 pb-24 md:pt-40 md:pb-32 flex flex-col items-center justify-center border-b border-white/5">
           <div className="container mx-auto max-w-5xl px-6 md:px-12 relative z-10 text-center flex flex-col items-center">
             
-            {/* 1. Top 4 Action Buttons */}
+            {/* 1. Top 4 Action Buttons - Border-to-Border Horizontal Scroll on Mobile */}
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: "easeOut" }}
-              className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mb-12"
+              className="w-full overflow-x-auto scrollbar-none py-2 px-1 mb-12"
             >
-              <a
-                href="/login"
-                className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#C9A66B]/50 font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_15px_rgba(201,166,107,0.2)]"
-              >
-                Login
-              </a>
-              <a
-                href="/signup"
-                className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-[14px] bg-[#C9A66B] text-[#07070B] hover:bg-[#C9A66B]/90 font-heading font-semibold text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 hover:shadow-[0_0_20px_rgba(201,166,107,0.4)]"
-              >
-                Sign Up
-              </a>
-              <a
-                href="/book-consultation"
-                className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-[14px] bg-white/5 border border-[#C9A66B]/40 text-[#C9A66B] hover:bg-[#C9A66B]/10 hover:border-[#C9A66B] font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_20px_rgba(201,166,107,0.25)]"
-              >
-                Book a Consultation
-              </a>
-              <a
-                href="/our-services"
-                className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#F2B6C1]/50 font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_15px_rgba(242,182,193,0.2)]"
-              >
-                Our Services
-              </a>
+              <div className="flex items-center justify-start sm:justify-center gap-2.5 sm:gap-4 min-w-max mx-auto px-2">
+                <a
+                  href="/login"
+                  className="shrink-0 whitespace-nowrap px-5 py-2.5 sm:px-6 sm:py-3 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#C9A66B]/50 font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_15px_rgba(201,166,107,0.2)]"
+                >
+                  Login
+                </a>
+                <a
+                  href="/signup"
+                  className="shrink-0 whitespace-nowrap px-5 py-2.5 sm:px-6 sm:py-3 rounded-[14px] bg-[#C9A66B] text-[#07070B] hover:bg-[#C9A66B]/90 font-heading font-semibold text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 hover:shadow-[0_0_20px_rgba(201,166,107,0.4)]"
+                >
+                  Sign Up
+                </a>
+                <a
+                  href="/book-consultation"
+                  className="shrink-0 whitespace-nowrap px-5 py-2.5 sm:px-6 sm:py-3 rounded-[14px] bg-white/5 border border-[#C9A66B]/40 text-[#C9A66B] hover:bg-[#C9A66B]/10 hover:border-[#C9A66B] font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_20px_rgba(201,166,107,0.25)]"
+                >
+                  Book a Consultation
+                </a>
+                <a
+                  href="#the-interface"
+                  className="shrink-0 whitespace-nowrap px-5 py-2.5 sm:px-6 sm:py-3 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#F2B6C1]/50 font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_15px_rgba(242,182,193,0.2)]"
+                >
+                  Our Services
+                </a>
+              </div>
             </motion.div>
 
             {/* 2. Headline & Subtexts */}
@@ -462,7 +464,7 @@ export default function HomePage() {
         </section>
 
         {/* 6. THE INTERFACE & ROSY REALTORS DASHBOARD */}
-        <section className="py-24 md:py-32 border-b border-white/5 bg-[#07070B]">
+        <section id="the-interface" className="py-24 md:py-32 border-b border-white/5 bg-[#07070B]">
           <div className="container mx-auto max-w-7xl px-6 md:px-12">
             <div className="text-center max-w-3xl mx-auto mb-16">
               <span className="text-[11px] font-heading font-medium uppercase tracking-[0.25em] text-[#C9A66B] mb-3 block">
@@ -737,6 +739,38 @@ export default function HomePage() {
 
                     </tbody>
                   </table>
+                </div>
+              </div>
+
+              {/* Bottom Action Buttons Row - Border-to-Border Horizontal Scroll on Mobile */}
+              <div className="mt-8 pt-6 border-t border-white/10 w-full">
+                <div className="w-full overflow-x-auto scrollbar-none py-2 px-1">
+                  <div className="flex items-center justify-start md:justify-center gap-2.5 sm:gap-4 min-w-max mx-auto px-2">
+                    <a
+                      href="/our-services"
+                      className="shrink-0 whitespace-nowrap px-5 py-2.5 sm:px-6 sm:py-3 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#C9A66B]/50 font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_15px_rgba(201,166,107,0.2)]"
+                    >
+                      Learn More
+                    </a>
+                    <a
+                      href="/book-consultation"
+                      className="shrink-0 whitespace-nowrap px-5 py-2.5 sm:px-6 sm:py-3 rounded-[14px] bg-[#C9A66B] text-[#07070B] hover:bg-[#C9A66B]/90 font-heading font-semibold text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 hover:shadow-[0_0_20px_rgba(201,166,107,0.4)]"
+                    >
+                      Book a Consultation
+                    </a>
+                    <a
+                      href="/login"
+                      className="shrink-0 whitespace-nowrap px-5 py-2.5 sm:px-6 sm:py-3 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#C9A66B]/50 font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md"
+                    >
+                      Login
+                    </a>
+                    <a
+                      href="/signup"
+                      className="shrink-0 whitespace-nowrap px-5 py-2.5 sm:px-6 sm:py-3 rounded-[14px] bg-white/5 border border-[#F2B6C1]/40 text-[#F2B6C1] hover:bg-[#F2B6C1]/10 hover:border-[#F2B6C1] font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md"
+                    >
+                      Sign Up
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
