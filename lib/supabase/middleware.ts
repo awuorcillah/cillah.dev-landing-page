@@ -44,7 +44,13 @@ export async function updateSession(request: NextRequest) {
   const isUserAdmin = (userObj: any, profileObj: any) => {
     if (profileObj?.role === 'admin') return true
     const email = userObj?.email?.toLowerCase() || ''
-    if (email.includes('cillah') || email.includes('admin') || email === 'awuorcillah@gmail.com') return true
+    if (
+      email.includes('cillah') ||
+      email.includes('admin') ||
+      email.includes('atula') ||
+      email.includes('cheryl') ||
+      email === 'awuorcillah@gmail.com'
+    ) return true
     return false
   }
 
@@ -59,7 +65,7 @@ export async function updateSession(request: NextRequest) {
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
     if (!isUserAdmin(user, profile)) {
       url.pathname = '/unauthorized'
@@ -78,7 +84,7 @@ export async function updateSession(request: NextRequest) {
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
     if (profile?.role === 'user' && !isUserAdmin(user, profile)) {
       url.pathname = '/user/dashboard'

@@ -29,10 +29,10 @@ export default function LoginPage() {
           .from('profiles')
           .select('role')
           .eq('id', user.id)
-          .single()
+          .maybeSingle()
 
         const userEmail = user.email?.toLowerCase() || ''
-        const isAdmin = profile?.role === 'admin' || userEmail.includes('cillah') || userEmail.includes('admin') || userEmail === 'awuorcillah@gmail.com'
+        const isAdmin = profile?.role === 'admin' || userEmail.includes('cillah') || userEmail.includes('admin') || userEmail.includes('atula') || userEmail.includes('cheryl') || userEmail === 'awuorcillah@gmail.com'
 
         if (isAdmin) {
           window.location.href = '/admin/dashboard'
@@ -87,10 +87,10 @@ export default function LoginPage() {
           .from('profiles')
           .select('role, full_name')
           .eq('id', data.user.id)
-          .single()
+          .maybeSingle()
 
         const userEmail = (data.user.email || email).toLowerCase()
-        const isAdmin = profile?.role === 'admin' || userEmail.includes('cillah') || userEmail.includes('admin') || userEmail === 'awuorcillah@gmail.com'
+        const isAdmin = profile?.role === 'admin' || userEmail.includes('cillah') || userEmail.includes('admin') || userEmail.includes('atula') || userEmail.includes('cheryl') || userEmail === 'awuorcillah@gmail.com'
         const userRole = isAdmin ? 'admin' : (profile?.role || 'user')
         const userName = profile?.full_name || email
 

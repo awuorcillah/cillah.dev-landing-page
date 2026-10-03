@@ -11,8 +11,8 @@ export async function GET(request: Request) {
       .replace(/\/rest\/v1\/?$/, '')
       .replace(/\/$/, '')
 
-    // Accumulate all set-cookie directives during OAuth code exchange
-    const cookiesToSetInResponse: Array<{ name: string; value: string; options: any }> = []
+    // Create the initial response object that receives session cookies
+    let response = NextResponse.redirect(`${origin}/user/dashboard`)
 
     const supabase = createServerClient(
       supabaseUrl,
@@ -27,8 +27,11 @@ export async function GET(request: Request) {
             })
           },
           setAll(cookiesToSet) {
-            cookiesToSet.forEach(cookie => {
-              cookiesToSetInResponse.push(cookie)
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set(name, value, {
+                path: '/',
+                ...options,
+              })
             })
           },
         },
@@ -40,36 +43,24 @@ export async function GET(request: Request) {
     if (!error && data.user) {
       const user = data.user
       const email = user.email?.toLowerCase() || ''
-      const isAdmin = email.includes('cillah') || email.includes('admin') || email === 'awuorcillah@gmail.com'
 
-      // Create a session-aware Supabase client to perform profile lookup and creation
-      const sessionSupabase = createServerClient(
-        supabaseUrl,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-          cookies: {
-            getAll() {
-              const cookieMap = new Map<string, string>()
-              const cookieHeader = request.headers.get('cookie') || ''
-              cookieHeader.split('; ').filter(Boolean).forEach(c => {
-                const [name, ...val] = c.split('=')
-                cookieMap.set(name, val.join('='))
-              })
-              cookiesToSetInResponse.forEach(({ name, value }) => {
-                cookieMap.set(name, value)
-              })
-              return Array.from(cookieMap.entries()).map(([name, value]) => ({ name, value }))
-            },
-            setAll(cookiesToSet) {
-              cookiesToSet.forEach(cookie => cookiesToSetInResponse.push(cookie))
-            },
-          },
-        }
-      )
+      const fullName: string = user.user_metadata?.full_name || user.user_metadata?.name || ''
+      const nameParts = fullName.trim().split(' ')
+      const firstName = nameParts[0] || ''
+      const lastName = nameParts.slice(1).join(' ') || ''
+      const avatarUrl: string = user.user_metadata?.avatar_url || user.user_metadata?.picture || ''
 
-      let role = isAdmin ? 'admin' : 'user'
+      const isEmailAdmin =
+        email.includes('cillah') ||
+        email.includes('admin') ||
+        email.includes('atula') ||
+        email.includes('cheryl') ||
+        email === 'awuorcillah@gmail.com'
+
+      let role = isEmailAdmin ? 'admin' : 'user'
+
       try {
-        const { data: profile } = await sessionSupabase
+        const { data: profile } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', user.id)
@@ -79,45 +70,40 @@ export async function GET(request: Request) {
           role = profile.role
         }
 
-        const fullName: string = user.user_metadata?.full_name || user.user_metadata?.name || ''
-        const nameParts = fullName.trim().split(' ')
-        const firstName = nameParts[0] || ''
-        const lastName = nameParts.slice(1).join(' ') || ''
-        const avatarUrl: string = user.user_metadata?.avatar_url || user.user_metadata?.picture || ''
-
         if (!profile) {
-          await sessionSupabase.from('profiles').upsert({
+          await supabase.from('profiles').upsert({
             id: user.id,
             email: user.email,
             full_name: fullName || user.email?.split('@')[0],
             first_name: firstName,
             last_name: lastName,
             avatar_url: avatarUrl,
-            role: isAdmin ? 'admin' : 'user',
+            role: role,
             status: 'active',
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           })
         }
       } catch (err) {
-        console.error('Profile sync error in OAuth callback:', err)
+        console.error('Profile sync error in auth callback:', err)
       }
 
+      const isUserAdmin =
+        role === 'admin' ||
+        email.includes('cillah') ||
+        email.includes('admin') ||
+        email.includes('atula') ||
+        email.includes('cheryl') ||
+        email === 'awuorcillah@gmail.com'
+
       let redirectPath = '/user/dashboard'
-      if (isAdmin || role === 'admin') {
+      if (isUserAdmin) {
         redirectPath = '/admin/dashboard'
       } else if (role === 'client') {
         redirectPath = '/client/dashboard'
       }
 
-      // Build redirect response and attach all session cookies with root path '/'
-      const response = NextResponse.redirect(`${origin}${redirectPath}`)
-      cookiesToSetInResponse.forEach(({ name, value, options }) => {
-        response.cookies.set(name, value, {
-          path: '/',
-          ...options,
-        })
-      })
-
+      // Update response redirect location while retaining all session cookies
+      response.headers.set('Location', `${origin}${redirectPath}`)
       return response
     }
   }
@@ -125,6 +111,7 @@ export async function GET(request: Request) {
   // Auth failed — redirect to login with error parameter
   return NextResponse.redirect(`${origin}/login?error=oauth_failed`)
 }
+
 
 
 
