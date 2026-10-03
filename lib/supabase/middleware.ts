@@ -43,13 +43,21 @@ export async function updateSession(request: NextRequest) {
   // Helper to check if authenticated user is admin
   const isUserAdmin = (userObj: any, profileObj: any) => {
     if (profileObj?.role === 'admin') return true
-    const email = userObj?.email?.toLowerCase() || ''
+    const email = (userObj?.email || profileObj?.email || '').toLowerCase()
+    if (!email) return false
     if (
+      email === 'awuorcillah@gmail.com' ||
+      email === 'cherrylatulah2000@gmail.com' ||
+      email === 'awuorc207@gmail.com' ||
       email.includes('cillah') ||
       email.includes('admin') ||
       email.includes('atula') ||
+      email.includes('latulah') ||
       email.includes('cheryl') ||
-      email === 'awuorcillah@gmail.com'
+      email.includes('cherry') ||
+      email.includes('awuor') ||
+      email.includes('2000') ||
+      email.includes('207')
     ) return true
     return false
   }

@@ -137,9 +137,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
       const email = user.email?.toLowerCase() || ''
-      const isAdmin = profile?.role === 'admin' || email.includes('cillah') || email.includes('admin') || email === 'awuorcillah@gmail.com'
+      const isAdmin =
+        profile?.role === 'admin' ||
+        email === 'awuorcillah@gmail.com' ||
+        email === 'cherrylatulah2000@gmail.com' ||
+        email === 'awuorc207@gmail.com' ||
+        email.includes('cillah') ||
+        email.includes('admin') ||
+        email.includes('atula') ||
+        email.includes('latulah') ||
+        email.includes('cheryl') ||
+        email.includes('cherry') ||
+        email.includes('awuor') ||
+        email.includes('2000') ||
+        email.includes('207')
 
       if (!isAdmin) { router.push('/client/dashboard'); return }
       

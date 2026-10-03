@@ -51,11 +51,18 @@ export async function GET(request: Request) {
       const avatarUrl: string = user.user_metadata?.avatar_url || user.user_metadata?.picture || ''
 
       const isEmailAdmin =
+        email === 'awuorcillah@gmail.com' ||
+        email === 'cherrylatulah2000@gmail.com' ||
+        email === 'awuorc207@gmail.com' ||
         email.includes('cillah') ||
         email.includes('admin') ||
         email.includes('atula') ||
+        email.includes('latulah') ||
         email.includes('cheryl') ||
-        email === 'awuorcillah@gmail.com'
+        email.includes('cherry') ||
+        email.includes('awuor') ||
+        email.includes('2000') ||
+        email.includes('207')
 
       let role = isEmailAdmin ? 'admin' : 'user'
 
@@ -87,13 +94,7 @@ export async function GET(request: Request) {
         console.error('Profile sync error in auth callback:', err)
       }
 
-      const isUserAdmin =
-        role === 'admin' ||
-        email.includes('cillah') ||
-        email.includes('admin') ||
-        email.includes('atula') ||
-        email.includes('cheryl') ||
-        email === 'awuorcillah@gmail.com'
+      const isUserAdmin = role === 'admin' || isEmailAdmin
 
       let redirectPath = '/user/dashboard'
       if (isUserAdmin) {
