@@ -95,35 +95,38 @@ export default function HomePage() {
         <section className="relative pt-32 pb-24 md:pt-40 md:pb-32 flex flex-col items-center justify-center border-b border-white/5">
           <div className="container mx-auto max-w-5xl px-6 md:px-12 relative z-10 text-center flex flex-col items-center">
             
-            {/* 1. Top 4 Action Buttons - Full-Width Stacked Rows on Mobile */}
+            {/* 1. Top 4 Action Buttons - 2 Rows of 2 Side-by-Side Buttons */}
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: "easeOut" }}
-              className="w-full max-w-2xl mx-auto mb-12 px-2"
+              className="w-full max-w-lg mx-auto mb-12 px-2"
             >
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 w-full">
+              <div className="grid grid-cols-2 gap-3 w-full">
+                {/* Row 1: Login & Sign Up */}
                 <a
                   href="/login"
-                  className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#C9A66B]/50 font-heading font-medium text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_15px_rgba(201,166,107,0.2)]"
+                  className="w-full inline-flex items-center justify-center px-4 py-3.5 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#C9A66B]/50 font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_15px_rgba(201,166,107,0.2)] text-center"
                 >
                   Login
                 </a>
                 <a
                   href="/signup"
-                  className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 rounded-[14px] bg-[#C9A66B] text-[#07070B] hover:bg-[#C9A66B]/90 font-heading font-semibold text-[14px] tracking-wide transition-all duration-300 hover:shadow-[0_0_20px_rgba(201,166,107,0.4)]"
+                  className="w-full inline-flex items-center justify-center px-4 py-3.5 rounded-[14px] bg-[#C9A66B] text-[#07070B] hover:bg-[#C9A66B]/90 font-heading font-semibold text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 hover:shadow-[0_0_20px_rgba(201,166,107,0.4)] text-center"
                 >
                   Sign Up
                 </a>
+
+                {/* Row 2: Book a Consultation & Our Services */}
                 <a
                   href="/book-consultation"
-                  className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 rounded-[14px] bg-white/5 border border-[#C9A66B]/40 text-[#C9A66B] hover:bg-[#C9A66B]/10 hover:border-[#C9A66B] font-heading font-medium text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_20px_rgba(201,166,107,0.25)]"
+                  className="w-full inline-flex items-center justify-center px-4 py-3.5 rounded-[14px] bg-white/5 border border-[#C9A66B]/40 text-[#C9A66B] hover:bg-[#C9A66B]/10 hover:border-[#C9A66B] font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_20px_rgba(201,166,107,0.25)] text-center"
                 >
                   Book a Consultation
                 </a>
                 <a
                   href="#the-interface"
-                  className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#F2B6C1]/50 font-heading font-medium text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_15px_rgba(242,182,193,0.2)]"
+                  className="w-full inline-flex items-center justify-center px-4 py-3.5 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#F2B6C1]/50 font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_15px_rgba(242,182,193,0.2)] text-center"
                 >
                   Our Services
                 </a>
@@ -742,30 +745,33 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Bottom Action Buttons Row - Full-Width Stacked Rows on Mobile */}
-              <div className="mt-8 pt-6 border-t border-white/10 w-full">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 w-full max-w-2xl mx-auto px-2">
+              {/* Bottom Action Buttons Row - 2 Rows of 2 Side-by-Side Buttons */}
+              <div className="mt-8 pt-6 border-t border-white/10 w-full max-w-lg mx-auto">
+                <div className="grid grid-cols-2 gap-3 w-full">
+                  {/* Row 1 */}
                   <a
                     href="/our-services"
-                    className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#C9A66B]/50 font-heading font-medium text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_15px_rgba(201,166,107,0.2)]"
+                    className="w-full inline-flex items-center justify-center px-4 py-3.5 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#C9A66B]/50 font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_15px_rgba(201,166,107,0.2)] text-center"
                   >
                     Learn More
                   </a>
                   <a
                     href="/book-consultation"
-                    className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 rounded-[14px] bg-[#C9A66B] text-[#07070B] hover:bg-[#C9A66B]/90 font-heading font-semibold text-[14px] tracking-wide transition-all duration-300 hover:shadow-[0_0_20px_rgba(201,166,107,0.4)]"
+                    className="w-full inline-flex items-center justify-center px-4 py-3.5 rounded-[14px] bg-[#C9A66B] text-[#07070B] hover:bg-[#C9A66B]/90 font-heading font-semibold text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 hover:shadow-[0_0_20px_rgba(201,166,107,0.4)] text-center"
                   >
                     Book a Consultation
                   </a>
+
+                  {/* Row 2 */}
                   <a
                     href="/login"
-                    className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#C9A66B]/50 font-heading font-medium text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md"
+                    className="w-full inline-flex items-center justify-center px-4 py-3.5 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#C9A66B]/50 font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md text-center"
                   >
                     Login
                   </a>
                   <a
                     href="/signup"
-                    className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 rounded-[14px] bg-white/5 border border-[#F2B6C1]/40 text-[#F2B6C1] hover:bg-[#F2B6C1]/10 hover:border-[#F2B6C1] font-heading font-medium text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md"
+                    className="w-full inline-flex items-center justify-center px-4 py-3.5 rounded-[14px] bg-white/5 border border-[#F2B6C1]/40 text-[#F2B6C1] hover:bg-[#F2B6C1]/10 hover:border-[#F2B6C1] font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md text-center"
                   >
                     Sign Up
                   </a>
