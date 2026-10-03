@@ -224,6 +224,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <Megaphone className="w-3.5 h-3.5 flex-shrink-0 text-purple-400" />
                   <span>Marketing Dept</span>
                 </Link>
+                <Link href="/admin/organizations/cillah-dev/teams" className={navCls(isActive('/admin/organizations/cillah-dev/teams'), true)}>
+                  <Shield className="w-3.5 h-3.5 flex-shrink-0 text-cyan-400" />
+                  <span>Teams & Roles</span>
+                </Link>
               </div>
             )}
           </div>
