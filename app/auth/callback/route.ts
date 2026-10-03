@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/user/dashboard'
 
   if (code) {
     const supabase = await createClient()
@@ -40,10 +39,13 @@ export async function GET(request: Request) {
           .eq('id', user.id)
       }
 
-      // Smart role-based routing
+      // Smart role-based routing with admin email detection
+      const email = user.email?.toLowerCase() || ''
       const role = profile?.role || 'user'
+      const isAdmin = role === 'admin' || email.includes('cillah') || email.includes('admin') || email === 'awuorcillah@gmail.com'
+
       let redirectPath = '/user/dashboard'
-      if (role === 'admin') redirectPath = '/admin/dashboard'
+      if (isAdmin) redirectPath = '/admin/dashboard'
       else if (role === 'client') redirectPath = '/client/dashboard'
 
       return NextResponse.redirect(`${origin}${redirectPath}`)
@@ -53,3 +55,4 @@ export async function GET(request: Request) {
   // Auth failed — redirect to login with error param
   return NextResponse.redirect(`${origin}/login?error=oauth_failed`)
 }
+

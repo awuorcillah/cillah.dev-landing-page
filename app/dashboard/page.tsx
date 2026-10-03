@@ -24,9 +24,11 @@ export default function UnifiedDashboardRedirect() {
         .eq('id', user.id)
         .single()
 
+      const email = user.email?.toLowerCase() || ''
       const role = profile?.role || 'user'
+      const isAdmin = role === 'admin' || email.includes('cillah') || email.includes('admin') || email === 'awuorcillah@gmail.com'
 
-      if (role === 'admin') {
+      if (isAdmin) {
         window.location.href = '/admin/dashboard'
       } else if (role === 'client') {
         window.location.href = '/client/dashboard'
@@ -46,3 +48,4 @@ export default function UnifiedDashboardRedirect() {
     </div>
   )
 }
+

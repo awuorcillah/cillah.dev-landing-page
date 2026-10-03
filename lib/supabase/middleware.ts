@@ -37,7 +37,15 @@ export async function updateSession(request: NextRequest) {
 
   const url = request.nextUrl.clone()
 
-  // Protect /admin routes -> Only 'admin' role allowed. Non-admins redirected to /unauthorized 403 page
+  // Helper to check if authenticated user is admin
+  const isUserAdmin = (userObj: any, profileObj: any) => {
+    if (profileObj?.role === 'admin') return true
+    const email = userObj?.email?.toLowerCase() || ''
+    if (email.includes('cillah') || email.includes('admin') || email === 'awuorcillah@gmail.com') return true
+    return false
+  }
+
+  // Protect /admin routes -> Only 'admin' role or admin email allowed
   if (url.pathname.startsWith('/admin')) {
     if (!user) {
       url.pathname = '/login'
@@ -50,7 +58,7 @@ export async function updateSession(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    if (profile?.role !== 'admin') {
+    if (!isUserAdmin(user, profile)) {
       url.pathname = '/unauthorized'
       return NextResponse.redirect(url)
     }
@@ -69,7 +77,7 @@ export async function updateSession(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    if (profile?.role === 'user') {
+    if (profile?.role === 'user' && !isUserAdmin(user, profile)) {
       url.pathname = '/user/dashboard'
       return NextResponse.redirect(url)
     }
@@ -85,3 +93,4 @@ export async function updateSession(request: NextRequest) {
 
   return supabaseResponse
 }
+

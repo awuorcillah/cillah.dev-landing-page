@@ -23,7 +23,12 @@ export function Navbar() {
           .select('role, avatar_url')
           .eq('id', user.id)
           .single()
-        if (profile) setRole(profile.role)
+        
+        const email = user.email?.toLowerCase() || ''
+        const isAdmin = profile?.role === 'admin' || email.includes('cillah') || email.includes('admin') || email === 'awuorcillah@gmail.com'
+        
+        if (isAdmin) setRole('admin')
+        else if (profile) setRole(profile.role)
       }
     }
     fetchUser()
