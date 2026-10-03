@@ -519,15 +519,17 @@ export default function AdminUsersPage() {
                     <td className="py-4 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         {user.role === 'user' && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleRoleChange(user.id, 'client')}
-                            disabled={updatingId === user.id}
-                            className="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs py-1 px-2.5 h-auto gap-1"
-                          >
-                            <UserCheck className="w-3 h-3" />
-                            Promote to Client
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              onClick={() => handleRoleChange(user.id, 'client')}
+                              disabled={updatingId === user.id}
+                              className="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs py-1 px-2.5 h-auto gap-1"
+                            >
+                              <UserCheck className="w-3 h-3" />
+                              Promote to Client
+                            </Button>
+                          </div>
                         )}
 
                         <Button
