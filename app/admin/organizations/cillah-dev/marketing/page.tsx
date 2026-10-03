@@ -54,14 +54,14 @@ export default function MarketingDepartmentPage() {
         .order('created_at', { ascending: false })
 
       if (error || !dbMessages || dbMessages.length === 0) {
-        // High fidelity omnichannel demo messages
+        // High fidelity omnichannel demo messages for cillah.dev agency
         const initialMessages: MarketingMessage[] = [
           {
             id: 'MSG-701',
             platform: 'whatsapp',
             sender_name: 'Eng. Patrick Kibet',
             sender_handle_phone: '+254 722 990 011',
-            message_preview: 'Hi! Saw your Instagram ad for Kilimani luxury 3BR duplexes. Can I get price breakdown and site visit details?',
+            message_preview: 'Hi! Saw your video on WhatsApp CRM lead routing automation. Can we set up a 1-on-1 strategy call for my business?',
             lead_quality: 'Hot Lead',
             assigned_marketer: 'Joy Wambui',
             created_at: new Date().toISOString()
@@ -69,9 +69,9 @@ export default function MarketingDepartmentPage() {
           {
             id: 'MSG-702',
             platform: 'instagram',
-            sender_name: 'Anita_Homes_Nairobi',
-            sender_handle_phone: '@anita_homes_nrobi',
-            message_preview: 'DM: What is the monthly ROI for the Westlands commercial office space listing you posted yesterday?',
+            sender_name: 'Anita_Business_Nairobi',
+            sender_handle_phone: '@anita_business_nrobi',
+            message_preview: 'DM: What is the monthly retainer fee for website maintenance and dedicated server hosting for our e-commerce platform?',
             lead_quality: 'Qualified',
             assigned_marketer: 'Brenda Cherono',
             created_at: new Date(Date.now() - 1800000).toISOString()
@@ -81,7 +81,7 @@ export default function MarketingDepartmentPage() {
             platform: 'facebook',
             sender_name: 'Grace Mwangi',
             sender_handle_phone: 'FB Lead Ad Form #402',
-            message_preview: 'Submitted Facebook Lead Form: Interested in 0.5 acre plots in Karen. Budget KES 45M.',
+            message_preview: 'Submitted Facebook Lead Form: Interested in Tier 2 custom software build with client portal access.',
             lead_quality: 'Hot Lead',
             assigned_marketer: 'Kelvin Mutiso',
             created_at: new Date(Date.now() - 3600000 * 2).toISOString()
@@ -91,7 +91,7 @@ export default function MarketingDepartmentPage() {
             platform: 'website',
             sender_name: 'Samuel Kiprop',
             sender_handle_phone: 'samuel.k@finance.co.ke',
-            message_preview: 'Live Chat: Is the 5BR gated villa in Lavington still available for immediate viewings?',
+            message_preview: 'Live Chat: Do you build custom Meta Conversions API & auto lead assignment workflows for sales teams?',
             lead_quality: 'Qualified',
             assigned_marketer: 'Joy Wambui',
             created_at: new Date(Date.now() - 3600000 * 4).toISOString()
@@ -99,9 +99,9 @@ export default function MarketingDepartmentPage() {
           {
             id: 'MSG-705',
             platform: 'tiktok',
-            sender_name: 'realtor_pro_ke',
-            sender_handle_phone: '@realtor_pro_ke',
-            message_preview: 'TikTok Comment: Interested in your AI automation setup for estate agents. Do you offer 1-on-1 strategy calls?',
+            sender_name: 'tech_founder_ke',
+            sender_handle_phone: '@tech_founder_ke',
+            message_preview: 'TikTok Comment: Loved your demo! How fast can cillah.dev deploy an AI sales bot for incoming Instagram & WhatsApp DMs?',
             lead_quality: 'General Enquiry',
             assigned_marketer: 'Brenda Cherono',
             created_at: new Date(Date.now() - 86400000).toISOString()

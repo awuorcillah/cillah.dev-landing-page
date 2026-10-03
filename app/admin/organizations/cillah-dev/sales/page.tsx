@@ -75,19 +75,19 @@ export default function SalesDepartmentPage() {
         .order('created_at', { ascending: false })
 
       if (error || !dbLeads || dbLeads.length === 0) {
-        // High fidelity sample CRM leads for cillah.dev real estate pipeline
+        // High fidelity sample CRM leads for cillah.dev tech & automation agency pipeline
         const initialLeads: SalesLead[] = [
           {
             id: 'SL-8001',
             full_name: 'Dr. Harrison Njuguna',
             phone_number: '+254 722 112 233',
             email: 'harrison.n@health.co.ke',
-            property_interest: 'Kilimani 3BR Luxury Duplex',
+            property_interest: 'Custom AI Lead Routing & WhatsApp Integration',
             purchase_timeline: 'Immediately',
             source: 'WhatsApp Lead Bot',
             assigned_agent: 'John Kamau (Senior Agent)',
             temperature: 'hot',
-            initial_note: 'Enquired via WhatsApp bot at 09:15 AM regarding KES 28M duplex cash payment option.',
+            initial_note: 'Enquired via WhatsApp bot at 09:15 AM regarding full AI lead routing setup and Meta API integration.',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             notes: [
@@ -95,14 +95,14 @@ export default function SalesDepartmentPage() {
                 id: 'N-1',
                 lead_id: 'SL-8001',
                 agent_name: 'John Kamau',
-                note_text: 'Called customer at 10:30 AM. He confirmed funding is ready and requested site visit this Saturday 11 AM.',
+                note_text: 'Called customer at 10:30 AM. Confirmed budget approved for KES 150k custom build. Scheduled tech discovery call for Saturday 11 AM.',
                 created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
               },
               {
                 id: 'N-2',
                 lead_id: 'SL-8001',
                 agent_name: 'System Bot',
-                note_text: 'Initial enquiry: Looking for 3BR duplex in Kilimani under 30M KES.',
+                note_text: 'Initial enquiry: Looking for automated lead assignment to 5 sales reps in medical clinic group.',
                 created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
               }
             ]
@@ -111,13 +111,13 @@ export default function SalesDepartmentPage() {
             id: 'SL-8002',
             full_name: 'Roselyne Odhiambo',
             phone_number: '+254 711 445 566',
-            email: 'roselyne@realestate.co.ke',
-            property_interest: 'Westlands Commercial Office Block',
+            email: 'roselyne@logistics.co.ke',
+            property_interest: 'Tier 2 Custom Build & Hosting (Dedicated Server)',
             purchase_timeline: 'Within 3 Months',
             source: 'Meta Instagram Lead Ad',
             assigned_agent: 'David Ochieng (Commercial Specialist)',
             temperature: 'warm',
-            initial_note: 'Filled Instagram lead form requesting floor plans for 2500 sqft Westlands prime office space.',
+            initial_note: 'Filled Instagram lead form requesting proposal for dedicated server deployment of custom company portal.',
             created_at: new Date(Date.now() - 86400000).toISOString(),
             updated_at: new Date(Date.now() - 86400000).toISOString(),
             notes: [
@@ -125,7 +125,7 @@ export default function SalesDepartmentPage() {
                 id: 'N-3',
                 lead_id: 'SL-8002',
                 agent_name: 'David Ochieng',
-                note_text: 'Sent brochure via WhatsApp. Client promised to review with board members by Friday.',
+                note_text: 'Sent proposal PDF via WhatsApp. Client promised to review with technical director by Friday.',
                 created_at: new Date(Date.now() - 86400000).toISOString(),
               }
             ]
@@ -135,12 +135,12 @@ export default function SalesDepartmentPage() {
             full_name: 'Capt. Ahmed Al-Mansoor',
             phone_number: '+254 733 998 877',
             email: 'ahmed.mansoor@aviation.aero',
-            property_interest: 'Lavington 5BR Gated Villa',
+            property_interest: 'Tier 1 Managed Website Build & Monthly Retainer',
             purchase_timeline: 'Within 6 Months',
             source: 'Website Live Chat',
             assigned_agent: 'Mercy Njeri (Residential Specialist)',
             temperature: 'cold',
-            initial_note: 'Inquired about rental yield vs purchase for gated community villas in Lavington.',
+            initial_note: 'Inquired about monthly retainer tier vs one-time code ownership for charter flight platform.',
             created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
             updated_at: new Date(Date.now() - 86400000 * 3).toISOString(),
             notes: [
@@ -148,7 +148,7 @@ export default function SalesDepartmentPage() {
                 id: 'N-4',
                 lead_id: 'SL-8003',
                 agent_name: 'Mercy Njeri',
-                note_text: 'Left voicemail. Client is currently out of Kenya on flight duty, requested email followup.',
+                note_text: 'Left voicemail. Client is currently out of Kenya on flight duty, requested email proposal.',
                 created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
               }
             ]
@@ -158,12 +158,12 @@ export default function SalesDepartmentPage() {
             full_name: 'Beatrice Mutua',
             phone_number: '+254 700 334 112',
             email: 'beatrice.m@fintech.co.ke',
-            property_interest: 'Karen 0.5 Acre Residential Plot',
+            property_interest: '1-on-1 AI Strategy & Architecture Call (KES 5,000)',
             purchase_timeline: 'Immediately',
             source: 'Facebook Lead Ad',
             assigned_agent: 'Faith Wanjiku (Lead Closer)',
             temperature: 'hot',
-            initial_note: 'Urgent search for clean title deed plot in Karen close to Hardy Shopping Centre.',
+            initial_note: 'Urgent booking for paid 1:1 strategy consultation call regarding automated customer support pipeline.',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             notes: [
@@ -171,7 +171,7 @@ export default function SalesDepartmentPage() {
                 id: 'N-5',
                 lead_id: 'SL-8004',
                 agent_name: 'Faith Wanjiku',
-                note_text: 'Spoke with client. Booking lawyer search and site visit tomorrow at 2 PM.',
+                note_text: 'Spoke with client. Paid KES 5,000 consultation confirmed for tomorrow at 2 PM.',
                 created_at: new Date(Date.now() - 1800000).toISOString(),
               }
             ]
