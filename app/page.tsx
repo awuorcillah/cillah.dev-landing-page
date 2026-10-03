@@ -92,15 +92,80 @@ export default function HomePage() {
         <div className="absolute bottom-1/4 left-1/3 w-[500px] h-[500px] rounded-full bg-[#C9A66B]/3 blur-[120px] pointer-events-none -z-10" />
 
         {/* 1. HERO SECTION */}
-        <section className="relative pt-36 pb-24 md:pt-48 md:pb-32 flex flex-col items-center justify-center border-b border-white/5">
+        <section className="relative pt-32 pb-24 md:pt-40 md:pb-32 flex flex-col items-center justify-center border-b border-white/5">
           <div className="container mx-auto max-w-5xl px-6 md:px-12 relative z-10 text-center flex flex-col items-center">
             
-            {/* Image First, fully visible and styled */}
+            {/* 1. Top 4 Action Buttons */}
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="w-full max-w-4xl mx-auto mb-16 relative"
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mb-12"
+            >
+              <a
+                href="/login"
+                className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#C9A66B]/50 font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_15px_rgba(201,166,107,0.2)]"
+              >
+                Login
+              </a>
+              <a
+                href="/signup"
+                className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-[14px] bg-[#C9A66B] text-[#07070B] hover:bg-[#C9A66B]/90 font-heading font-semibold text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 hover:shadow-[0_0_20px_rgba(201,166,107,0.4)]"
+              >
+                Sign Up
+              </a>
+              <a
+                href="/book-consultation"
+                className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-[14px] bg-white/5 border border-[#C9A66B]/40 text-[#C9A66B] hover:bg-[#C9A66B]/10 hover:border-[#C9A66B] font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_20px_rgba(201,166,107,0.25)]"
+              >
+                Book a Consultation
+              </a>
+              <a
+                href="/our-services"
+                className="px-5 py-2.5 sm:px-6 sm:py-3 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#F2B6C1]/50 font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_15px_rgba(242,182,193,0.2)]"
+              >
+                Our Services
+              </a>
+            </motion.div>
+
+            {/* 2. Headline & Subtexts */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
+              className="max-w-4xl mx-auto flex flex-col items-center text-center mb-16"
+            >
+              {/* Luxury Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 mb-8 backdrop-blur-md">
+                <Sparkles className="h-4 w-4 text-[#C9A66B]" />
+                <span className="text-[11px] font-medium tracking-[0.25em] uppercase text-[#F2B6C1]">
+                  Ultra-Premium AI Systems
+                </span>
+              </div>
+
+              {/* Luxury Headline */}
+              <h1 className="font-heading font-light text-[34px] sm:text-[44px] md:text-[56px] leading-[1.12] text-[#F9F7F6] mb-8 text-balance">
+                The business owner who values <br className="hidden md:inline" />
+                <span className="text-[#C9A66B] font-normal italic">speed and control</span>.
+              </h1>
+
+              {/* Luxury Subtexts */}
+              <div className="space-y-6 max-w-3xl mx-auto">
+                <p className="text-[16px] md:text-[18px] leading-relaxed text-[#F9F7F6]/85">
+                  While human agents are asleep, busy, or answering the same questions repeatedly, potential buyers are moving to competitors who respond first. Social media and the internet create more inquiries than any manual team can consistently handle.
+                </p>
+                <p className="text-[15px] md:text-[16px] leading-relaxed text-[#F9F7F6]/65 font-light">
+                  Cillah.dev gives your business a system that responds instantly, qualifies buyers automatically, follows up continuously, and keeps converting opportunities — even when your team is offline.
+                </p>
+              </div>
+            </motion.div>
+
+            {/* 3. Image Below Title */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
+              className="w-full max-w-4xl mx-auto relative"
             >
               {/* Glowing background */}
               <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#C9A66B]/10 to-transparent rounded-[28px] blur-3xl pointer-events-none" />
@@ -113,48 +178,6 @@ export default function HomePage() {
                   className="w-full h-auto rounded-[12px] sm:rounded-[20px] object-contain block"
                   loading="eager"
                 />
-              </div>
-            </motion.div>
-
-            {/* Text Content Below the Image */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
-              className="max-w-4xl mx-auto flex flex-col items-center text-center"
-            >
-              {/* Luxury Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 mb-8 backdrop-blur-md">
-                <Sparkles className="h-4 w-4 text-[#C9A66B]" />
-                <span className="text-[11px] font-medium tracking-[0.25em] uppercase text-[#F2B6C1]">
-                  Ultra-Premium AI Systems
-                </span>
-              </div>
-
-              {/* Luxury Headline */}
-              <h1 className="font-heading font-light text-[34px] sm:text-[44px] md:text-[56px] leading-[1.12] text-[#F9F7F6] mb-8 text-balance">
-                Stop losing buyers because your <br className="hidden md:inline" />
-                sales process depends on <span className="text-[#C9A66B] font-normal italic">human availability</span>.
-              </h1>
-
-              {/* Luxury Subtexts */}
-              <div className="space-y-6 max-w-3xl mx-auto mb-12">
-                <p className="text-[16px] md:text-[18px] leading-relaxed text-[#F9F7F6]/85">
-                  While human agents are asleep, busy, or answering the same questions repeatedly, potential buyers are moving to competitors who respond first. Social media and the internet create more inquiries than any manual team can consistently handle.
-                </p>
-                <p className="text-[15px] md:text-[16px] leading-relaxed text-[#F9F7F6]/65 font-light">
-                  Cillah.dev gives your business a system that responds instantly, qualifies buyers automatically, follows up continuously, and keeps converting opportunities — even when your team is offline.
-                </p>
-              </div>
-
-              {/* Luxury Buttons */}
-              <div className="w-full sm:w-auto">
-                <a
-                  href="/book-consultation"
-                  className="w-full sm:w-auto inline-flex items-center justify-center bg-[#C9A66B] text-[#07070B] hover:bg-[#C9A66B]/90 font-heading font-semibold rounded-[16px] px-8 py-4 text-[14px] tracking-wide transition-all duration-300 hover:shadow-[0_0_25px_rgba(201,166,107,0.3)]"
-                >
-                  Book a Consultation
-                </a>
               </div>
             </motion.div>
 
