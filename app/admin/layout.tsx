@@ -26,6 +26,9 @@ import {
   Layers,
   Tag,
   TrendingUp,
+  Building2,
+  Megaphone,
+  BarChart3
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -59,6 +62,9 @@ const PATH_LABELS: Record<string, string> = {
   bookings: 'Bookings',
   notifications: 'Notifications',
   new: 'New',
+  organizations: 'Organizations',
+  sales: 'Sales Department',
+  marketing: 'Marketing Department',
 }
 
 function getBreadcrumbs(pathname: string) {
@@ -88,6 +94,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sidebarOpen,      setSidebarOpen]      = useState(true)
   const [mobileOpen,       setMobileOpen]        = useState(false)
   const [sessionsExpanded, setSessionsExpanded]  = useState(false)
+  const [orgsExpanded,     setOrgsExpanded]      = useState(true)
   const [adminProfile,     setAdminProfile]      = useState<any>(null)
   const [notifications,    setNotifications]     = useState(MOCK_NOTIFICATIONS)
   const [notifOpen,        setNotifOpen]         = useState(false)
@@ -108,6 +115,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (pathname.includes('/sessions') || pathname.includes('/availability')) {
       setSessionsExpanded(true)
+    }
+    if (pathname.includes('/organizations')) {
+      setOrgsExpanded(true)
     }
   }, [pathname])
 
@@ -185,6 +195,39 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {expanded && <span>Dashboard</span>}
           </Link>
 
+          {/* Organizations Group */}
+          <div>
+            <button
+              onClick={() => setOrgsExpanded(p => !p)}
+              title={!expanded ? 'Organizations' : undefined}
+              className={`w-full ${navCls(false)} ${pathname.includes('/organizations') ? 'text-slate-200' : ''}`}
+            >
+              <Building2 className="w-4 h-4 flex-shrink-0 text-cyan-400" />
+              {expanded && (
+                <>
+                  <span className="flex-1 text-left font-semibold">Organizations</span>
+                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${orgsExpanded ? 'rotate-180' : ''}`} />
+                </>
+              )}
+            </button>
+
+            {orgsExpanded && expanded && (
+              <div className="ml-3 mt-1 pl-3 border-l border-slate-800 space-y-0.5">
+                <div className="py-1 px-2 text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+                  cillah.dev
+                </div>
+                <Link href="/admin/organizations/cillah-dev/sales" className={navCls(isActive('/admin/organizations/cillah-dev/sales'), true)}>
+                  <BarChart3 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />
+                  <span>Sales Department</span>
+                </Link>
+                <Link href="/admin/organizations/cillah-dev/marketing" className={navCls(isActive('/admin/organizations/cillah-dev/marketing'), true)}>
+                  <Megaphone className="w-3.5 h-3.5 flex-shrink-0 text-purple-400" />
+                  <span>Marketing Dept</span>
+                </Link>
+              </div>
+            )}
+          </div>
+
           {/* Sessions group */}
           <div>
             <button
@@ -225,19 +268,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Clients */}
           <Link href="/admin/clients" className={navCls(isActive('/admin/clients'))}>
-            <UserCheck className="w-4 h-4 flex-shrink-0" />
+            <UserCheck className="w-4 h-4 flex-shrink-0 text-emerald-400" />
             {expanded && <span>Clients</span>}
           </Link>
 
           {/* Users */}
           <Link href="/admin/users" className={navCls(isActive('/admin/users'))}>
-            <Users className="w-4 h-4 flex-shrink-0" />
-            {expanded && <span>Users</span>}
+            <Users className="w-4 h-4 flex-shrink-0 text-purple-400" />
+            {expanded && <span>Users & Leads</span>}
           </Link>
 
           {/* Bookings */}
           <Link href="/admin/bookings" className={navCls(isActive('/admin/bookings'))}>
-            <BookOpen className="w-4 h-4 flex-shrink-0" />
+            <BookOpen className="w-4 h-4 flex-shrink-0 text-amber-400" />
             {expanded && <span>Bookings</span>}
           </Link>
         </nav>
