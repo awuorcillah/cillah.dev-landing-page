@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  const next = requestUrl.searchParams.get('next') ?? ''
   const origin = requestUrl.origin
 
   if (code) {
+    const cookieStore = await cookies()
     const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '')
       .replace(/\/rest\/v1\/?$/, '')
       .replace(/\/$/, '')
-
-    // Create the initial response object that receives session cookies
-    let response = NextResponse.redirect(`${origin}/user/dashboard`)
 
     const supabase = createServerClient(
       supabaseUrl,
@@ -20,19 +20,21 @@ export async function GET(request: Request) {
       {
         cookies: {
           getAll() {
-            const cookieHeader = request.headers.get('cookie') || ''
-            return cookieHeader.split('; ').filter(Boolean).map(c => {
-              const [name, ...val] = c.split('=')
-              return { name, value: val.join('=') }
-            })
+            return cookieStore.getAll()
           },
           setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, {
-                path: '/',
-                ...options,
+            try {
+              cookiesToSet.forEach(({ name, value, options }) => {
+                cookieStore.set(name, value, {
+                  path: '/',
+                  sameSite: 'lax',
+                  secure: process.env.NODE_ENV === 'production',
+                  ...options,
+                })
               })
-            })
+            } catch (err) {
+              // Ignore cookie set errors in Server Component context
+            }
           },
         },
       }
@@ -40,7 +42,11 @@ export async function GET(request: Request) {
 
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
-    if (!error && data.user) {
+    if (error) {
+      console.error('[OAuth Callback Error]:', error.message || error)
+    }
+
+    if (!error && data?.user) {
       const user = data.user
       const email = user.email?.toLowerCase() || ''
 
@@ -96,23 +102,17 @@ export async function GET(request: Request) {
 
       const isUserAdmin = role === 'admin' || isEmailAdmin
 
-      let redirectPath = '/user/dashboard'
+      let redirectPath = next || '/user/dashboard'
       if (isUserAdmin) {
         redirectPath = '/admin/dashboard'
       } else if (role === 'client') {
         redirectPath = '/client/dashboard'
       }
 
-      // Update response redirect location while retaining all session cookies
-      response.headers.set('Location', `${origin}${redirectPath}`)
-      return response
+      return NextResponse.redirect(`${origin}${redirectPath}`)
     }
   }
 
-  // Auth failed — redirect to login with error parameter
+  // Auth failed or missing code — redirect to login with error
   return NextResponse.redirect(`${origin}/login?error=oauth_failed`)
 }
-
-
-
-
