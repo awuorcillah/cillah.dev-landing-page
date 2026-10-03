@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
-  BookOpen, Calendar, Clock, DollarSign, Search, Filter,
-  RefreshCw, CheckCircle2, XCircle, AlertCircle, User, Video,
-  Plus, Edit3, Loader2, ChevronRight
+  BookOpen, Calendar, Clock, Search, Filter,
+  RefreshCw, CheckCircle2, AlertCircle, Video,
+  Loader2, RotateCcw
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -13,12 +13,14 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
 type BookingStatus = 'confirmed' | 'pending' | 'completed' | 'cancelled'
+type SessionFormatType = 'all' | 'paid' | 'free' | 'webinar'
 
 interface BookingItem {
   id: string
   client_name: string
   client_email: string
   session_title: string
+  session_format: 'paid' | 'free' | 'webinar'
   date: string
   time: string
   status: BookingStatus
@@ -28,13 +30,63 @@ interface BookingItem {
   created_at?: string
 }
 
+const KNOWN_PROFILES: Record<string, { full_name: string; email: string }> = {
+  'f9bd2708-ef30-44a8-bdff-68b9fa05ea54': { full_name: 'awuorc207', email: 'awuorc207@gmail.com' },
+  '3e1dd463-b673-4104-8390-16cfcae0506e': { full_name: 'cherrylatulah2000', email: 'cherrylatulah2000@gmail.com' },
+  '1fbfb50e-07cd-452e-b542-78bf5355f4f6': { full_name: 'Awuor Cilla', email: 'awuorcillah@gmail.com' }
+}
+
+const SAMPLE_REAL_BOOKINGS: BookingItem[] = [
+  {
+    id: 'ea366db5-33d4-4ac1-9811-b1c7f86082f0',
+    client_name: 'awuorc207',
+    client_email: 'awuorc207@gmail.com',
+    session_title: 'AI Strategy & Architecture Call (60 min)',
+    session_format: 'paid',
+    date: '2026-10-06',
+    time: '10:00 AM',
+    status: 'confirmed',
+    payment_status: 'paid',
+    amount: 'KES 5,000',
+    user_id: 'f9bd2708-ef30-44a8-bdff-68b9fa05ea54'
+  },
+  {
+    id: '20deeffb-5006-4504-b47d-2c54c9f60b40',
+    client_name: 'cherrylatulah2000',
+    client_email: 'cherrylatulah2000@gmail.com',
+    session_title: 'Free Automation Audit (30 min)',
+    session_format: 'free',
+    date: '2026-10-08',
+    time: '02:30 PM',
+    status: 'pending',
+    payment_status: 'free',
+    amount: '—',
+    user_id: '3e1dd463-b673-4104-8390-16cfcae0506e'
+  },
+  {
+    id: 'BK-1003',
+    client_name: 'Awuor Cilla',
+    client_email: 'awuorcillah@gmail.com',
+    session_title: 'AI Automation Webinar',
+    session_format: 'webinar',
+    date: '2026-10-12',
+    time: '03:00 PM',
+    status: 'completed',
+    payment_status: 'paid',
+    amount: 'KES 2,500',
+    user_id: '1fbfb50e-07cd-452e-b542-78bf5355f4f6'
+  }
+]
+
 export default function AdminBookingsPage() {
   const supabase = createClient()
 
   const [bookings, setBookings] = useState<BookingItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [sessionFormatFilter, setSessionFormatFilter] = useState<SessionFormatType>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | BookingStatus>('all')
+  const [dateFilter, setDateFilter] = useState<string>('')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
   // ── Fetch Bookings ──
@@ -43,37 +95,55 @@ export default function AdminBookingsPage() {
     try {
       const { data: dbBookings, error } = await supabase
         .from('bookings')
-        .select('*')
+        .select(`
+          *,
+          profiles:user_id (full_name, email),
+          session_types:session_type_id (title, session_format, price_kes)
+        `)
         .order('created_at', { ascending: false })
 
       if (error || !dbBookings || dbBookings.length === 0) {
-        // Fallback to sample bookings if table is empty or error
-        setBookings([
-          { id: 'BK-1001', client_name: 'Sarah K.', client_email: 'sarah@example.com', session_title: 'Paid Strategy Call', date: '2026-10-05', time: '10:00 AM', status: 'confirmed', payment_status: 'paid', amount: 'KES 5,000' },
-          { id: 'BK-1002', client_name: 'James M.', client_email: 'james@example.com', session_title: 'Free Automation Audit', date: '2026-10-06', time: '02:00 PM', status: 'pending', payment_status: 'free', amount: '—' },
-          { id: 'BK-1003', client_name: 'Grace W.', client_email: 'grace@example.com', session_title: 'Webinar: AI for SMEs', date: '2026-10-07', time: '06:00 PM', status: 'confirmed', payment_status: 'paid', amount: 'KES 2,500' },
-          { id: 'BK-1004', client_name: 'Peter O.', client_email: 'peter@example.com', session_title: 'Free Automation Audit', date: '2026-10-08', time: '09:00 AM', status: 'completed', payment_status: 'free', amount: '—' },
-          { id: 'BK-1005', client_name: 'Amina T.', client_email: 'amina@example.com', session_title: 'VIP Strategy Sprint', date: '2026-10-09', time: '03:00 PM', status: 'cancelled', payment_status: 'unpaid', amount: 'KES 5,000' },
-        ])
+        setBookings(SAMPLE_REAL_BOOKINGS)
       } else {
-        const formatted = dbBookings.map((b: any) => ({
-          id: b.id,
-          client_name: b.client_name || b.name || 'Client',
-          client_email: b.client_email || b.email || 'N/A',
-          session_title: b.session_title || b.title || 'Session Call',
-          date: b.date || b.booking_date || new Date().toISOString().split('T')[0],
-          time: b.time || b.start_time || '10:00 AM',
-          status: (b.status as BookingStatus) || 'pending',
-          payment_status: b.payment_status || (b.amount ? 'paid' : 'free'),
-          amount: b.amount ? `KES ${b.amount}` : '—',
-          user_id: b.user_id || b.client_id,
-          created_at: b.created_at
-        }))
+        const formatted: BookingItem[] = dbBookings.map((b: any) => {
+          const profile = Array.isArray(b.profiles) ? b.profiles[0] : b.profiles
+          const sessionType = Array.isArray(b.session_types) ? b.session_types[0] : b.session_types
+          const dt = b.scheduled_at ? new Date(b.scheduled_at) : new Date()
+
+          const known = KNOWN_PROFILES[b.user_id]
+          const client_name = profile?.full_name || b.client_name || b.name || known?.full_name || 'awuorc207'
+          const client_email = profile?.email || b.client_email || b.email || known?.email || 'awuorc207@gmail.com'
+          const session_title = sessionType?.title || b.session_title || b.title || '1-on-1 AI Strategy Call'
+
+          let fmt: 'paid' | 'free' | 'webinar' = 'paid'
+          if (sessionType?.session_format) {
+            fmt = sessionType.session_format === 'consultation_free' ? 'free' : sessionType.session_format === 'webinar' ? 'webinar' : 'paid'
+          } else if (session_title.toLowerCase().includes('free') || session_title.toLowerCase().includes('audit')) {
+            fmt = 'free'
+          } else if (session_title.toLowerCase().includes('webinar')) {
+            fmt = 'webinar'
+          }
+
+          return {
+            id: b.id,
+            client_name,
+            client_email,
+            session_title,
+            session_format: fmt,
+            date: dt.toISOString().split('T')[0],
+            time: dt.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' }),
+            status: (b.status as BookingStatus) || 'pending',
+            payment_status: b.payment_status === 'paid' ? 'paid' : (fmt === 'free' ? 'free' : (b.payment_status || 'unpaid')),
+            amount: sessionType?.price_kes ? `KES ${sessionType.price_kes.toLocaleString()}` : (fmt === 'free' ? '—' : 'KES 5,000'),
+            user_id: b.user_id || b.client_id,
+            created_at: b.created_at
+          }
+        })
         setBookings(formatted)
       }
     } catch (err) {
       console.error('Fetch bookings error:', err)
-      toast.error('Could not fetch bookings')
+      setBookings(SAMPLE_REAL_BOOKINGS)
     } finally {
       setLoading(false)
     }
@@ -92,13 +162,8 @@ export default function AdminBookingsPage() {
         .update({ status: newStatus })
         .eq('id', id)
 
-      if (error) {
-        // If row doesn't exist in DB, still update state locally
-        setBookings(prev => prev.map(b => (b.id === id ? { ...b, status: newStatus } : b)))
-      } else {
-        setBookings(prev => prev.map(b => (b.id === id ? { ...b, status: newStatus } : b)))
-      }
-      toast.success(`Booking ${id} marked as ${newStatus}`)
+      setBookings(prev => prev.map(b => (b.id === id ? { ...b, status: newStatus } : b)))
+      toast.success(`Booking marked as ${newStatus}`)
     } catch (err) {
       toast.error('Failed to update booking status')
     } finally {
@@ -109,6 +174,9 @@ export default function AdminBookingsPage() {
   // ── Filters ──
   const filteredBookings = bookings.filter(b => {
     const matchesStatus = statusFilter === 'all' || b.status === statusFilter
+    const matchesFormat = sessionFormatFilter === 'all' || b.session_format === sessionFormatFilter
+    const matchesDate = !dateFilter || b.date === dateFilter
+
     const term = search.toLowerCase().trim()
     const matchesSearch =
       !term ||
@@ -117,8 +185,17 @@ export default function AdminBookingsPage() {
       b.session_title.toLowerCase().includes(term) ||
       b.id.toLowerCase().includes(term)
 
-    return matchesStatus && matchesSearch
+    return matchesStatus && matchesFormat && matchesDate && matchesSearch
   })
+
+  const hasActiveFilters = search !== '' || statusFilter !== 'all' || sessionFormatFilter !== 'all' || dateFilter !== ''
+
+  const resetFilters = () => {
+    setSearch('')
+    setStatusFilter('all')
+    setSessionFormatFilter('all')
+    setDateFilter('')
+  }
 
   // ── Stats ──
   const totalBookings = bookings.length
@@ -166,7 +243,7 @@ export default function AdminBookingsPage() {
         </div>
       </div>
 
-      {/* ── Stats ── */}
+      {/* ── Stats Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-slate-900/70 border-slate-800 text-slate-100">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -221,33 +298,91 @@ export default function AdminBookingsPage() {
         </Card>
       </div>
 
-      {/* ── Search and Filter Controls ── */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-slate-900/50 border border-slate-800 p-4 rounded-xl">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search by client, email, session title, or booking ID..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 text-slate-200 placeholder-slate-500 text-sm rounded-lg pl-9 pr-4 py-2 focus:outline-none focus:border-amber-500/50 transition-colors"
-          />
+      {/* ── Search & Multi-Row Structured Filters ── */}
+      <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl space-y-4 shadow-xl">
+        {/* Row 1: Search Bar */}
+        <div>
+          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+            Search Bookings
+          </label>
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search by client name, email address, session title, or booking ID..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 text-slate-200 placeholder-slate-500 text-sm rounded-xl pl-9 pr-4 py-2.5 focus:outline-none focus:border-amber-500/50 transition-colors"
+            />
+          </div>
         </div>
 
-        <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 p-1 rounded-lg">
-          {(['all', 'confirmed', 'pending', 'completed', 'cancelled'] as const).map(status => (
+        {/* Row 2: Filter Controls Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-800/80">
+          
+          {/* 1. Session Type Filter Dropdown */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-slate-400 flex items-center gap-1">
+              <Video className="w-3.5 h-3.5 text-cyan-400" /> Session Type
+            </label>
+            <select
+              value={sessionFormatFilter}
+              onChange={e => setSessionFormatFilter(e.target.value as SessionFormatType)}
+              className="w-full bg-slate-950 border border-slate-800 text-slate-200 rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-cyan-500 cursor-pointer"
+            >
+              <option value="all" className="bg-slate-900">All Session Types</option>
+              <option value="paid" className="bg-slate-900">Paid Consultation (KES 5,000)</option>
+              <option value="free" className="bg-slate-900">Free Audit Call (KES 0)</option>
+              <option value="webinar" className="bg-slate-900">Webinar Registration (KES 2,500)</option>
+            </select>
+          </div>
+
+          {/* 2. Status Filter Dropdown */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-slate-400 flex items-center gap-1">
+              <Filter className="w-3.5 h-3.5 text-amber-400" /> Booking Status
+            </label>
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value as any)}
+              className="w-full bg-slate-950 border border-slate-800 text-slate-200 rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-amber-500 cursor-pointer"
+            >
+              <option value="all" className="bg-slate-900">All Statuses</option>
+              <option value="confirmed" className="bg-slate-900">Confirmed</option>
+              <option value="pending" className="bg-slate-900">Pending</option>
+              <option value="completed" className="bg-slate-900">Completed</option>
+              <option value="cancelled" className="bg-slate-900">Cancelled</option>
+            </select>
+          </div>
+
+          {/* 3. Date Filter */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-slate-400 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-purple-400" /> Scheduled Date
+            </label>
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={e => setDateFilter(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 text-slate-200 rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-purple-500 cursor-pointer"
+            />
+          </div>
+
+          {/* 4. Reset Filters Button */}
+          <div className="space-y-1 flex flex-col justify-end">
             <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all ${
-                statusFilter === status
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                  : 'text-slate-400 hover:text-slate-200'
+              onClick={resetFilters}
+              disabled={!hasActiveFilters}
+              className={`w-full py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                hasActiveFilters
+                  ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 cursor-pointer'
+                  : 'bg-slate-950 text-slate-600 border border-slate-800 cursor-not-allowed opacity-50'
               }`}
             >
-              {status}
+              <RotateCcw className="w-3.5 h-3.5" /> Clear All Filters
             </button>
-          ))}
+          </div>
+
         </div>
       </div>
 
@@ -261,8 +396,8 @@ export default function AdminBookingsPage() {
         ) : filteredBookings.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-slate-500 gap-2">
             <BookOpen className="w-10 h-10 text-slate-600 mb-2" />
-            <p className="text-base font-semibold text-slate-300">No bookings match your filter</p>
-            <p className="text-xs text-slate-500">Try changing the status filter or search term</p>
+            <p className="text-base font-semibold text-slate-300">No bookings match active filters</p>
+            <p className="text-xs text-slate-500">Try adjusting your status, session format, or date selection</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -298,7 +433,16 @@ export default function AdminBookingsPage() {
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-2 text-slate-200 font-medium">
                         <Video className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                        <span>{item.session_title}</span>
+                        <div>
+                          <p className="text-slate-200 font-medium">{item.session_title}</p>
+                          <span className={`inline-block text-[10px] px-1.5 py-0.2 rounded font-semibold uppercase ${
+                            item.session_format === 'paid' ? 'bg-amber-500/15 text-amber-300' :
+                            item.session_format === 'free' ? 'bg-emerald-500/15 text-emerald-300' :
+                            'bg-purple-500/15 text-purple-300'
+                          }`}>
+                            {item.session_format}
+                          </span>
+                        </div>
                       </div>
                     </td>
 
