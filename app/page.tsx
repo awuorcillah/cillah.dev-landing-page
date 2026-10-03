@@ -461,102 +461,278 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 6. THE INTERFACE */}
+        {/* 6. THE INTERFACE & ROSY REALTORS DASHBOARD */}
         <section className="py-24 md:py-32 border-b border-white/5 bg-[#07070B]">
           <div className="container mx-auto max-w-7xl px-6 md:px-12">
-            <div className="text-center max-w-3xl mx-auto mb-20">
+            <div className="text-center max-w-3xl mx-auto mb-16">
               <span className="text-[11px] font-heading font-medium uppercase tracking-[0.25em] text-[#C9A66B] mb-3 block">
                 The Interface
               </span>
               <h2 className="font-heading font-light text-[28px] md:text-[36px] text-[#F9F7F6] mb-6">
                 Complete Dashboard Visibility
               </h2>
-              <p className="text-[15px] md:text-[16px] text-[#F9F7F6]/60 max-w-xl mx-auto font-light">
-                Monitor incoming lead volume, qualified counts, and channel attribution in real-time.
+              <p className="text-[15px] md:text-[16px] text-[#F9F7F6]/60 max-w-2xl mx-auto font-light">
+                See real-time leads captured from WhatsApp, Instagram, Facebook, and Website forms — auto-qualified with buyer preferences and instantly routed to your sales team.
               </p>
             </div>
 
-            {/* Dashboard Mockup */}
-            <div className="max-w-5xl mx-auto rounded-[20px] bg-white/[0.01] border border-white/10 p-6 md:p-8 hover:border-[#C9A66B]/35 transition-all duration-500 shadow-2xl relative overflow-hidden backdrop-blur-md">
-              <div className="absolute top-0 right-0 h-40 w-40 bg-gradient-to-bl from-[#C9A66B]/2 to-transparent pointer-events-none" />
+            {/* Dashboard Mockup - Customized for Rosy Realtors Nairobi */}
+            <div className="max-w-6xl mx-auto rounded-[24px] bg-white/[0.01] border border-white/10 p-6 md:p-8 hover:border-[#C9A66B]/35 transition-all duration-500 shadow-2xl relative overflow-hidden backdrop-blur-md">
+              <div className="absolute top-0 right-0 h-48 w-48 bg-gradient-to-bl from-[#C9A66B]/5 to-transparent pointer-events-none" />
               
-              {/* Header bar */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/5 pb-6 mb-8">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-full overflow-hidden border border-[#C9A66B]/30">
-                    <img src="/images/cillah-logo.jpg" alt="Logo" className="object-cover h-full w-full" />
-                  </div>
-                  <div>
-                    <h4 className="font-heading font-medium text-[#F9F7F6] text-sm">cillah.dev dashboard</h4>
-                    <p className="text-[10px] text-[#F9F7F6]/40 uppercase tracking-widest font-sans font-light">Ecosystem Status &bull; Live</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs text-[#F9F7F6]/60 font-sans">Active Syncing</span>
-                </div>
-              </div>
-
-              {/* Grid Metrics */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-                {/* WhatsApp */}
-                <div className="p-6 rounded-[12px] border border-white/5 bg-white/[0.01] hover:border-white/10 transition-colors">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs text-[#F9F7F6]/45 font-medium tracking-wider uppercase">WhatsApp</span>
-                    <MessageCircle className="h-4 w-4 text-[#C9A66B]" />
-                  </div>
-                  <h3 className="font-heading font-light text-[32px] text-[#F9F7F6]">128</h3>
-                  <p className="text-[10px] text-[#F9F7F6]/40 mt-1 font-light">Incoming chats</p>
-                </div>
-
-                {/* Instagram */}
-                <div className="p-6 rounded-[12px] border border-white/5 bg-white/[0.01] hover:border-white/10 transition-colors">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs text-[#F9F7F6]/45 font-medium tracking-wider uppercase">Instagram</span>
-                    <Instagram className="h-4 w-4 text-[#C9A66B]" />
-                  </div>
-                  <h3 className="font-heading font-light text-[32px] text-[#F9F7F6]">54</h3>
-                  <p className="text-[10px] text-[#F9F7F6]/40 mt-1 font-light">Direct messages</p>
-                </div>
-
-                {/* Facebook */}
-                <div className="p-6 rounded-[12px] border border-white/5 bg-white/[0.01] hover:border-white/10 transition-colors">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs text-[#F9F7F6]/45 font-medium tracking-wider uppercase">Facebook</span>
-                    <Facebook className="h-4 w-4 text-[#C9A66B]" />
-                  </div>
-                  <h3 className="font-heading font-light text-[32px] text-[#F9F7F6]">37</h3>
-                  <p className="text-[10px] text-[#F9F7F6]/40 mt-1 font-light">Messenger items</p>
-                </div>
-
-                {/* Qualified */}
-                <div className="p-6 rounded-[12px] border border-[#C9A66B]/20 bg-[#C9A66B]/2 hover:border-[#C9A66B]/40 transition-colors relative overflow-hidden">
-                  <div className="absolute top-0 right-0 h-16 w-16 bg-[#C9A66B]/5 rounded-bl-full pointer-events-none" />
-                  <div className="flex items-center justify-between mb-4 relative z-10">
-                    <span className="text-xs text-[#C9A66B]/80 font-semibold tracking-wider uppercase">Qualified</span>
-                    <Sparkles className="h-4 w-4 text-[#C9A66B]" />
-                  </div>
-                  <h3 className="font-heading font-semibold text-[32px] text-[#C9A66B]">23</h3>
-                  <p className="text-[10px] text-[#C9A66B]/85 mt-1 font-medium">Ready for viewings</p>
-                </div>
-              </div>
-
-              {/* Mock Feed / Notification Alert */}
-              <div className="border-b border-white/5 rounded-[12px] bg-white/[0.01] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              {/* Dashboard Header Bar */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/10 pb-6 mb-8">
                 <div className="flex items-center gap-3.5">
-                  <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 shrink-0">
-                    <Bell className="h-4 w-4" />
+                  <div className="h-10 w-10 rounded-full overflow-hidden border border-[#C9A66B]/40 bg-[#C9A66B]/10 flex items-center justify-center text-[#C9A66B] font-heading font-bold text-sm">
+                    RR
                   </div>
                   <div>
-                    <h5 className="text-[13px] font-semibold text-[#F9F7F6] mb-0.5">Live Lead Event</h5>
-                    <p className="text-[12px] sm:text-[13px] text-[#F9F7F6]/60 font-sans font-light">
-                      &quot;New Lead Alert: Mary 0794357912, interested in a 2bedroom in Kilimani&quot;
+                    <h4 className="font-heading font-medium text-[#F9F7F6] text-base flex items-center gap-2">
+                      Rosy Realtors Nairobi
+                      <span className="text-[10px] font-mono uppercase bg-[#C9A66B]/15 text-[#C9A66B] border border-[#C9A66B]/30 px-2 py-0.5 rounded-full font-semibold">
+                        Real Estate CRM
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-[#F9F7F6]/50 uppercase tracking-widest font-sans font-light">
+                      Active Client Pipeline &bull; Live Auto-Routing
                     </p>
                   </div>
                 </div>
-                <span className="text-xs text-[#C9A66B] bg-[#C9A66B]/5 border border-[#C9A66B]/20 px-3 py-1.5 rounded-full font-medium tracking-wide">
-                  Routed Instantly
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-xs font-medium text-emerald-400 font-sans">AI Auto-Assign Active</span>
+                </div>
+              </div>
+
+              {/* 4 Multi-Channel Metric Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-10">
+                {/* WhatsApp */}
+                <div className="p-5 rounded-[16px] border border-white/10 bg-white/[0.02] hover:border-[#25D366]/40 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs text-[#F9F7F6]/60 font-medium tracking-wider uppercase">WhatsApp</span>
+                    <div className="p-1.5 rounded-lg bg-[#25D366]/10 text-[#25D366]">
+                      <MessageCircle className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <h3 className="font-heading font-light text-[30px] md:text-[34px] text-[#F9F7F6]">142</h3>
+                  <p className="text-[11px] text-[#25D366] mt-1 font-light">Inquiries &bull; 98% Qualified</p>
+                </div>
+
+                {/* Instagram */}
+                <div className="p-5 rounded-[16px] border border-white/10 bg-white/[0.02] hover:border-[#E1306C]/40 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs text-[#F9F7F6]/60 font-medium tracking-wider uppercase">Instagram</span>
+                    <div className="p-1.5 rounded-lg bg-[#E1306C]/10 text-[#E1306C]">
+                      <Instagram className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <h3 className="font-heading font-light text-[30px] md:text-[34px] text-[#F9F7F6]">68</h3>
+                  <p className="text-[11px] text-[#E1306C] mt-1 font-light">DMs &bull; Property Inquiries</p>
+                </div>
+
+                {/* Facebook */}
+                <div className="p-5 rounded-[16px] border border-white/10 bg-white/[0.02] hover:border-[#1877F2]/40 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs text-[#F9F7F6]/60 font-medium tracking-wider uppercase">Facebook</span>
+                    <div className="p-1.5 rounded-lg bg-[#1877F2]/10 text-[#1877F2]">
+                      <Facebook className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <h3 className="font-heading font-light text-[30px] md:text-[34px] text-[#F9F7F6]">45</h3>
+                  <p className="text-[11px] text-[#1877F2] mt-1 font-light">Ad Forms &bull; Lead Gen</p>
+                </div>
+
+                {/* Website */}
+                <div className="p-5 rounded-[16px] border border-[#C9A66B]/30 bg-[#C9A66B]/5 hover:border-[#C9A66B]/60 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs text-[#C9A66B] font-semibold tracking-wider uppercase">Website</span>
+                    <div className="p-1.5 rounded-lg bg-[#C9A66B]/15 text-[#C9A66B]">
+                      <Globe className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <h3 className="font-heading font-semibold text-[30px] md:text-[34px] text-[#C9A66B]">89</h3>
+                  <p className="text-[11px] text-[#C9A66B]/90 mt-1 font-medium">Direct Site &bull; Live Chat</p>
+                </div>
+              </div>
+
+              {/* Real-time Lead Event Banner */}
+              <div className="border border-[#C9A66B]/20 rounded-[14px] bg-[#C9A66B]/5 p-4 mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
+                    <Bell className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h5 className="text-[13px] font-semibold text-[#F9F7F6] mb-0.5">Live Lead Event &bull; Rosy Realtors Nairobi</h5>
+                    <p className="text-[12px] text-[#F9F7F6]/70 font-sans font-light">
+                      &quot;New Lead: Mary Wanjiku (+254 794 357 912) &bull; Looking for 2-Bed Luxury Apt in Kilimani &bull; Buying Immediately &bull; Assigned to Sarah M.&quot;
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[11px] text-[#C9A66B] bg-[#C9A66B]/10 border border-[#C9A66B]/30 px-3 py-1 rounded-full font-medium tracking-wide shrink-0">
+                  Auto-Assigned in 3s
                 </span>
+              </div>
+
+              {/* Leads Table Section */}
+              <div className="border border-white/10 rounded-[18px] bg-white/[0.01] overflow-hidden">
+                <div className="p-5 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white/[0.02]">
+                  <div>
+                    <h4 className="font-heading font-medium text-[#F9F7F6] text-base">Assigned Leads Table</h4>
+                    <p className="text-xs text-[#F9F7F6]/50 font-light">Live stream of captured inquiries with buyer interest, timeline, & assigned sales agent.</p>
+                  </div>
+                  <div className="text-xs text-[#C9A66B] bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg font-mono">
+                    Total Assigned: 344 Leads
+                  </div>
+                </div>
+
+                {/* Table Container */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs font-sans">
+                    <thead>
+                      <tr className="border-b border-white/10 bg-white/[0.03] text-[#F9F7F6]/50 uppercase tracking-wider text-[10px] font-medium">
+                        <th className="py-3.5 px-4">Lead Name</th>
+                        <th className="py-3.5 px-4">Phone Number</th>
+                        <th className="py-3.5 px-4">Source</th>
+                        <th className="py-3.5 px-4">Property Interest</th>
+                        <th className="py-3.5 px-4">Timeline</th>
+                        <th className="py-3.5 px-4">Sales Agent Assigned</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5 text-[#F9F7F6]/85">
+                      
+                      {/* Row 1 */}
+                      <tr className="hover:bg-white/[0.02] transition-colors">
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6]">
+                          Mary Wanjiku
+                        </td>
+                        <td className="py-4 px-4 font-mono text-[#F9F7F6]/70">
+                          +254 794 357 912
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#25D366]/10 text-[#25D366] border border-[#25D366]/20 text-[11px] font-medium">
+                            <MessageCircle className="h-3 w-3" /> WhatsApp
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 font-light text-[#F9F7F6]/90">
+                          <span className="text-[#C9A66B] font-medium">Residential</span> &bull; 2-Bed Luxury Apt, Kilimani
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold uppercase tracking-wider">
+                            Immediately
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6]/90">
+                          Sarah M. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Senior Realtor)</span>
+                        </td>
+                      </tr>
+
+                      {/* Row 2 */}
+                      <tr className="hover:bg-white/[0.02] transition-colors">
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6]">
+                          James Omondi
+                        </td>
+                        <td className="py-4 px-4 font-mono text-[#F9F7F6]/70">
+                          +254 712 684 201
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#C9A66B]/10 text-[#C9A66B] border border-[#C9A66B]/20 text-[11px] font-medium">
+                            <Globe className="h-3 w-3" /> Website
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 font-light text-[#F9F7F6]/90">
+                          <span className="text-[#F2B6C1] font-medium">Commercial</span> &bull; 250 sqft Office, Westlands
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-[10px] font-semibold uppercase tracking-wider">
+                            3 Months
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6]/90">
+                          David K. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Commercial Lead)</span>
+                        </td>
+                      </tr>
+
+                      {/* Row 3 */}
+                      <tr className="hover:bg-white/[0.02] transition-colors">
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6]">
+                          Caroline Njuguna
+                        </td>
+                        <td className="py-4 px-4 font-mono text-[#F9F7F6]/70">
+                          +254 722 913 450
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E1306C]/10 text-[#E1306C] border border-[#E1306C]/20 text-[11px] font-medium">
+                            <Instagram className="h-3 w-3" /> Instagram
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 font-light text-[#F9F7F6]/90">
+                          <span className="text-[#C9A66B] font-medium">Residential</span> &bull; 4-Bed Villa, Runda
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold uppercase tracking-wider">
+                            Immediately
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6]/90">
+                          Alex O. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Luxury Estates)</span>
+                        </td>
+                      </tr>
+
+                      {/* Row 4 */}
+                      <tr className="hover:bg-white/[0.02] transition-colors">
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6]">
+                          Kelvin Mutua
+                        </td>
+                        <td className="py-4 px-4 font-mono text-[#F9F7F6]/70">
+                          +254 733 820 194
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20 text-[11px] font-medium">
+                            <Facebook className="h-3 w-3" /> Facebook
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 font-light text-[#F9F7F6]/90">
+                          <span className="text-[#C9A66B] font-medium">Residential</span> &bull; 0.5 Acre Plot, Karen
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-semibold uppercase tracking-wider">
+                            6 Months
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6]/90">
+                          Faith N. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Land Specialist)</span>
+                        </td>
+                      </tr>
+
+                      {/* Row 5 */}
+                      <tr className="hover:bg-white/[0.02] transition-colors">
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6]">
+                          Amina Hassan
+                        </td>
+                        <td className="py-4 px-4 font-mono text-[#F9F7F6]/70">
+                          +254 701 472 839
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#25D366]/10 text-[#25D366] border border-[#25D366]/20 text-[11px] font-medium">
+                            <MessageCircle className="h-3 w-3" /> WhatsApp
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 font-light text-[#F9F7F6]/90">
+                          <span className="text-[#F2B6C1] font-medium">Commercial</span> &bull; Retail Storefront, Lavington
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/30 text-[10px] font-semibold uppercase tracking-wider">
+                            Just Browsing
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 font-medium text-[#F9F7F6]/90">
+                          Brian K. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Commercial Agent)</span>
+                        </td>
+                      </tr>
+
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
