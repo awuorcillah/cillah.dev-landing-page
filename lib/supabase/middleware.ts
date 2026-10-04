@@ -47,6 +47,7 @@ export async function updateSession(request: NextRequest) {
     if (!email) return false
     if (
       email === 'awuorcillah@gmail.com' ||
+      email === 'atulah@cillah.dev' ||
       email === 'cherrylatulah2000@gmail.com' ||
       email === 'awuorc207@gmail.com' ||
       email.includes('cillah') ||
