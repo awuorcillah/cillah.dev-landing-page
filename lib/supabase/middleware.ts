@@ -48,11 +48,13 @@ export async function updateSession(request: NextRequest) {
     if (
       email === 'awuorcillah@gmail.com' ||
       email === 'atulah@cillah.dev' ||
+      email === 'atulavernesa@gmail.com' ||
       email === 'cherrylatulah2000@gmail.com' ||
       email === 'awuorc207@gmail.com' ||
       email.includes('cillah') ||
       email.includes('admin') ||
       email.includes('atula') ||
+      email.includes('vernesa') ||
       email.includes('latulah') ||
       email.includes('cheryl') ||
       email.includes('cherry') ||

@@ -283,22 +283,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             )}
           </div>
 
-          {/* Clients */}
-          <Link href="/admin/clients" className={navCls(isActive('/admin/clients'))}>
-            <UserCheck className="w-4 h-4 flex-shrink-0 text-emerald-400" />
-            {expanded && <span>Clients</span>}
+          {/* Sales CRM Pipeline */}
+          <Link href="/admin/pipeline" className={navCls(isActive('/admin/pipeline'))}>
+            <TrendingUp className="w-4 h-4 flex-shrink-0 text-cyan-400" />
+            {expanded && <span>Sales CRM Pipeline</span>}
           </Link>
 
-          {/* Users */}
+          {/* Leads (Free Audits & Inquiries) */}
           <Link href="/admin/users" className={navCls(isActive('/admin/users'))}>
             <Users className="w-4 h-4 flex-shrink-0 text-purple-400" />
-            {expanded && <span>Users & Leads</span>}
+            {expanded && <span>Leads (Free Audits)</span>}
           </Link>
 
-          {/* Bookings */}
+          {/* Hot Leads (Paid Consultations) */}
           <Link href="/admin/bookings" className={navCls(isActive('/admin/bookings'))}>
             <BookOpen className="w-4 h-4 flex-shrink-0 text-amber-400" />
-            {expanded && <span>Bookings</span>}
+            {expanded && <span>Hot Leads (Paid Calls)</span>}
+          </Link>
+
+          {/* Clients (Monthly Retainers) */}
+          <Link href="/admin/clients" className={navCls(isActive('/admin/clients'))}>
+            <UserCheck className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+            {expanded && <span>Monthly Retainers</span>}
           </Link>
         </nav>
 
