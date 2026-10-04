@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   BookOpen, Calendar, Clock, Search, Filter,
   RefreshCw, CheckCircle2, AlertCircle, Video,
-  Loader2, RotateCcw, Edit3, User, Mail
+  Loader2, RotateCcw, Edit3, User, Mail, Phone, MessageSquare, Send
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +19,7 @@ interface BookingItem {
   id: string
   client_name: string
   client_email: string
+  client_phone?: string
   session_title: string
   session_format: 'paid' | 'free' | 'webinar'
   date: string
@@ -97,7 +98,10 @@ export default function AdminBookingsPage() {
   const [editTime, setEditTime] = useState('')
   const [editClientName, setEditClientName] = useState('')
   const [editClientEmail, setEditClientEmail] = useState('')
+  const [editClientPhone, setEditClientPhone] = useState('')
+  const [editCustomMessage, setEditCustomMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [sendingWhatsApp, setSendingWhatsApp] = useState(false)
 
   // ── Fetch Bookings ──
   const fetchBookings = async () => {
@@ -107,7 +111,7 @@ export default function AdminBookingsPage() {
         .from('bookings')
         .select(`
           *,
-          profiles:user_id (full_name, email),
+          profiles:user_id (full_name, email, phone),
           session_types:session_type_id (title, session_format, price_kes)
         `)
         .order('created_at', { ascending: false })
@@ -123,6 +127,7 @@ export default function AdminBookingsPage() {
           const known = KNOWN_PROFILES[b.user_id]
           const client_name = profile?.full_name || b.client_name || b.name || known?.full_name || 'awuorc207'
           const client_email = profile?.email || b.client_email || b.email || known?.email || 'awuorc207@gmail.com'
+          const client_phone = profile?.phone || b.phone || known?.phone || '254712345678'
           const session_title = sessionType?.title || b.session_title || b.title || '1-on-1 AI Strategy Call'
 
           let fmt: 'paid' | 'free' | 'webinar' = 'paid'
@@ -138,6 +143,7 @@ export default function AdminBookingsPage() {
             id: b.id,
             client_name,
             client_email,
+            client_phone,
             session_title,
             session_format: fmt,
             date: dt.toISOString().split('T')[0],
@@ -172,6 +178,71 @@ export default function AdminBookingsPage() {
     setEditTime(item.time)
     setEditClientName(item.client_name)
     setEditClientEmail(item.client_email)
+    const phoneVal = item.client_phone || '254712345678'
+    setEditClientPhone(phoneVal)
+
+    const dateTimeFormatted = `${item.date} at ${item.time}`
+    setEditCustomMessage(
+      `Your AI automation status is approved and the meeting is set for ${dateTimeFormatted}. If you would like to proceed with the meeting please press Proceed below, if not please Cancel the appointment to open slots for others.`
+    )
+  }
+
+  // Update custom message when date/time changes
+  useEffect(() => {
+    if (selectedBooking && editDate && editTime) {
+      setEditCustomMessage(
+        `Your AI automation status is approved and the meeting is set for ${editDate} at ${editTime}. If you would like to proceed with the meeting please press Proceed below, if not please Cancel the appointment to open slots for others.`
+      )
+    }
+  }, [editDate, editTime])
+
+  // ── Approve & Send Meta WhatsApp Message ──
+  const handleApproveAndSendWhatsApp = async () => {
+    if (!selectedBooking) return
+    if (!editClientPhone.trim()) {
+      toast.error('Please enter the client WhatsApp phone number')
+      return
+    }
+
+    setSendingWhatsApp(true)
+    try {
+      const res = await fetch('/api/admin/bookings/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: selectedBooking.id,
+          phone: editClientPhone,
+          meetingDate: editDate,
+          meetingTime: editTime,
+          customMessage: editCustomMessage,
+          newStatus: 'confirmed'
+        })
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send WhatsApp message')
+
+      setBookings(prev =>
+        prev.map(b =>
+          b.id === selectedBooking.id
+            ? { ...b, status: 'confirmed', date: editDate || b.date, time: editTime || b.time, client_phone: editClientPhone }
+            : b
+        )
+      )
+
+      if (data.whatsappSent) {
+        toast.success('Approved! Interactive WhatsApp message sent with Proceed & Cancel buttons!')
+      } else {
+        toast.warning(data.message || 'Status updated to confirmed, check WhatsApp API credentials in .env')
+      }
+
+      setSelectedBooking(null)
+    } catch (err: any) {
+      console.error('WhatsApp approval error:', err)
+      toast.error(err.message || 'Error sending WhatsApp approval message')
+    } finally {
+      setSendingWhatsApp(false)
+    }
   }
 
   // ── Save Booking Edit ──
@@ -602,10 +673,10 @@ export default function AdminBookingsPage() {
         )}
       </div>
 
-      {/* ── Edit Booking & Client Status Modal ── */}
+      {/* ── Edit Booking & Meta WhatsApp Approval Modal ── */}
       {selectedBooking && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-6">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-6 my-8">
             <div className="flex items-start justify-between border-b border-slate-800 pb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-sm font-bold text-amber-400">
@@ -613,7 +684,7 @@ export default function AdminBookingsPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                    Edit Booking & Client Status
+                    Approve Booking & Send WhatsApp
                     <span className="text-xs px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-300 font-mono">
                       {selectedBooking.id}
                     </span>
@@ -658,44 +729,59 @@ export default function AdminBookingsPage() {
                 </div>
               </div>
 
-              {/* Status Select */}
+              {/* Client WhatsApp Number */}
               <div className="space-y-1">
-                <label className="text-slate-400 font-medium flex items-center gap-1">
-                  <Filter className="w-3.5 h-3.5 text-amber-400" /> Change Booking Status
+                <label className="text-emerald-400 font-medium flex items-center gap-1">
+                  <Phone className="w-3.5 h-3.5 text-emerald-400" /> WhatsApp Phone Number (e.g. 0712345678 or 254...)
                 </label>
-                <select
-                  value={editStatus}
-                  onChange={e => setEditStatus(e.target.value as BookingStatus)}
-                  className="w-full bg-slate-950 border border-slate-800 text-slate-100 font-semibold rounded-lg p-2.5 focus:outline-none focus:border-amber-500 cursor-pointer capitalize"
-                >
-                  <option value="confirmed" className="bg-slate-900">🟢 Confirmed</option>
-                  <option value="pending" className="bg-slate-900">🟡 Pending</option>
-                  <option value="completed" className="bg-slate-900">🟣 Completed</option>
-                  <option value="cancelled" className="bg-slate-900">🔴 Cancelled</option>
-                </select>
+                <input
+                  type="tel"
+                  required
+                  value={editClientPhone}
+                  onChange={e => setEditClientPhone(e.target.value)}
+                  placeholder="0712345678"
+                  className="w-full bg-slate-950 border border-emerald-500/40 text-emerald-300 font-mono rounded-lg p-2.5 focus:outline-none focus:border-emerald-400"
+                />
               </div>
 
-              {/* Payment Status Select */}
-              <div className="space-y-1">
-                <label className="text-slate-400 font-medium flex items-center gap-1">
-                  <BookOpen className="w-3.5 h-3.5 text-emerald-400" /> Payment Status
-                </label>
-                <select
-                  value={editPaymentStatus}
-                  onChange={e => setEditPaymentStatus(e.target.value as any)}
-                  className="w-full bg-slate-950 border border-slate-800 text-slate-100 font-semibold rounded-lg p-2.5 focus:outline-none focus:border-emerald-500 cursor-pointer"
-                >
-                  <option value="paid" className="bg-slate-900">Paid ({selectedBooking.amount || 'KES 5,000'})</option>
-                  <option value="free" className="bg-slate-900">Free Session (KES 0)</option>
-                  <option value="unpaid" className="bg-slate-900">Unpaid / Pending Payment</option>
-                </select>
+              {/* Status Select */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-slate-400 font-medium flex items-center gap-1">
+                    <Filter className="w-3.5 h-3.5 text-amber-400" /> Booking Status
+                  </label>
+                  <select
+                    value={editStatus}
+                    onChange={e => setEditStatus(e.target.value as BookingStatus)}
+                    className="w-full bg-slate-950 border border-slate-800 text-slate-100 font-semibold rounded-lg p-2.5 focus:outline-none focus:border-amber-500 cursor-pointer capitalize"
+                  >
+                    <option value="confirmed" className="bg-slate-900">🟢 Confirmed</option>
+                    <option value="pending" className="bg-slate-900">🟡 Pending</option>
+                    <option value="completed" className="bg-slate-900">🟣 Completed</option>
+                    <option value="cancelled" className="bg-slate-900">🔴 Cancelled</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-slate-400 font-medium flex items-center gap-1">
+                    <BookOpen className="w-3.5 h-3.5 text-emerald-400" /> Payment Status
+                  </label>
+                  <select
+                    value={editPaymentStatus}
+                    onChange={e => setEditPaymentStatus(e.target.value as any)}
+                    className="w-full bg-slate-950 border border-slate-800 text-slate-100 font-semibold rounded-lg p-2.5 focus:outline-none focus:border-emerald-500 cursor-pointer"
+                  >
+                    <option value="paid" className="bg-slate-900">Paid ({selectedBooking.amount || 'KES 5,000'})</option>
+                    <option value="free" className="bg-slate-900">Free Session (KES 0)</option>
+                    <option value="unpaid" className="bg-slate-900">Unpaid / Pending Payment</option>
+                  </select>
+                </div>
               </div>
 
               {/* Date & Time */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-slate-400 font-medium flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-purple-400" /> Scheduled Date
+                    <Calendar className="w-3.5 h-3.5 text-purple-400" /> Meeting Date
                   </label>
                   <input
                     type="date"
@@ -706,7 +792,7 @@ export default function AdminBookingsPage() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-slate-400 font-medium flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-cyan-400" /> Scheduled Time
+                    <Clock className="w-3.5 h-3.5 text-cyan-400" /> Meeting Time
                   </label>
                   <input
                     type="text"
@@ -718,25 +804,65 @@ export default function AdminBookingsPage() {
                 </div>
               </div>
 
-              {/* Modal Buttons */}
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+              {/* ── Meta WhatsApp Cloud API Approval Panel ── */}
+              <div className="p-4 bg-emerald-950/30 border border-emerald-500/30 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                    <MessageSquare className="w-4 h-4" /> Meta WhatsApp Interactive Message
+                  </span>
+                  <span className="text-[10px] text-emerald-300/80 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-semibold">
+                    Proceed & Cancel Buttons
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-300 font-medium mb-1">
+                    Custom Message Preview
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={editCustomMessage}
+                    onChange={e => setEditCustomMessage(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 text-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-emerald-500 transition-colors resize-none"
+                  />
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                  <Send className="w-3 h-3 text-emerald-400 shrink-0" />
+                  <span>Interactive buttons <strong>[Proceed]</strong> and <strong>[Cancel]</strong> will be attached automatically to this WhatsApp message.</span>
+                </div>
+              </div>
+
+              {/* Modal Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-end gap-2 pt-3 border-t border-slate-800">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => setSelectedBooking(null)}
-                  className="border-slate-700 text-slate-300"
+                  className="w-full sm:w-auto border-slate-700 text-slate-300 text-xs"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSaving}
+                  disabled={isSaving || sendingWhatsApp}
                   size="sm"
-                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold gap-1 px-4"
+                  className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs"
                 >
-                  {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                  Save & Update Booking
+                  {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save Status Only'}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleApproveAndSendWhatsApp}
+                  disabled={sendingWhatsApp || isSaving}
+                  size="sm"
+                  className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-1.5 text-xs px-4 shadow-lg shadow-emerald-950/40"
+                >
+                  {sendingWhatsApp ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  ) : (
+                    <MessageSquare className="w-4 h-4 text-white" />
+                  )}
+                  Approve & Send WhatsApp Message
                 </Button>
               </div>
             </form>
