@@ -168,7 +168,7 @@ export function Footer() {
 
         <div className="pt-8 border-t border-[#F4E7E7]/10 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
           <p className="text-sm text-[#F9F7F6]/40 font-sans">
-            &copy; {currentYear} {brandName}. All rights reserved.
+            &copy; {currentYear} {brandName} — Operated by Cillah AI Automation (BN-5559Q2JL). All rights reserved.
           </p>
           <p className="text-sm text-[#F9F7F6]/30 font-sans">
             Operating System for Premium Real Estate

@@ -95,6 +95,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [mobileOpen,       setMobileOpen]        = useState(false)
   const [sessionsExpanded, setSessionsExpanded]  = useState(false)
   const [orgsExpanded,     setOrgsExpanded]      = useState(true)
+  const [salesExpanded,    setSalesExpanded]     = useState(true)
   const [adminProfile,     setAdminProfile]      = useState<any>(null)
   const [notifications,    setNotifications]     = useState(MOCK_NOTIFICATIONS)
   const [notifOpen,        setNotifOpen]         = useState(false)
@@ -118,6 +119,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
     if (pathname.includes('/organizations')) {
       setOrgsExpanded(true)
+    }
+    if (pathname.includes('/pipeline') || pathname.includes('/users') || pathname.includes('/bookings')) {
+      setSalesExpanded(true)
     }
   }, [pathname])
 
@@ -231,7 +235,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
                 <Link href="/admin/organizations/cillah-dev/sales" className={navCls(isActive('/admin/organizations/cillah-dev/sales'), true)}>
                   <BarChart3 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />
-                  <span>Sales Department</span>
+                  <span>Sales Overview</span>
                 </Link>
                 <Link href="/admin/organizations/cillah-dev/marketing" className={navCls(isActive('/admin/organizations/cillah-dev/marketing'), true)}>
                   <Megaphone className="w-3.5 h-3.5 flex-shrink-0 text-purple-400" />
@@ -245,6 +249,45 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             )}
           </div>
 
+          {/* Sales Department Group */}
+          <div>
+            <button
+              onClick={() => setSalesExpanded(p => !p)}
+              title={!expanded ? 'Sales Department' : undefined}
+              className={`w-full ${navCls(false)} ${pathname.includes('/pipeline') || pathname.includes('/users') || pathname.includes('/bookings') ? 'text-slate-200' : ''}`}
+            >
+              <BarChart3 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+              {expanded && (
+                <>
+                  <span className="flex-1 text-left font-semibold text-emerald-400">Sales Department</span>
+                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${salesExpanded ? 'rotate-180' : ''}`} />
+                </>
+              )}
+            </button>
+
+            {salesExpanded && expanded && (
+              <div className="ml-3 mt-1 pl-3 border-l border-emerald-500/30 space-y-0.5">
+                {/* Sales CRM Pipeline */}
+                <Link href="/admin/pipeline" className={navCls(isActive('/admin/pipeline'), true)}>
+                  <TrendingUp className="w-3.5 h-3.5 flex-shrink-0 text-cyan-400" />
+                  <span>Sales CRM Pipeline</span>
+                </Link>
+
+                {/* Leads (Free Audits) */}
+                <Link href="/admin/users" className={navCls(isActive('/admin/users'), true)}>
+                  <Users className="w-3.5 h-3.5 flex-shrink-0 text-purple-400" />
+                  <span>Leads (Free Audits)</span>
+                </Link>
+
+                {/* Hot Leads (Paid Calls) */}
+                <Link href="/admin/bookings" className={navCls(isActive('/admin/bookings'), true)}>
+                  <BookOpen className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
+                  <span>Hot Leads (Paid Calls)</span>
+                </Link>
+              </div>
+            )}
+          </div>
+
           {/* Sessions group */}
           <div>
             <button
@@ -252,7 +295,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               title={!expanded ? 'Sessions' : undefined}
               className={`w-full ${navCls(false)} ${pathname.includes('/sessions') || pathname.includes('/availability') ? 'text-slate-200' : ''}`}
             >
-              <Video className="w-4 h-4 flex-shrink-0" />
+              <Video className="w-4 h-4 flex-shrink-0 text-purple-400" />
               {expanded && (
                 <>
                   <span className="flex-1 text-left">Sessions</span>
@@ -283,25 +326,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             )}
           </div>
 
-          {/* Sales CRM Pipeline */}
-          <Link href="/admin/pipeline" className={navCls(isActive('/admin/pipeline'))}>
-            <TrendingUp className="w-4 h-4 flex-shrink-0 text-cyan-400" />
-            {expanded && <span>Sales CRM Pipeline</span>}
-          </Link>
-
-          {/* Leads (Free Audits & Inquiries) */}
-          <Link href="/admin/users" className={navCls(isActive('/admin/users'))}>
-            <Users className="w-4 h-4 flex-shrink-0 text-purple-400" />
-            {expanded && <span>Leads (Free Audits)</span>}
-          </Link>
-
-          {/* Hot Leads (Paid Consultations) */}
-          <Link href="/admin/bookings" className={navCls(isActive('/admin/bookings'))}>
-            <BookOpen className="w-4 h-4 flex-shrink-0 text-amber-400" />
-            {expanded && <span>Hot Leads (Paid Calls)</span>}
-          </Link>
-
-          {/* Clients (Monthly Retainers) */}
+          {/* Monthly Retainers */}
           <Link href="/admin/clients" className={navCls(isActive('/admin/clients'))}>
             <UserCheck className="w-4 h-4 flex-shrink-0 text-emerald-400" />
             {expanded && <span>Monthly Retainers</span>}
