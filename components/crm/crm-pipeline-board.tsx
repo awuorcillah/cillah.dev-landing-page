@@ -23,7 +23,8 @@ import {
   Award,
   ShieldCheck,
   Building,
-  Tag
+  Tag,
+  Eye
 } from 'lucide-react'
 
 export interface SalesLead {
@@ -45,6 +46,7 @@ export interface SalesLead {
   next_followup_at: string | null
   followup_title: string | null
   initial_note?: string | null
+  viewing_date?: string | null
 }
 
 export interface LeadNote {
@@ -69,6 +71,7 @@ const STAGES = [
   { id: 'new_lead', name: 'New Inquiry', color: 'bg-sky-500/10 border-sky-500/30 text-sky-400', badge: 'bg-sky-500' },
   { id: 'hot_lead', name: 'Hot Lead', color: 'bg-amber-500/10 border-amber-500/30 text-amber-400', badge: 'bg-amber-500' },
   { id: 'warm_lead', name: 'Warm Lead', color: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400', badge: 'bg-yellow-500' },
+  { id: 'viewing', name: 'Viewing Scheduled', color: 'bg-purple-500/10 border-purple-500/30 text-purple-400', badge: 'bg-purple-500' },
   { id: 'cold_lead', name: 'Cold Lead', color: 'bg-slate-500/10 border-slate-500/30 text-slate-400', badge: 'bg-slate-500' },
   { id: 'spam', name: 'Spam', color: 'bg-red-500/10 border-red-500/30 text-red-400', badge: 'bg-red-500' },
   { id: 'closed_won', name: 'Won Deals', color: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400', badge: 'bg-emerald-500' }
@@ -113,6 +116,10 @@ export default function CRMPipelineBoard({
   const [targetAgentEmail, setTargetAgentEmail] = useState('')
   const [transferringLead, setTransferringLead] = useState(false)
 
+  // Viewing Date Scheduler State
+  const [viewingDateInput, setViewingDateInput] = useState('')
+  const [savingViewingDate, setSavingViewingDate] = useState(false)
+
   // Followup Form State inside Modal
   const [followupChoice, setFollowupChoice] = useState<'1_month' | '3_months' | '1_year' | 'forever' | 'custom'>('1_month')
   const [customDate, setCustomDate] = useState('')
@@ -122,7 +129,7 @@ export default function CRMPipelineBoard({
 
   const isSuperAdmin = currentUserEmail.toLowerCase() === 'awuorcillah@gmail.com'
 
-  // Populate edit fields on lead selection
+  // Populate edit fields & viewing date on lead selection
   useEffect(() => {
     if (selectedLead) {
       setEditFullName(selectedLead.full_name || '')
@@ -131,8 +138,55 @@ export default function CRMPipelineBoard({
       setEditCompany(selectedLead.company_name || '')
       setTargetAgentEmail(selectedLead.assigned_agent_email || '')
       setIsEditingContact(false)
+
+      if (selectedLead.viewing_date) {
+        const dt = new Date(selectedLead.viewing_date)
+        const tzOffset = dt.getTimezoneOffset() * 60000
+        const localISOTime = (new Date(dt.getTime() - tzOffset)).toISOString().slice(0, 16)
+        setViewingDateInput(localISOTime)
+      } else {
+        setViewingDateInput('')
+      }
     }
   }, [selectedLead])
+
+  const handleSaveViewingDate = async () => {
+    if (!selectedLead || !viewingDateInput) return
+    setSavingViewingDate(true)
+    setActionSuccessMsg('')
+
+    const isoViewing = new Date(viewingDateInput).toISOString()
+    const updatedFields = {
+      viewing_date: isoViewing,
+      stage: 'viewing',
+      updated_at: new Date().toISOString()
+    }
+
+    const { error } = await supabase
+      .from('sales_leads')
+      .update(updatedFields)
+      .eq('id', selectedLead.id)
+
+    if (!error) {
+      const updatedLead = { ...selectedLead, ...updatedFields }
+      setSelectedLead(updatedLead)
+      setLeads((prev) => prev.map((l) => (l.id === selectedLead.id ? updatedLead : l)))
+
+      await supabase.from('lead_notes').insert({
+        lead_id: selectedLead.id,
+        author_email: currentUserEmail,
+        author_name: currentUserEmail.split('@')[0],
+        source: 'viewing_scheduled',
+        note_text: `Viewing date scheduled for ${new Date(viewingDateInput).toLocaleString()}`
+      })
+
+      setActionSuccessMsg(`Viewing scheduled for ${new Date(viewingDateInput).toLocaleString()}! Stage moved to Viewing.`)
+      setTimeout(() => setActionSuccessMsg(''), 4000)
+    } else {
+      console.error('Error saving viewing date:', error)
+    }
+    setSavingViewingDate(false)
+  }
 
   // 1. Fetch Staff & Leads on Mount
   useEffect(() => {
@@ -691,6 +745,14 @@ export default function CRMPipelineBoard({
                           </div>
                         )}
 
+                        {/* Display Viewing Date Badge */}
+                        {lead.viewing_date && (
+                          <div className="text-[11px] text-purple-300 font-semibold flex items-center gap-1.5 mt-2 bg-purple-500/10 px-2 py-1 rounded-md border border-purple-500/25">
+                            <Eye className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
+                            <span className="truncate">Viewing: {new Date(lead.viewing_date).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                        )}
+
                         {/* Estimated Value */}
                         {lead.estimated_value > 0 && (
                           <div className="text-xs font-semibold text-emerald-400 mt-2">
@@ -1111,6 +1173,32 @@ export default function CRMPipelineBoard({
                   </button>
                 </div>
               )}
+
+              {/* SCHEDULE PROPERTY SITE / DEMO VIEWING SECTION */}
+              <div className="bg-slate-900/80 border border-purple-500/25 rounded-2xl p-5 mb-6">
+                <h4 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-purple-400" /> Site / Demo Viewing Scheduler
+                </h4>
+                <p className="text-[11px] text-slate-400 mb-3">
+                  Schedule a physical property site viewing or virtual demo call date for this lead.
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="datetime-local"
+                    value={viewingDateInput}
+                    onChange={(e) => setViewingDateInput(e.target.value)}
+                    className="flex-1 bg-slate-950 border border-slate-700 text-xs text-white rounded-xl p-2.5 focus:outline-none focus:border-purple-500"
+                  />
+                  <button
+                    onClick={handleSaveViewingDate}
+                    disabled={savingViewingDate || !viewingDateInput}
+                    className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs transition-all disabled:opacity-50 shadow-md flex items-center justify-center gap-1.5 shrink-0"
+                  >
+                    <Eye className="w-4 h-4" /> {savingViewingDate ? 'Scheduling...' : 'Save Viewing Date'}
+                  </button>
+                </div>
+              </div>
 
               {/* FOLLOW-UP CLOSURE & SCHEDULER SECTION */}
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 mb-6">

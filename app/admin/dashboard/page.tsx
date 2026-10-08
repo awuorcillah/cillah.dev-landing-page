@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
   Users, BookOpen, DollarSign,
   Calendar, PlusCircle, Clock, Video,
   RefreshCw, Download,
-  ChevronRight, Zap, Activity, Loader2, ShieldCheck, Filter
+  ChevronRight, Zap, Activity, Loader2, ShieldCheck, Filter,
+  Trophy, Award, Eye, Flame, TrendingUp
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -84,6 +85,8 @@ export default function AdminDashboardPage() {
   const [rawProfiles, setRawProfiles] = useState<any[]>([])
   const [rawBookings, setRawBookings] = useState<any[]>([])
   const [rawSessions, setRawSessions] = useState<any[]>([])
+  const [rawLeads, setRawLeads] = useState<any[]>([])
+  const [rawStaff, setRawStaff] = useState<any[]>([])
 
   // ── Fetch Live Data from Supabase ──
   const fetchDashboardData = async (isManualRefresh = false) => {
@@ -117,6 +120,17 @@ export default function AdminDashboardPage() {
         setRawSessions(dbSessions)
       }
 
+      // 4. Fetch Sales Leads & Staff Members for Sales Agent Leaderboard
+      const { data: dbLeads } = await supabase.from('sales_leads').select('*')
+      if (dbLeads) {
+        setRawLeads(dbLeads)
+      }
+
+      const { data: dbStaff } = await supabase.from('staff_members').select('*')
+      if (dbStaff) {
+        setRawStaff(dbStaff)
+      }
+
       if (isManualRefresh) {
         toast.success('Dashboard data refreshed from Supabase!')
       }
@@ -132,6 +146,54 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     fetchDashboardData()
   }, [])
+
+  // ── Compute Sales Leaderboard for Healthy Competition ──
+  const agentLeaderboard = useMemo(() => {
+    const map: Record<string, { email: string; name: string; wonValue: number; wonCount: number; viewingsCount: number; hotCount: number; totalLeads: number }> = {}
+
+    // Pre-populate with staff members
+    rawStaff.forEach((s) => {
+      map[s.email] = {
+        email: s.email,
+        name: s.full_name || s.email.split('@')[0],
+        wonValue: 0,
+        wonCount: 0,
+        viewingsCount: 0,
+        hotCount: 0,
+        totalLeads: 0
+      }
+    })
+
+    // Aggregate leads by assigned_agent_email
+    rawLeads.forEach((l) => {
+      const email = l.assigned_agent_email || 'Unassigned'
+      if (!map[email]) {
+        map[email] = {
+          email,
+          name: email.split('@')[0],
+          wonValue: 0,
+          wonCount: 0,
+          viewingsCount: 0,
+          hotCount: 0,
+          totalLeads: 0
+        }
+      }
+
+      map[email].totalLeads += 1
+      if (l.stage === 'closed_won') {
+        map[email].wonCount += 1
+        map[email].wonValue += (l.estimated_value || 0)
+      }
+      if (l.stage === 'viewing' || l.viewing_date) {
+        map[email].viewingsCount += 1
+      }
+      if (l.stage === 'hot_lead') {
+        map[email].hotCount += 1
+      }
+    })
+
+    return Object.values(map).sort((a, b) => b.wonValue - a.wonValue || b.wonCount - a.wonCount || b.viewingsCount - a.viewingsCount)
+  }, [rawLeads, rawStaff])
 
   // ── Date Filtering Helper ──
   const isDateInRange = (dateStr: string | null | undefined) => {
@@ -407,6 +469,80 @@ export default function AdminDashboardPage() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* ── 🏆 SALES TEAM LEADERBOARD & HEALTHY COMPETITION WIDGET ── */}
+      <div className="bg-slate-900/90 border border-[#C9A66B]/30 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-slate-800 pb-4">
+          <div>
+            <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-[#C9A66B]" /> Sales Leaderboard & Agent Performance
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Real-time sales ranking, deal closures, site viewings scheduled, and revenue performance.
+            </p>
+          </div>
+          <Link
+            href="/admin/pipeline"
+            className="px-3 py-1.5 bg-[#C9A66B]/15 text-[#C9A66B] hover:bg-[#C9A66B]/25 border border-[#C9A66B]/30 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 self-start sm:self-center"
+          >
+            <TrendingUp className="w-4 h-4" /> Go to Sales Pipeline
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {agentLeaderboard.map((agent, index) => {
+            const isTop1 = index === 0
+            const isTop2 = index === 1
+            const isTop3 = index === 2
+
+            return (
+              <div
+                key={agent.email}
+                className={`p-4 rounded-xl border transition-all ${
+                  isTop1
+                    ? 'bg-gradient-to-br from-[#C9A66B]/20 via-slate-900 to-slate-950 border-[#C9A66B]/60 shadow-[0_0_20px_rgba(201,166,107,0.15)]'
+                    : 'bg-slate-950 border-slate-800/80 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-extrabold text-xs ${
+                      isTop1 ? 'bg-[#C9A66B] text-slate-950' : isTop2 ? 'bg-slate-300 text-slate-950' : isTop3 ? 'bg-amber-700 text-white' : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      #{index + 1}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-100">{agent.name}</p>
+                      <p className="text-[10px] text-slate-400">{agent.email}</p>
+                    </div>
+                  </div>
+
+                  {isTop1 && (
+                    <span className="px-2 py-0.5 bg-[#C9A66B]/20 text-[#C9A66B] text-[10px] font-bold rounded-md border border-[#C9A66B]/30 flex items-center gap-1">
+                      <Trophy className="w-3 h-3" /> #1 Closer
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center pt-3 border-t border-slate-900 text-xs">
+                  <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
+                    <span className="text-[10px] text-slate-500 block">Revenue</span>
+                    <span className="font-extrabold text-emerald-400">${agent.wonValue.toLocaleString()}</span>
+                  </div>
+                  <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
+                    <span className="text-[10px] text-slate-500 block">Deals Won</span>
+                    <span className="font-extrabold text-white">{agent.wonCount}</span>
+                  </div>
+                  <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
+                    <span className="text-[10px] text-slate-500 block">Viewings</span>
+                    <span className="font-extrabold text-purple-400">{agent.viewingsCount}</span>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       {/* ── Quick Actions ── */}

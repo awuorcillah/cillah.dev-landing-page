@@ -203,10 +203,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Nav Links */}
         <nav className="flex-1 px-2 py-3 space-y-1 overflow-y-auto">
-          {/* Dashboard Overview (VISIBLE TO ALL ADMINS) */}
+          {/* Dashboard (VISIBLE TO ALL ADMINS & SALES AGENTS) */}
           <Link href="/admin/dashboard" className={navCls(isActive('/admin/dashboard'))}>
             <LayoutDashboard className="w-4 h-4 flex-shrink-0 text-[#C9A66B]" />
-            {expanded && <span>Dashboard Overview</span>}
+            {expanded && <span>Dashboard</span>}
           </Link>
 
           {/* Organizations (SUPER ADMIN ONLY) */}
@@ -401,18 +401,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   </div>
                   <div className="py-1">
                     <Link
-                      href="/user/dashboard"
+                      href="/user/profile"
                       onClick={() => setProfileOpen(false)}
                       className="flex items-center gap-2 px-4 py-2.5 text-xs text-slate-300 hover:bg-slate-800"
                     >
-                      User Dashboard (My Pipeline)
+                      Profile
+                    </Link>
+                    <Link
+                      href="/admin/dashboard"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-xs text-slate-300 hover:bg-slate-800"
+                    >
+                      Dashboard
                     </Link>
                     <Link
                       href="/admin/pipeline"
                       onClick={() => setProfileOpen(false)}
                       className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#C9A66B] font-bold hover:bg-slate-800"
                     >
-                      Sales CRM Pipeline
+                      Sales Pipeline
                     </Link>
                   </div>
                   <div className="border-t border-slate-800" />
