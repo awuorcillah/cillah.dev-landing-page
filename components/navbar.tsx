@@ -120,19 +120,19 @@ export function Navbar() {
                   Profile
                 </Link>
                 <Link
-                  href="/dashboard"
+                  href="/user/dashboard"
                   onClick={() => setProfileMenuOpen(false)}
                   className="flex items-center gap-2 px-4 py-3 text-sm text-[#F9F7F6] hover:bg-[#C9A66B]/20 transition-colors"
                 >
-                  Dashboard
+                  User Dashboard
                 </Link>
                 {role === 'admin' && (
                   <Link
-                    href="/admin/dashboard"
+                    href="/admin/pipeline"
                     onClick={() => setProfileMenuOpen(false)}
                     className="flex items-center gap-2 px-4 py-3 text-sm text-[#C9A66B] hover:bg-[#C9A66B]/20 transition-colors font-semibold"
                   >
-                    ⚙ Admin Panel
+                    ⚙ Admin Dashboard
                   </Link>
                 )}
                 <div className="h-px bg-white/5 mx-3" />
