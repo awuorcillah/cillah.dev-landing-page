@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import {
@@ -98,6 +99,20 @@ export default function CRMPipelineBoard({
   const [stageFilter, setStageFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban')
+
+  // Profile Menu Dropdown State
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const profileRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   // Selected Lead Modal Drawer State
   const [selectedLead, setSelectedLead] = useState<SalesLead | null>(null)
@@ -612,6 +627,64 @@ export default function CRMPipelineBoard({
             >
               <List className="w-4 h-4" /> Table View
             </button>
+          </div>
+
+          {/* User Profile Avatar Dropdown Menu */}
+          <div className="relative" ref={profileRef}>
+            <button
+              onClick={() => setProfileMenuOpen((prev) => !prev)}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-[#C9A66B]/60 transition-all text-xs shadow-md"
+            >
+              <div className="w-6 h-6 rounded-full bg-[#C9A66B]/20 border border-[#C9A66B]/50 flex items-center justify-center font-bold text-[#C9A66B] text-[11px] uppercase">
+                {currentUserEmail[0]?.toUpperCase() || 'U'}
+              </div>
+              <span className="text-slate-200 font-semibold hidden sm:inline">{currentUserEmail.split('@')[0]}</span>
+              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${profileMenuOpen ? 'rotate-180 text-[#C9A66B]' : ''}`} />
+            </button>
+
+            {profileMenuOpen && (
+              <div className="absolute right-0 top-12 w-52 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl z-50 overflow-hidden text-xs divide-y divide-slate-800">
+                <div className="px-4 py-3 bg-slate-950/60">
+                  <p className="font-semibold text-white truncate">{currentUserEmail.split('@')[0]}</p>
+                  <p className="text-[10px] text-slate-400 truncate">{currentUserEmail}</p>
+                </div>
+                <div className="py-1.5">
+                  <Link
+                    href="/user/profile"
+                    onClick={() => setProfileMenuOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+                  >
+                    Profile
+                  </Link>
+                  <Link
+                    href="/admin/dashboard"
+                    onClick={() => setProfileMenuOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+                  >
+                    Dashboard
+                  </Link>
+                  <Link
+                    href="/admin/pipeline"
+                    onClick={() => setProfileMenuOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 text-[#C9A66B] font-bold hover:bg-slate-800 transition-colors"
+                  >
+                    Sales Pipeline
+                  </Link>
+                </div>
+                <div className="py-1.5">
+                  <button
+                    onClick={async () => {
+                      setProfileMenuOpen(false)
+                      await supabase.auth.signOut()
+                      window.location.href = '/login'
+                    }}
+                    className="w-full text-left flex items-center gap-2 px-4 py-2.5 text-red-400 hover:bg-red-500/10 font-medium transition-colors"
+                  >
+                    Log Out
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
