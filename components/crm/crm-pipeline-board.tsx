@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 import {
   MessageCircle,
   Phone,
@@ -182,10 +183,34 @@ export default function CRMPipelineBoard({
 
       setActionSuccessMsg(`Viewing scheduled for ${new Date(viewingDateInput).toLocaleString()}! Stage moved to Viewing.`)
       setTimeout(() => setActionSuccessMsg(''), 4000)
-    } else {
-      console.error('Error saving viewing date:', error)
     }
     setSavingViewingDate(false)
+  }
+
+  // Uplifting Victory Sound Effect Helper
+  const playVictorySound = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+      if (!AudioCtx) return
+      const ctx = new AudioCtx()
+      const now = ctx.currentTime
+
+      const notes = [523.25, 659.25, 783.99]
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'triangle'
+        osc.frequency.setValueAtTime(freq, now + idx * 0.12)
+        gain.gain.setValueAtTime(0.3, now + idx * 0.12)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.4)
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(now + idx * 0.12)
+        osc.stop(now + idx * 0.12 + 0.4)
+      })
+    } catch (err) {
+      console.error('Audio chime error:', err)
+    }
   }
 
   // 1. Fetch Staff & Leads on Mount
@@ -221,10 +246,32 @@ export default function CRMPipelineBoard({
         if (payload.eventType === 'INSERT') {
           setLeads((prev) => [payload.new as SalesLead, ...prev])
         } else if (payload.eventType === 'UPDATE') {
+          const oldLead = payload.old as SalesLead
+          const newLead = payload.new as SalesLead
+
           setLeads((prev) =>
             prev.map((l) => (l.id === payload.new.id ? (payload.new as SalesLead) : l))
           )
           setSelectedLead((prev) => (prev?.id === payload.new.id ? (payload.new as SalesLead) : prev))
+
+          // 1. Victory Deal Closed Alert
+          if (oldLead?.stage !== 'closed_won' && newLead?.stage === 'closed_won') {
+            const agentName = newLead.assigned_agent_email?.split('@')[0] || 'Sales Agent'
+            const valStr = newLead.estimated_value ? ` for $${Number(newLead.estimated_value).toLocaleString()}` : ''
+            toast.success(`🎉 VICTORY DEAL WON! ${agentName} just closed a deal${valStr} with ${newLead.full_name}!`, {
+              duration: 7000
+            })
+            playVictorySound()
+          }
+
+          // 2. Site Viewing Booked Alert
+          if ((!oldLead?.viewing_date && newLead?.viewing_date) || (oldLead?.stage !== 'viewing' && newLead?.stage === 'viewing')) {
+            const agentName = newLead.assigned_agent_email?.split('@')[0] || 'Sales Agent'
+            toast.info(`🏠 VIEWING BOOKED! ${agentName} just scheduled a Site Viewing with ${newLead.full_name}!`, {
+              duration: 6000
+            })
+            playVictorySound()
+          }
         } else if (payload.eventType === 'DELETE') {
           setLeads((prev) => prev.filter((l) => l.id !== payload.old.id))
         }

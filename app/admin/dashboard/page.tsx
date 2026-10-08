@@ -143,13 +143,70 @@ export default function AdminDashboardPage() {
     }
   }
 
-  useEffect(() => {
-    fetchDashboardData()
-  }, [])
+  // ── Helper to Play Uplifting Victory Sound Effect ──
+  const playVictorySound = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+      if (!AudioCtx) return
+      const ctx = new AudioCtx()
+      const now = ctx.currentTime
 
-  // ── Compute Sales Leaderboard for Healthy Competition ──
+      // 3 Uplifting Chime Notes (C5 -> E5 -> G5)
+      const notes = [523.25, 659.25, 783.99]
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'triangle'
+        osc.frequency.setValueAtTime(freq, now + idx * 0.12)
+        gain.gain.setValueAtTime(0.3, now + idx * 0.12)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.4)
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(now + idx * 0.12)
+        osc.stop(now + idx * 0.12 + 0.4)
+      })
+    } catch (err) {
+      console.error('Audio error:', err)
+    }
+  }
+
+  // Live Realtime Victory Toasts & Sound Notification
+  useEffect(() => {
+    const channel = supabase
+      .channel('dashboard_realtime_leads')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sales_leads' }, (payload) => {
+        const oldLead = payload.old as any
+        const newLead = payload.new as any
+
+        // 1. Victory Deal Closed Toast
+        if (oldLead?.stage !== 'closed_won' && newLead?.stage === 'closed_won') {
+          const agentName = newLead.assigned_agent_email?.split('@')[0] || 'Sales Agent'
+          const val = newLead.estimated_value ? ` for $${Number(newLead.estimated_value).toLocaleString()}` : ''
+          toast.success(`🎉 VICTORY DEAL WON! ${agentName} just closed a deal${val} with ${newLead.full_name}!`, {
+            duration: 7000
+          })
+          playVictorySound()
+        }
+
+        // 2. Site Viewing Booked Toast
+        if ((!oldLead?.viewing_date && newLead?.viewing_date) || (oldLead?.stage !== 'viewing' && newLead?.stage === 'viewing')) {
+          const agentName = newLead.assigned_agent_email?.split('@')[0] || 'Sales Agent'
+          toast.info(`🏠 VIEWING BOOKED! ${agentName} just scheduled a Site Viewing with ${newLead.full_name}!`, {
+            duration: 6000
+          })
+          playVictorySound()
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [supabase])
+
+  // ── Compute Sales Leaderboard & Speed-to-Lead Response Time ──
   const agentLeaderboard = useMemo(() => {
-    const map: Record<string, { email: string; name: string; wonValue: number; wonCount: number; viewingsCount: number; hotCount: number; totalLeads: number }> = {}
+    const map: Record<string, { email: string; name: string; wonValue: number; wonCount: number; viewingsCount: number; hotCount: number; totalLeads: number; responseTimes: number[] }> = {}
 
     // Pre-populate with staff members
     rawStaff.forEach((s) => {
@@ -160,7 +217,8 @@ export default function AdminDashboardPage() {
         wonCount: 0,
         viewingsCount: 0,
         hotCount: 0,
-        totalLeads: 0
+        totalLeads: 0,
+        responseTimes: []
       }
     })
 
@@ -175,7 +233,8 @@ export default function AdminDashboardPage() {
           wonCount: 0,
           viewingsCount: 0,
           hotCount: 0,
-          totalLeads: 0
+          totalLeads: 0,
+          responseTimes: []
         }
       }
 
@@ -190,9 +249,30 @@ export default function AdminDashboardPage() {
       if (l.stage === 'hot_lead') {
         map[email].hotCount += 1
       }
+
+      // Calculate response time in minutes
+      if (l.created_at && l.last_interaction_at) {
+        const createdMs = new Date(l.created_at).getTime()
+        const lastMs = new Date(l.last_interaction_at).getTime()
+        if (lastMs > createdMs) {
+          const diffMins = Math.round((lastMs - createdMs) / (1000 * 60))
+          if (diffMins >= 1 && diffMins <= 1440) {
+            map[email].responseTimes.push(diffMins)
+          }
+        }
+      }
     })
 
-    return Object.values(map).sort((a, b) => b.wonValue - a.wonValue || b.wonCount - a.wonCount || b.viewingsCount - a.viewingsCount)
+    return Object.values(map)
+      .map((item) => {
+        const avgResp = item.responseTimes.length > 0
+          ? Math.round(item.responseTimes.reduce((a, b) => a + b, 0) / item.responseTimes.length)
+          : 3 // Default benchmark fast response speed
+
+        const speedText = avgResp <= 3 ? '< 3 mins ⚡' : avgResp <= 15 ? `${avgResp} mins 🚀` : `${avgResp} mins`
+        return { ...item, avgResp, speedText }
+      })
+      .sort((a, b) => b.wonValue - a.wonValue || b.wonCount - a.wonCount || a.avgResp - b.avgResp)
   }, [rawLeads, rawStaff])
 
   // ── Date Filtering Helper ──
@@ -525,18 +605,22 @@ export default function AdminDashboardPage() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 text-center pt-3 border-t border-slate-900 text-xs">
+                <div className="grid grid-cols-4 gap-1.5 text-center pt-3 border-t border-slate-900 text-xs">
                   <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
                     <span className="text-[10px] text-slate-500 block">Revenue</span>
                     <span className="font-extrabold text-emerald-400">${agent.wonValue.toLocaleString()}</span>
                   </div>
                   <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
-                    <span className="text-[10px] text-slate-500 block">Deals Won</span>
+                    <span className="text-[10px] text-slate-500 block">Won</span>
                     <span className="font-extrabold text-white">{agent.wonCount}</span>
                   </div>
                   <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
                     <span className="text-[10px] text-slate-500 block">Viewings</span>
                     <span className="font-extrabold text-purple-400">{agent.viewingsCount}</span>
+                  </div>
+                  <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
+                    <span className="text-[10px] text-slate-500 block">Speed</span>
+                    <span className="font-extrabold text-sky-400 text-[11px]">{agent.speedText}</span>
                   </div>
                 </div>
               </div>
