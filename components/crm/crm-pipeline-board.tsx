@@ -165,7 +165,23 @@ export default function CRMPipelineBoard({
         .select('*')
         .eq('lead_id', selectedLead!.id)
         .order('created_at', { ascending: false })
-      if (data) setNotes(data)
+
+      const notesList = data || []
+      
+      // If lead has an initial_note from single HTTP ingestion, include it as an initial note entry
+      if (selectedLead?.initial_note && !notesList.some(n => n.note_text === selectedLead.initial_note)) {
+        notesList.push({
+          id: 'initial-' + selectedLead.id,
+          lead_id: selectedLead.id,
+          author_email: selectedLead.assigned_agent_email || 'system@cillah.dev',
+          author_name: 'Email Campaign Bot',
+          source: 'email_reply',
+          note_text: selectedLead.initial_note,
+          created_at: selectedLead.created_at
+        })
+      }
+
+      setNotes(notesList)
     }
 
     fetchNotes()
