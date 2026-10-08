@@ -44,6 +44,7 @@ export interface SalesLead {
   followup_status: string | null
   next_followup_at: string | null
   followup_title: string | null
+  initial_note?: string | null
 }
 
 export interface LeadNote {
@@ -100,12 +101,38 @@ export default function CRMPipelineBoard({
   const [newNoteText, setNewNoteText] = useState('')
   const [addingNote, setAddingNote] = useState(false)
 
+  // Edit Lead Contact Info State
+  const [isEditingContact, setIsEditingContact] = useState(false)
+  const [editFullName, setEditFullName] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editCompany, setEditCompany] = useState('')
+  const [savingContact, setSavingContact] = useState(false)
+
+  // Lead Transfer State
+  const [targetAgentEmail, setTargetAgentEmail] = useState('')
+  const [transferringLead, setTransferringLead] = useState(false)
+
   // Followup Form State inside Modal
   const [followupChoice, setFollowupChoice] = useState<'1_month' | '3_months' | '1_year' | 'forever' | 'custom'>('1_month')
   const [customDate, setCustomDate] = useState('')
   const [customTitle, setCustomTitle] = useState('')
   const [updatingFollowup, setUpdatingFollowup] = useState(false)
   const [actionSuccessMsg, setActionSuccessMsg] = useState('')
+
+  const isSuperAdmin = currentUserEmail.toLowerCase() === 'awuorcillah@gmail.com'
+
+  // Populate edit fields on lead selection
+  useEffect(() => {
+    if (selectedLead) {
+      setEditFullName(selectedLead.full_name || '')
+      setEditEmail(selectedLead.email || '')
+      setEditPhone(selectedLead.phone_number || '')
+      setEditCompany(selectedLead.company_name || '')
+      setTargetAgentEmail(selectedLead.assigned_agent_email || '')
+      setIsEditingContact(false)
+    }
+  }, [selectedLead])
 
   // 1. Fetch Staff & Leads on Mount
   useEffect(() => {
@@ -252,6 +279,107 @@ export default function CRMPipelineBoard({
 
     if (!error) {
       setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, stage: newStage } : l)))
+      if (selectedLead?.id === leadId) {
+        setSelectedLead((prev) => (prev ? { ...prev, stage: newStage } : null))
+      }
+    }
+  }
+
+  // Save Contact Details (Full Name, Email, Phone/WhatsApp, Company)
+  const handleSaveContactDetails = async () => {
+    if (!selectedLead) return
+    setSavingContact(true)
+    setActionSuccessMsg('')
+
+    const updatedFields = {
+      full_name: editFullName.trim(),
+      email: editEmail.trim() || null,
+      phone_number: editPhone.trim() || null,
+      company_name: editCompany.trim() || null,
+      updated_at: new Date().toISOString()
+    }
+
+    const { error } = await supabase
+      .from('sales_leads')
+      .update(updatedFields)
+      .eq('id', selectedLead.id)
+
+    if (!error) {
+      const updatedLead = { ...selectedLead, ...updatedFields }
+      setSelectedLead(updatedLead)
+      setLeads((prev) => prev.map((l) => (l.id === selectedLead.id ? updatedLead : l)))
+      setActionSuccessMsg('Contact details updated successfully!')
+      setIsEditingContact(false)
+      setTimeout(() => setActionSuccessMsg(''), 4000)
+    } else {
+      console.error('Error saving contact details:', error)
+    }
+    setSavingContact(false)
+  }
+
+  // Lead Transfer Handler (Agent to Agent -> Source becomes transferring agent email)
+  const handleTransferLead = async () => {
+    if (!selectedLead || !targetAgentEmail) return
+    if (targetAgentEmail === selectedLead.assigned_agent_email) return
+
+    setTransferringLead(true)
+    setActionSuccessMsg('')
+
+    const newSource = currentUserEmail
+    const updatedFields = {
+      assigned_agent_email: targetAgentEmail,
+      source: newSource,
+      updated_at: new Date().toISOString()
+    }
+
+    const { error } = await supabase
+      .from('sales_leads')
+      .update(updatedFields)
+      .eq('id', selectedLead.id)
+
+    if (!error) {
+      const transferNoteText = `Lead transferred from ${selectedLead.assigned_agent_email || 'Unassigned'} to ${targetAgentEmail} by ${currentUserEmail}. Source updated to ${newSource}.`
+      
+      await supabase.from('lead_notes').insert({
+        lead_id: selectedLead.id,
+        author_email: currentUserEmail,
+        author_name: currentUserEmail.split('@')[0],
+        source: 'lead_transfer',
+        note_text: transferNoteText
+      })
+
+      const updatedLead = { ...selectedLead, ...updatedFields }
+      setSelectedLead(updatedLead)
+      setLeads((prev) => prev.map((l) => (l.id === selectedLead.id ? updatedLead : l)))
+
+      setNotes((prev) => [{
+        id: 'transfer-' + Date.now(),
+        lead_id: selectedLead.id,
+        author_email: currentUserEmail,
+        author_name: currentUserEmail.split('@')[0],
+        source: 'lead_transfer',
+        note_text: transferNoteText,
+        created_at: new Date().toISOString()
+      }, ...prev])
+
+      setActionSuccessMsg(`Lead transferred to ${targetAgentEmail}. Source set to ${newSource}`)
+      setTimeout(() => setActionSuccessMsg(''), 4000)
+    } else {
+      console.error('Error transferring lead:', error)
+    }
+
+    setTransferringLead(false)
+  }
+
+  // Delete Lead Handler (Super Admin Only)
+  const handleDeleteLead = async () => {
+    if (!selectedLead || !isSuperAdmin) return
+    if (!window.confirm(`Are you sure you want to permanently delete lead '${selectedLead.full_name}'?`)) return
+
+    const { error } = await supabase.from('sales_leads').delete().eq('id', selectedLead.id)
+    if (!error) {
+      setLeads((prev) => prev.filter((l) => l.id !== selectedLead.id))
+      setSelectedLead(null)
     }
   }
 
@@ -333,7 +461,7 @@ export default function CRMPipelineBoard({
               <Sparkles className="w-7 h-7 text-[#C9A66B]" /> Sales Engine & CRM Pipeline
             </h1>
             <span className="px-3 py-1 bg-[#C9A66B]/20 text-[#C9A66B] text-xs font-semibold rounded-full border border-[#C9A66B]/30 uppercase">
-              {isStaffAdmin ? 'Admin Control' : 'Sales Workspace'}
+              {isStaffAdmin ? 'Admin Control (Viewer)' : 'Sales Workspace'}
             </span>
           </div>
           <p className="text-sm text-slate-400 mt-1">
@@ -536,13 +664,30 @@ export default function CRMPipelineBoard({
                           )}
                         </div>
 
-                        {/* Name & Company */}
+                        {/* Name & Contact Details */}
                         <h4 className="font-bold text-sm text-slate-100 group-hover:text-[#C9A66B] transition-colors">
                           {lead.full_name}
                         </h4>
+
+                        {/* Display Email Address Prominently */}
+                        {lead.email && (
+                          <div className="text-xs text-purple-300/90 flex items-center gap-1.5 mt-1 truncate">
+                            <Mail className="w-3 h-3 flex-shrink-0 text-purple-400" />
+                            <span className="truncate">{lead.email}</span>
+                          </div>
+                        )}
+
+                        {/* Display Phone Number */}
+                        {lead.phone_number && (
+                          <div className="text-xs text-emerald-400/90 flex items-center gap-1.5 mt-0.5 truncate">
+                            <Phone className="w-3 h-3 flex-shrink-0 text-emerald-400" />
+                            <span className="truncate">{lead.phone_number}</span>
+                          </div>
+                        )}
+
                         {lead.company_name && (
-                          <div className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                            <Building className="w-3 h-3" /> {lead.company_name}
+                          <div className="text-xs text-slate-400 flex items-center gap-1 mt-1">
+                            <Building className="w-3 h-3 text-slate-500" /> {lead.company_name}
                           </div>
                         )}
 
@@ -603,7 +748,7 @@ export default function CRMPipelineBoard({
                             value={lead.stage}
                             onClick={(e) => e.stopPropagation()}
                             onChange={(e) => handleStageChange(lead.id, e.target.value)}
-                            className="ml-auto bg-slate-900 border border-slate-800 text-[10px] text-slate-300 rounded-lg px-1.5 py-1 focus:outline-none"
+                            className="ml-auto bg-slate-900 border border-slate-800 text-[10px] text-slate-300 rounded-lg px-1.5 py-1 focus:outline-none cursor-pointer"
                           >
                             {STAGES.map((st) => (
                               <option key={st.id} value={st.id}>
@@ -645,11 +790,12 @@ export default function CRMPipelineBoard({
                 >
                   <td className="p-4 font-bold text-slate-100">{lead.full_name}</td>
                   <td className="p-4 text-slate-300">
-                    <div>{lead.email || 'No email'}</div>
-                    <div className="text-slate-400">{lead.phone_number || 'No phone'}</div>
+                    <div className="text-purple-300 font-medium">{lead.email || 'No email'}</div>
+                    <div className="text-emerald-400">{lead.phone_number || 'No phone'}</div>
+                    {lead.company_name && <div className="text-slate-400 text-[11px]">{lead.company_name}</div>}
                   </td>
                   <td className="p-4">
-                    <span className="px-2 py-1 bg-slate-950 text-slate-300 border border-slate-800 rounded-md font-mono">
+                    <span className="px-2 py-1 bg-slate-950 text-[#C9A66B] border border-slate-800 rounded-md font-mono text-[11px]">
                       {lead.source}
                     </span>
                   </td>
@@ -658,7 +804,7 @@ export default function CRMPipelineBoard({
                       value={lead.stage}
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => handleStageChange(lead.id, e.target.value)}
-                      className="bg-slate-950 border border-slate-700 text-white rounded-lg px-2 py-1 text-xs"
+                      className="bg-slate-950 border border-slate-700 text-white rounded-lg px-2 py-1 text-xs cursor-pointer"
                     >
                       {STAGES.map((st) => (
                         <option key={st.id} value={st.id}>
@@ -690,6 +836,15 @@ export default function CRMPipelineBoard({
                           <Phone className="w-4 h-4" />
                         </a>
                       )}
+                      {lead.email && (
+                        <a
+                          href={`mailto:${lead.email}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="p-1.5 bg-purple-500/10 text-purple-400 rounded-lg hover:bg-purple-500/20"
+                        >
+                          <Mail className="w-4 h-4" />
+                        </a>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -705,12 +860,40 @@ export default function CRMPipelineBoard({
           <div className="w-full max-w-xl bg-[#0E131F] border-l border-slate-800 min-h-screen p-6 overflow-y-auto flex flex-col justify-between shadow-2xl animate-in slide-in-from-right duration-300">
             <div>
               {/* Modal Header */}
-              <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
+              <div className="flex items-start justify-between border-b border-slate-800 pb-4 mb-6">
                 <div>
                   <h3 className="text-xl font-bold text-white flex items-center gap-2">
                     {selectedLead.full_name}
                   </h3>
-                  <p className="text-xs text-slate-400 mt-1">
+                  
+                  {/* PROMINENT CONTACT DETAIL DISPLAY IN HEADER */}
+                  <div className="flex flex-wrap items-center gap-2 text-xs mt-2">
+                    {selectedLead.email ? (
+                      <a
+                        href={`mailto:${selectedLead.email}`}
+                        className="flex items-center gap-1.5 text-purple-300 bg-purple-500/15 border border-purple-500/30 px-2.5 py-1 rounded-lg hover:bg-purple-500/25 transition-colors"
+                      >
+                        <Mail className="w-3.5 h-3.5 text-purple-400" /> {selectedLead.email}
+                      </a>
+                    ) : (
+                      <span className="text-slate-500 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-lg">No email</span>
+                    )}
+
+                    {selectedLead.phone_number ? (
+                      <a
+                        href={`tel:${selectedLead.phone_number}`}
+                        className="flex items-center gap-1.5 text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 rounded-lg hover:bg-emerald-500/25 transition-colors"
+                      >
+                        <Phone className="w-3.5 h-3.5 text-emerald-400" /> {selectedLead.phone_number}
+                      </a>
+                    ) : (
+                      <span className="text-amber-400/90 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg text-[11px]">
+                        No Phone (Click Edit to Add)
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-[11px] text-slate-400 mt-2">
                     Source: <span className="text-[#C9A66B] font-semibold">{selectedLead.source}</span> | Created: {new Date(selectedLead.created_at).toLocaleDateString()}
                   </p>
                 </div>
@@ -721,6 +904,12 @@ export default function CRMPipelineBoard({
                   <X className="w-5 h-5" />
                 </button>
               </div>
+
+              {actionSuccessMsg && (
+                <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs rounded-xl flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" /> {actionSuccessMsg}
+                </div>
+              )}
 
               {/* 1-CLICK QUICK ACTION BAR IN MODAL */}
               <div className="grid grid-cols-3 gap-3 mb-6">
@@ -734,7 +923,7 @@ export default function CRMPipelineBoard({
                     <MessageCircle className="w-4 h-4" /> WhatsApp
                   </a>
                 ) : (
-                  <button disabled className="py-2.5 bg-slate-900 text-slate-600 rounded-xl text-xs font-bold opacity-50">
+                  <button disabled className="py-2.5 bg-slate-900 text-slate-600 rounded-xl text-xs font-bold opacity-50 cursor-not-allowed">
                     No WhatsApp
                   </button>
                 )}
@@ -747,7 +936,7 @@ export default function CRMPipelineBoard({
                     <Phone className="w-4 h-4" /> Direct Call
                   </a>
                 ) : (
-                  <button disabled className="py-2.5 bg-slate-900 text-slate-600 rounded-xl text-xs font-bold opacity-50">
+                  <button disabled className="py-2.5 bg-slate-900 text-slate-600 rounded-xl text-xs font-bold opacity-50 cursor-not-allowed">
                     No Phone
                   </button>
                 )}
@@ -760,20 +949,114 @@ export default function CRMPipelineBoard({
                     <Mail className="w-4 h-4" /> Send Email
                   </a>
                 ) : (
-                  <button disabled className="py-2.5 bg-slate-900 text-slate-600 rounded-xl text-xs font-bold opacity-50">
+                  <button disabled className="py-2.5 bg-slate-900 text-slate-600 rounded-xl text-xs font-bold opacity-50 cursor-not-allowed">
                     No Email
                   </button>
                 )}
               </div>
 
-              {/* STAGE & AGENT ASSIGNMENT */}
-              <div className="grid grid-cols-2 gap-4 mb-6 bg-slate-900/60 p-4 rounded-xl border border-slate-800 text-xs">
+              {/* EDIT CONTACT DETAILS SECTION (NAME, EMAIL, PHONE, WHATSAPP, COMPANY) */}
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    <UserCheck className="w-4 h-4 text-[#C9A66B]" /> Contact Info & Editing
+                  </h4>
+                  <button
+                    onClick={() => setIsEditingContact((p) => !p)}
+                    className="text-xs font-semibold text-[#C9A66B] hover:underline"
+                  >
+                    {isEditingContact ? 'Cancel' : '✏️ Edit Contact Info'}
+                  </button>
+                </div>
+
+                {isEditingContact ? (
+                  <div className="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs">
+                    <div>
+                      <label className="text-slate-400 block mb-1">Full Name</label>
+                      <input
+                        type="text"
+                        value={editFullName}
+                        onChange={(e) => setEditFullName(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-[#C9A66B]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-400 block mb-1">Email Address</label>
+                      <input
+                        type="email"
+                        placeholder="client@example.com"
+                        value={editEmail}
+                        onChange={(e) => setEditEmail(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-[#C9A66B]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-400 block mb-1">Phone / WhatsApp Number</label>
+                      <input
+                        type="tel"
+                        placeholder="+254 700 000 000"
+                        value={editPhone}
+                        onChange={(e) => setEditPhone(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-[#C9A66B]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-400 block mb-1">Company Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Rose Properties"
+                        value={editCompany}
+                        onChange={(e) => setEditCompany(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-[#C9A66B]"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-2">
+                      <button
+                        onClick={() => setIsEditingContact(false)}
+                        className="px-3 py-1.5 bg-slate-900 text-slate-400 font-bold rounded-lg hover:text-white"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveContactDetails}
+                        disabled={savingContact}
+                        className="px-4 py-1.5 bg-[#C9A66B] text-slate-950 font-bold rounded-lg hover:bg-[#C9A66B]/90 transition-all disabled:opacity-50"
+                      >
+                        {savingContact ? 'Saving...' : 'Save Contact Info'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3 text-xs bg-slate-950 p-3 rounded-xl border border-slate-900">
+                    <div>
+                      <span className="text-slate-500 block text-[11px]">Email:</span>
+                      <span className="text-purple-300 font-semibold">{selectedLead.email || 'Not provided'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[11px]">Phone / WhatsApp:</span>
+                      <span className="text-emerald-400 font-semibold">{selectedLead.phone_number || 'Not provided'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[11px]">Company:</span>
+                      <span className="text-slate-300 font-semibold">{selectedLead.company_name || 'Not provided'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[11px]">Lead Source:</span>
+                      <span className="text-[#C9A66B] font-semibold">{selectedLead.source}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* STAGE & AGENT TRANSFER SECTION */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-slate-900/60 p-4 rounded-xl border border-slate-800 text-xs">
                 <div>
                   <label className="text-slate-400 font-medium block mb-1">Current Stage</label>
                   <select
                     value={selectedLead.stage}
                     onChange={(e) => handleStageChange(selectedLead.id, e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg p-2 font-bold focus:outline-none"
+                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg p-2 font-bold focus:outline-none cursor-pointer"
                   >
                     {STAGES.map((st) => (
                       <option key={st.id} value={st.id}>
@@ -783,25 +1066,57 @@ export default function CRMPipelineBoard({
                   </select>
                 </div>
 
+                {/* LEAD TRANSFER FROM AGENT TO AGENT */}
                 <div>
-                  <label className="text-slate-400 font-medium block mb-1">Assigned Agent</label>
-                  <div className="text-slate-200 font-bold p-2 bg-slate-950 rounded-lg border border-slate-800">
-                    {selectedLead.assigned_agent_email || 'Unassigned'}
+                  <label className="text-slate-400 font-medium block mb-1">Transfer Lead To Agent</label>
+                  <div className="flex gap-2">
+                    <select
+                      value={targetAgentEmail}
+                      onChange={(e) => setTargetAgentEmail(e.target.value)}
+                      className="flex-1 bg-slate-950 border border-slate-700 text-white rounded-lg p-2 font-bold focus:outline-none cursor-pointer"
+                    >
+                      {staffMembers
+                        .filter((s) => s.role === 'sales' || s.role === 'ceo')
+                        .map((agent) => (
+                          <option key={agent.id} value={agent.email}>
+                            {agent.full_name} ({agent.email})
+                          </option>
+                        ))}
+                    </select>
+                    {targetAgentEmail !== selectedLead.assigned_agent_email && (
+                      <button
+                        onClick={handleTransferLead}
+                        disabled={transferringLead}
+                        className="px-3 py-2 bg-[#C9A66B] text-slate-950 font-bold rounded-lg text-xs hover:bg-[#C9A66B]/90 transition-all disabled:opacity-50 flex-shrink-0"
+                      >
+                        {transferringLead ? 'Transferring...' : 'Transfer'}
+                      </button>
+                    )}
                   </div>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Transferring sets Lead Source to <span className="text-[#C9A66B] font-semibold">{currentUserEmail}</span>.
+                  </p>
                 </div>
               </div>
+
+              {/* SUPER ADMIN DELETE BUTTON */}
+              {isSuperAdmin && (
+                <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between">
+                  <span className="text-xs text-red-400 font-medium">Super Admin Actions</span>
+                  <button
+                    onClick={handleDeleteLead}
+                    className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold rounded-lg border border-red-500/30 transition-colors"
+                  >
+                    Delete Lead
+                  </button>
+                </div>
+              )}
 
               {/* FOLLOW-UP CLOSURE & SCHEDULER SECTION */}
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 mb-6">
                 <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
                   <Clock className="w-4 h-4 text-[#C9A66B]" /> Follow-Up Scheduler & Closure
                 </h4>
-
-                {actionSuccessMsg && (
-                  <div className="mb-3 p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs rounded-xl flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4" /> {actionSuccessMsg}
-                  </div>
-                )}
 
                 {/* Preset Choices */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
