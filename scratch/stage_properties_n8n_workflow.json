@@ -1,0 +1,128 @@
+{
+  "name": "Stage Properties - Luxury Instagram Hartland Lead Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stage-properties-ig-webhook",
+        "options": {}
+      },
+      "id": "1",
+      "name": "IG Comment Webhook (HARTLAND)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM properties WHERE keyword = 'hartland' LIMIT 1;"
+      },
+      "id": "2",
+      "name": "Supabase Property Lookup (Hartland)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://graph.facebook.com/v18.0/me/messages",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "recipient",
+              "value": "{\"id\": \"{{ $json.ig_sender_id }}\"}"
+            },
+            {
+              "name": "message",
+              "value": "{\"text\": \"Hi! Here are the prices and availability for Sobha Hartland:\\n\\n📍 Location: MBR City, Dubai\\n💰 Starting Price: AED 1,500,000 (~$408,000 USD)\\n🏡 Units: 1, 2 & 3 Bedroom Waterfront Apartments & Canal Villas\\n\\nAre you looking to BUY or RENT?\", \"quick_replies\": [{\"content_type\":\"text\",\"title\":\"BUY\",\"payload\":\"BUY\"},{\"content_type\":\"text\",\"title\":\"RENT\",\"payload\":\"RENT\"}]}"
+            }
+          ]
+        }
+      },
+      "id": "3",
+      "name": "Send IG DM + Buy/Rent Buttons",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM staff_members WHERE is_active = true ORDER BY last_assigned_at ASC NULLS FIRST LIMIT 1;"
+      },
+      "id": "4",
+      "name": "Round-Robin Agent Selector (Ador)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://cillah.dev/api/whatsapp/send-notification",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "to",
+              "value": "0794357912"
+            },
+            {
+              "name": "message",
+              "value": "🏷️ NEW QUALIFIED LEAD - STAGE PROPERTIES BROKERS\n\n👤 Name: {{ $json.lead_name }}\n📞 Phone: {{ $json.lead_phone }}\n🏡 Property: Sobha Hartland ({{ $json.intent }})\n📲 IG Handle: @{{ $json.username }}\nassigned agent: {{ $json.agent_name }} (Ador)"
+            }
+          ]
+        }
+      },
+      "id": "5",
+      "name": "Send WhatsApp Alert to Agent Ador",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://graph.facebook.com/v18.0/me/messages",
+        "options": {},
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "recipient",
+              "value": "{\"id\": \"{{ $json.ig_sender_id }}\"}"
+            },
+            {
+              "name": "message",
+              "value": "{\"text\": \"Give me a moment as I transfer you to our next available property advisor... Ador will contact you shortly to discuss more on {{ $json.intent }} Hartland. Is there anything else you need help with?\"}"
+            }
+          ]
+        }
+      },
+      "id": "6",
+      "name": "Final Handoff IG DM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "IG Comment Webhook (HARTLAND)": {
+      "main": [[{"node": "Supabase Property Lookup (Hartland)", "type": "main", "index": 0}]]
+    },
+    "Supabase Property Lookup (Hartland)": {
+      "main": [[{"node": "Send IG DM + Buy/Rent Buttons", "type": "main", "index": 0}]]
+    },
+    "Send IG DM + Buy/Rent Buttons": {
+      "main": [[{"node": "Round-Robin Agent Selector (Ador)", "type": "main", "index": 0}]]
+    },
+    "Round-Robin Agent Selector (Ador)": {
+      "main": [[{"node": "Send WhatsApp Alert to Agent Ador", "type": "main", "index": 0}]]
+    },
+    "Send WhatsApp Alert to Agent Ador": {
+      "main": [[{"node": "Final Handoff IG DM", "type": "main", "index": 0}]]
+    }
+  }
+}

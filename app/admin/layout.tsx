@@ -226,13 +226,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </button>
 
               {orgsExpanded && expanded && (
-                <div className="ml-3 mt-1 pl-3 border-l border-slate-800 space-y-0.5">
-                  <Link href="/admin/organizations/cillah-dev/sales" className={navCls(isActive('/admin/organizations/cillah-dev/sales'), true)}>
-                    <span>Sales Overview</span>
-                  </Link>
-                  <Link href="/admin/organizations/cillah-dev/teams" className={navCls(isActive('/admin/organizations/cillah-dev/teams'), true)}>
-                    <span>Teams & Roles</span>
-                  </Link>
+                <div className="ml-3 mt-1 pl-3 border-l border-slate-800 space-y-2">
+                  {/* Organization 1: cillah.dev */}
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] font-bold text-cyan-400 px-2 py-1 uppercase tracking-wider">
+                      cillah.dev
+                    </p>
+                    <Link href="/admin/organizations/cillah-dev/teams" className={navCls(isActive('/admin/organizations/cillah-dev/teams'), true)}>
+                      <span>Teams & Roles</span>
+                    </Link>
+                  </div>
+
+                  {/* Organization 2: Stage Properties */}
+                  <div className="space-y-0.5 pt-1.5 border-t border-slate-800/80">
+                    <p className="text-[10px] font-bold text-amber-400 px-2 py-1 uppercase tracking-wider">
+                      Stage Properties
+                    </p>
+                    <Link href="/admin/organizations/stage-properties/teams" className={navCls(isActive('/admin/organizations/stage-properties/teams'), true)}>
+                      <span>Teams & Roles</span>
+                    </Link>
+                  </div>
                 </div>
               )}
             </div>
