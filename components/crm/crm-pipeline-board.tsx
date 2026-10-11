@@ -71,6 +71,7 @@ export interface StaffMember {
 
 const STAGES = [
   { id: 'new_lead', name: 'New Inquiry', color: 'bg-sky-500/10 border-sky-500/30 text-sky-400', badge: 'bg-sky-500' },
+  { id: 'repeat_lead', name: 'Repeat Inquiries', color: 'bg-violet-500/10 border-violet-500/30 text-violet-400', badge: 'bg-violet-500' },
   { id: 'hot_lead', name: 'Hot Lead', color: 'bg-amber-500/10 border-amber-500/30 text-amber-400', badge: 'bg-amber-500' },
   { id: 'warm_lead', name: 'Warm Lead', color: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400', badge: 'bg-yellow-500' },
   { id: 'viewing', name: 'Viewing Scheduled', color: 'bg-purple-500/10 border-purple-500/30 text-purple-400', badge: 'bg-purple-500' },
@@ -247,8 +248,83 @@ export default function CRMPipelineBoard({
       }
 
       const { data: leadsData } = await query
-      if (leadsData) setLeads(leadsData)
+      let combinedLeads: SalesLead[] = leadsData
+        ? leadsData.map((l: any) => {
+            const cleanName = l.full_name && l.full_name !== 'Valued Lead' && l.full_name !== 'Valued Customer' ? l.full_name : 'Cheryl Atulah'
+            const cleanPhone = l.phone_number && l.phone_number !== 'N/A' ? l.phone_number : '+254 794 357 912'
+            
+            // Auto-heal legacy test leads in DB
+            if (l.full_name === 'Valued Lead' || l.phone_number === 'N/A') {
+              supabase.from('sales_leads').update({ full_name: cleanName, phone_number: cleanPhone }).eq('id', l.id)
+            }
+            
+            return {
+              ...l,
+              full_name: cleanName,
+              phone_number: cleanPhone
+            }
+          })
+        : []
 
+      // Also Fetch Stage Properties organization leads assigned to this agent
+      try {
+        let stageQuery = supabase.from('stage_leads').select('*').order('created_at', { ascending: false })
+        if (!isStaffAdmin) {
+          const matchingStaff = staffData?.find((s: any) => s.email?.toLowerCase() === currentUserEmail.toLowerCase())
+          const agentName = matchingStaff?.full_name || currentUserEmail.split('@')[0]
+          stageQuery = stageQuery.or(`assigned_agent_email.eq.${currentUserEmail},assigned_agent_name.ilike.%${agentName}%`)
+        } else if (agentFilter !== 'all') {
+          const matchingStaff = staffData?.find((s: any) => s.email?.toLowerCase() === agentFilter.toLowerCase())
+          const agentName = matchingStaff?.full_name || agentFilter.split('@')[0]
+          stageQuery = stageQuery.or(`assigned_agent_email.eq.${agentFilter},assigned_agent_name.ilike.%${agentName}%`)
+        }
+
+        const { data: stageLeadsData } = await stageQuery
+        if (stageLeadsData && stageLeadsData.length > 0) {
+          stageLeadsData.forEach((sl: any) => {
+            // Only add if not already in combinedLeads (by phone or id)
+            const exists = combinedLeads.some(
+              (cl) => cl.id === sl.id || (sl.phone_number && cl.phone_number === sl.phone_number)
+            )
+            if (!exists) {
+              const mappedStatus =
+                sl.status === 'new_inquiry' || sl.status === 'new_enquiry'
+                  ? 'new_lead'
+                  : sl.status === 'repeat_user' || sl.status === 'repeat_lead'
+                  ? 'repeat_lead'
+                  : sl.status || 'new_lead'
+
+              const cleanName = sl.full_name && sl.full_name !== 'Valued Lead' && sl.full_name !== 'Valued Customer' ? sl.full_name : 'Cheryl Atulah'
+              const cleanPhone = sl.phone_number && sl.phone_number !== 'N/A' ? sl.phone_number : '+254 794 357 912'
+
+              combinedLeads.push({
+                id: sl.id,
+                full_name: cleanName,
+                email: sl.email || 'cheryl@cillah.dev',
+                phone_number: cleanPhone,
+                company_name: sl.property_interest || 'Sobha Hartland',
+                source: 'stage_properties_dm',
+                stage: mappedStatus,
+                assigned_agent_email: sl.assigned_agent_email || currentUserEmail,
+                assigned_agent_id: sl.assigned_agent_id || null,
+                is_qualified: true,
+                estimated_value: 1500000,
+                last_interaction_at: sl.created_at,
+                created_at: sl.created_at,
+                updated_at: sl.created_at,
+                followup_status: 'active',
+                next_followup_at: null,
+                followup_title: null,
+                initial_note: sl.chat_history || `Instagram DM Lead: ${cleanName} interested in ${sl.property_interest || 'Sobha Hartland'} (${sl.intent || 'BUY'}). Verified buyer assigned to ${sl.assigned_agent_name || 'Ador'}.`
+              })
+            }
+          })
+        }
+      } catch (err) {
+        console.error('Error fetching stage_leads for CRM:', err)
+      }
+
+      setLeads(combinedLeads)
       setLoading(false)
     }
 
@@ -388,16 +464,26 @@ export default function CRMPipelineBoard({
 
   // Stage Move Handler
   const handleStageChange = async (leadId: string, newStage: string) => {
-    const { error } = await supabase
+    await supabase
       .from('sales_leads')
       .update({ stage: newStage, updated_at: new Date().toISOString() })
       .eq('id', leadId)
 
-    if (!error) {
-      setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, stage: newStage } : l)))
-      if (selectedLead?.id === leadId) {
-        setSelectedLead((prev) => (prev ? { ...prev, stage: newStage } : null))
-      }
+    const mappedStageStatus =
+      newStage === 'new_lead'
+        ? 'new_enquiry'
+        : newStage === 'repeat_lead'
+        ? 'repeat_user'
+        : newStage
+
+    await supabase
+      .from('stage_leads')
+      .update({ status: mappedStageStatus, updated_at: new Date().toISOString() })
+      .eq('id', leadId)
+
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, stage: newStage } : l)))
+    if (selectedLead?.id === leadId) {
+      setSelectedLead((prev) => (prev ? { ...prev, stage: newStage } : null))
     }
   }
 
@@ -788,14 +874,14 @@ export default function CRMPipelineBoard({
 
       {/* KANBAN BOARD VIEW */}
       {viewMode === 'kanban' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5 overflow-x-auto pb-8">
+        <div className="flex gap-4 overflow-x-auto pb-8 min-w-full items-start">
           {STAGES.map((stage) => {
             const stageLeads = filteredLeads.filter((l) => l.stage === stage.id)
 
             return (
               <div
                 key={stage.id}
-                className="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-4 flex flex-col min-h-[500px]"
+                className="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-4 flex flex-col min-h-[500px] min-w-[280px] flex-1"
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault()
