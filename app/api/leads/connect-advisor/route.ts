@@ -121,14 +121,33 @@ export async function POST(request: Request) {
         })
         .eq('id', existingLead.id)
 
-      // Also update sales_leads
-      await supabase
-        .from('sales_leads')
-        .update({
-          stage: 'repeat_lead',
-          updated_at: timestamp
-        })
-        .eq('phone_number', cleanPhone)
+      // Also update sales_leads to repeat_lead for CRM Pipeline
+      const digitsOnly = cleanPhone.replace(/\D/g, '').slice(-9)
+      if (digitsOnly) {
+        await supabase
+          .from('sales_leads')
+          .update({
+            stage: 'repeat_lead',
+            updated_at: timestamp
+          })
+          .ilike('phone_number', `%${digitsOnly}%`)
+      }
+      if (cleanName && cleanName !== 'Valued Lead' && cleanName !== 'Valued Customer') {
+        await supabase
+          .from('sales_leads')
+          .update({
+            stage: 'repeat_lead',
+            updated_at: timestamp
+          })
+          .ilike('full_name', `%${cleanName}%`)
+      }
+
+      if (assignedAgentId) {
+        await supabase
+          .from('staff_members')
+          .update({ last_assigned_at: timestamp })
+          .eq('id', assignedAgentId)
+      }
     } else {
       // INSERT NEW LEAD
       const initialNotes = [newNote]
