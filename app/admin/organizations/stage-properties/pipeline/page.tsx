@@ -227,10 +227,12 @@ export default function StagePropertiesPipelinePage() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      // 1. Fetch Staff Members (Sales Agents)
+      // 1. Fetch Staff Members (Sales Agents for Stage Properties only)
+      const STAGE_PROPERTIES_ORG_ID = 'a1b2c3d4-e5f6-7890-abcd-111111111111'
       const { data: staffData } = await supabase
         .from('staff_members')
         .select('*')
+        .eq('org_id', STAGE_PROPERTIES_ORG_ID)
         .eq('is_active', true)
         .order('full_name', { ascending: true })
 
@@ -238,16 +240,15 @@ export default function StagePropertiesPipelinePage() {
         setAgents(staffData)
       } else {
         setAgents([
-          { id: '1', full_name: 'Ador', email: 'ador@cillah.dev', phone_number: '0794357912', role: 'sales', is_active: true },
-          { id: '2', full_name: 'Cherryl Atulah', email: 'cherrylatulah2000@gmail.com', phone_number: '+254700000003', role: 'sales', is_active: true },
-          { id: '3', full_name: 'Atulah (Sales Admin)', email: 'atulah@cillah.dev', phone_number: '+254700000002', role: 'sales', is_active: true }
+          { id: '12965bb8-61a8-44ea-a6e1-13605250722c', full_name: 'Ador', email: 'ador.ai815@gmail.com', phone_number: '0794357912', role: 'sales', is_active: true }
         ])
       }
 
-      // 2. Fetch Leads from Supabase
+      // 2. Fetch Leads from Supabase scoped to Stage Properties
       const { data: dbLeads, error } = await supabase
         .from('stage_leads')
         .select('*')
+        .eq('org_id', STAGE_PROPERTIES_ORG_ID)
         .order('created_at', { ascending: false })
 
       if (dbLeads && dbLeads.length > 0) {
