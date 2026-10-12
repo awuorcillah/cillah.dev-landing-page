@@ -102,12 +102,9 @@ export async function POST(request: Request) {
       isRepeat = true
       finalLeadId = existingLead.id
 
-      const existingNotes = Array.isArray(existingLead.notes) ? existingLead.notes : []
-      const updatedNotes = [newNote, ...existingNotes]
-
       const historyLog = `${existingLead.chat_history || ''}\n[${timestamp}] (${source}) ${newNote.summary}`.trim()
 
-      await supabase
+      const { error: updateErr } = await supabase
         .from('stage_leads')
         .update({
           full_name: cleanName !== 'Valued Lead' ? cleanName : existingLead.full_name,
@@ -115,31 +112,44 @@ export async function POST(request: Request) {
           property_interest: cleanProperty,
           intent: cleanIntent,
           status: 'repeat_user',
-          notes: updatedNotes,
           chat_history: historyLog,
           updated_at: timestamp
         })
         .eq('id', existingLead.id)
 
-      // Also update sales_leads to repeat_lead for CRM Pipeline
+      if (updateErr) {
+        console.error('Error updating stage_lead:', updateErr)
+      }
+
+      // Also update or insert sales_leads to repeat_lead for CRM Pipeline
       const digitsOnly = cleanPhone.replace(/\D/g, '').slice(-9)
+      let salesLeadUpdated = false
       if (digitsOnly) {
-        await supabase
+        const { data: updatedSales } = await supabase
           .from('sales_leads')
           .update({
             stage: 'repeat_lead',
             updated_at: timestamp
           })
           .ilike('phone_number', `%${digitsOnly}%`)
+          .select()
+        if (updatedSales && updatedSales.length > 0) salesLeadUpdated = true
       }
-      if (cleanName && cleanName !== 'Valued Lead' && cleanName !== 'Valued Customer') {
-        await supabase
-          .from('sales_leads')
-          .update({
-            stage: 'repeat_lead',
-            updated_at: timestamp
-          })
-          .ilike('full_name', `%${cleanName}%`)
+
+      if (!salesLeadUpdated) {
+        await supabase.from('sales_leads').insert({
+          full_name: cleanName !== 'Valued Lead' ? cleanName : existingLead.full_name,
+          phone_number: cleanPhone !== 'N/A' ? cleanPhone : existingLead.phone_number,
+          company_name: cleanProperty,
+          source: `stage_properties_${source}`,
+          stage: 'repeat_lead',
+          assigned_agent_email: assignedAgentEmail,
+          is_qualified: true,
+          estimated_value: 1500000,
+          initial_note: conversation_summary,
+          created_at: timestamp,
+          updated_at: timestamp
+        })
       }
 
       if (assignedAgentId) {
@@ -150,7 +160,6 @@ export async function POST(request: Request) {
       }
     } else {
       // INSERT NEW LEAD
-      const initialNotes = [newNote]
       const historyLog = `[${timestamp}] (${source}) ${newNote.summary}`
 
       const { data: inserted, error: insertErr } = await supabase
@@ -166,7 +175,6 @@ export async function POST(request: Request) {
           assigned_agent_name: assignedAgentName,
           assigned_agent_email: assignedAgentEmail,
           status: 'new_enquiry',
-          notes: initialNotes,
           chat_history: historyLog,
           created_at: timestamp,
           updated_at: timestamp
@@ -174,10 +182,14 @@ export async function POST(request: Request) {
         .select()
         .single()
 
+      if (insertErr) {
+        console.error('Error inserting stage_lead:', insertErr)
+      }
+
       finalLeadId = inserted?.id || 'new-lead'
 
       // Sync to sales_leads for CRM pipeline
-      await supabase.from('sales_leads').insert({
+      const { error: salesErr } = await supabase.from('sales_leads').insert({
         full_name: cleanName,
         phone_number: cleanPhone,
         company_name: cleanProperty,
@@ -190,6 +202,10 @@ export async function POST(request: Request) {
         created_at: timestamp,
         updated_at: timestamp
       })
+
+      if (salesErr) {
+        console.error('Error inserting sales_lead:', salesErr)
+      }
     }
 
     // 4. Send WhatsApp Notification to Dedicated Sales Agent (Ador)
