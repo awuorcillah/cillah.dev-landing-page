@@ -202,6 +202,7 @@ export async function createCalendarEvent(event: {
   description: string;
   startDateTime: string; // ISO string with EAT offset, e.g. 2026-08-06T10:30:00+03:00
   guestEmail: string;
+  meetUrl?: string;
 }): Promise<{ htmlLink: string; hangoutLink: string }> {
   const token = await getGoogleAccessToken();
   const calendarId = process.env.GOOGLE_CALENDAR_ID || "atulah@cillah.dev";
@@ -212,11 +213,12 @@ export async function createCalendarEvent(event: {
 
   const start = new Date(event.startDateTime);
   const end = new Date(start.getTime() + 60 * 60 * 1000); // 1 hour duration
-  const requestId = crypto.randomUUID ? crypto.randomUUID() : `meet-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  const designatedMeetUrl = event.meetUrl || process.env.GOOGLE_MEET_URL || "https://meet.google.com/qmv-oxsm-vvg";
 
-  const payload = {
+  const payload: any = {
     summary: event.summary,
-    description: event.description,
+    description: `${event.description}\n\nGoogle Meet Link: ${designatedMeetUrl}`,
+    location: designatedMeetUrl,
     status: "confirmed",
     transparency: "opaque", // Mark as "Busy" so FreeBusy picks it up
     start: {
@@ -231,14 +233,6 @@ export async function createCalendarEvent(event: {
       { email: event.guestEmail, displayName: "Client" },
       { email: "atulah@cillah.dev", displayName: "Atulah (Cillah.dev)" }
     ],
-    conferenceData: {
-      createRequest: {
-        requestId,
-        conferenceSolutionKey: {
-          type: "hangoutsMeet"
-        }
-      }
-    },
     reminders: {
       useDefault: false,
       overrides: [
@@ -250,7 +244,7 @@ export async function createCalendarEvent(event: {
   };
 
   const response = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?conferenceDataVersion=1&sendUpdates=all`,
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=all`,
     {
       method: "POST",
       headers: {
@@ -267,10 +261,9 @@ export async function createCalendarEvent(event: {
   }
 
   const data = await response.json();
-  const hangoutLink = data.hangoutLink || data.conferenceData?.entryPoints?.find((ep: any) => ep.entryPointType === "video")?.uri || "";
 
   return {
     htmlLink: data.htmlLink || "",
-    hangoutLink
+    hangoutLink: designatedMeetUrl
   };
 }

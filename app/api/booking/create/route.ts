@@ -178,10 +178,9 @@ export async function POST(request: Request) {
       calendarEventUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${eventTitle}&dates=${datesParam}&details=${eventDesc}&add=${encodeURIComponent(cleanEmail)}&add=${encodeURIComponent(assignedAgentEmail)}`
     }
 
-    // Fallback Google Meet link if API didn't return one
+    // Fallback Google Meet link if not returned
     if (!googleMeetUrl) {
-      const roomSlug = `cillah-strategy-${Date.now().toString(36)}`
-      googleMeetUrl = `https://meet.google.com/${roomSlug.slice(0, 3)}-${roomSlug.slice(3, 7)}-${roomSlug.slice(7, 10)}`
+      googleMeetUrl = process.env.GOOGLE_MEET_URL || "https://meet.google.com/qmv-oxsm-vvg"
     }
 
     // 5. Create Appointment in public.appointments
