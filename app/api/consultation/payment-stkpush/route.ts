@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server"
-import { getConsultationRecord, updateConsultationRecord, findConsultationRecordByEmail } from "@/lib/airtable"
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { recordId, email, phone } = body
-
-    if (!recordId) {
-      return NextResponse.json({ error: "Record ID is required" }, { status: 400 })
-    }
+    const { phone, email, amount = 5000 } = body
 
     if (!phone) {
       return NextResponse.json({ error: "Phone number is required" }, { status: 400 })
@@ -21,7 +16,6 @@ export async function POST(request: Request) {
     } else if (formattedPhone.startsWith("+")) {
       formattedPhone = formattedPhone.substring(1)
     } else if (!formattedPhone.startsWith("254")) {
-      // If it doesn't start with 254 and has 9 digits (e.g. 712345678)
       if (formattedPhone.length === 9) {
         formattedPhone = "254" + formattedPhone
       } else {
@@ -39,34 +33,12 @@ export async function POST(request: Request) {
       )
     }
 
-    // Retrieve the record to make sure it exists
-    let record = null
-    try {
-      record = await getConsultationRecord(recordId)
-      if (!record && email) {
-        console.log(`[STK Push] Record not found by ID: ${recordId}. Searching by email: ${email}...`)
-        record = await findConsultationRecordByEmail(email)
-      }
-    } catch (err: any) {
-      console.error("Airtable fetch failed during STK push:", err)
-      return NextResponse.json({ error: `Airtable connection error: ${err.message}` }, { status: 502 })
-    }
-
-    if (!record) {
-      return NextResponse.json({ error: `Record not found (ID: ${recordId}, Email: ${email})` }, { status: 404 })
-    }
-
-    const actualRecordId = record.id
-
-    // Save the formatted phone number to the Airtable record
-    await updateConsultationRecord(actualRecordId, { phone: formattedPhone })
-
-    // Production Credentials from User
-    const consumerKey = "jBA6rPD3TV50UgIL8AdiPcf1cbmTod9G5GQ8WlyxMDYSKIrh"
-    const consumerSecret = "WGoQmnKI2DUq9S5CoqoQZrZm9LU7gjrMZ5jbabAGA8rOnGKv2pLK4G8cU5IeKxHs"
-    const businessShortCode = "4339129" // Store Number / Business Short Code
-    const tillNumber = "3513268"        // Till Number
-    const passkey = "eed2fce2619607467014bbee3f916a1c6781a74dcc0bfef1b7f2cd8e268ec506"
+    // Production Credentials
+    const consumerKey = process.env.MPESA_CONSUMER_KEY || "jBA6rPD3TV50UgIL8AdiPcf1cbmTod9G5GQ8WlyxMDYSKIrh"
+    const consumerSecret = process.env.MPESA_CONSUMER_SECRET || "WGoQmnKI2DUq9S5CoqoQZrZm9LU7gjrMZ5jbabAGA8rOnGKv2pLK4G8cU5IeKxHs"
+    const businessShortCode = process.env.MPESA_SHORTCODE || "4339129"
+    const tillNumber = "3513268"
+    const passkey = process.env.MPESA_PASSKEY || "eed2fce2619607467014bbee3f916a1c6781a74dcc0bfef1b7f2cd8e268ec506"
 
     // 1. Get OAuth Access Token from Safaricom
     const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64")
@@ -94,7 +66,6 @@ export async function POST(request: Request) {
       accessToken = authData.access_token
     } catch (e: any) {
       console.error("Safaricom OAuth Exception:", e)
-      // Provide a helpful error that it failed to connect to Safaricom
       return NextResponse.json(
         { 
           error: "Failed to authenticate with Safaricom. STK Push cannot be sent.",
@@ -105,10 +76,8 @@ export async function POST(request: Request) {
     }
 
     // 2. Prepare STK Push Payload
-    // Format timestamp: YYYYMMDDHHmmss in GMT+3 (EAT)
-    // We will generate the timestamp from the current date in UTC, then add 3 hours
     const now = new Date()
-    const eatOffset = 3 * 60 * 60 * 1000 // 3 hours in milliseconds
+    const eatOffset = 3 * 60 * 60 * 1000 // 3 hours in ms for EAT
     const eatDate = new Date(now.getTime() + eatOffset)
     
     const pad = (n: number) => n.toString().padStart(2, "0")
@@ -122,28 +91,25 @@ export async function POST(request: Request) {
 
     const password = Buffer.from(businessShortCode + passkey + timestamp).toString("base64")
     
-    // Determine callback URL (Dynamic backend hostname or mock)
-    const protocol = request.headers.get("x-forwarded-proto") || "http"
-    const host = request.headers.get("host") || "localhost:3000"
-    const callbackUrl = `${protocol}://${host}/api/consultation/mpesa-callback?recordId=${actualRecordId}`
-
-    const amount = process.env.NEXT_PUBLIC_CONSULTATION_AMOUNT || "2000"
+    const protocol = request.headers.get("x-forwarded-proto") || "https"
+    const host = request.headers.get("host") || "cillah.dev"
+    const callbackUrl = `${protocol}://${host}/api/consultation/mpesa-callback`
 
     const stkPayload = {
       BusinessShortCode: businessShortCode,
       Password: password,
       Timestamp: timestamp,
       TransactionType: "CustomerBuyGoodsOnline",
-      Amount: amount,
+      Amount: String(amount || 5000),
       PartyA: formattedPhone,
-      PartyB: tillNumber, // PartyB is Till Number for CustomerBuyGoodsOnline
+      PartyB: tillNumber,
       PhoneNumber: formattedPhone,
       CallBackURL: callbackUrl,
-      AccountReference: `CillahConsultation`,
-      TransactionDesc: `Booking Fee`,
+      AccountReference: "CillahDevStrategy",
+      TransactionDesc: "1-on-1 AI Strategy Call"
     }
 
-    console.log("[Mpesa STK] Sending STK Push request...", stkPayload)
+    console.log("[Mpesa STK] Sending STK Push request to Safaricom for KES", amount, "to", formattedPhone)
 
     const stkResponse = await fetch(
       "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
@@ -157,28 +123,38 @@ export async function POST(request: Request) {
       }
     )
 
-    const stkData = await stkResponse.json()
-    console.log("[Mpesa STK] Response from Safaricom:", stkData)
+    const responseText = await stkResponse.text()
+    let stkData
+    try {
+      stkData = JSON.parse(responseText)
+    } catch {
+      stkData = { raw: responseText }
+    }
+
+    console.log("[Mpesa STK] Safaricom response:", stkData)
 
     if (!stkResponse.ok || stkData.ResponseCode !== "0") {
       return NextResponse.json(
         { 
-          error: stkData.errorMessage || stkData.ResponseDescription || "Safaricom STK Push failed",
+          error: stkData.errorMessage || stkData.ResponseDescription || "Safaricom rejected the STK Push request",
           details: stkData 
-        },
-        { status: 502 }
+        }, 
+        { status: 400 }
       )
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      recordId: actualRecordId,
-      MerchantRequestID: stkData.MerchantRequestID,
-      CheckoutRequestID: stkData.CheckoutRequestID,
-      message: stkData.CustomerMessage || stkData.ResponseDescription
+    return NextResponse.json({
+      success: true,
+      message: "M-Pesa STK Push sent successfully. Please check your phone and enter your PIN.",
+      checkoutRequestId: stkData.CheckoutRequestID,
+      merchantRequestId: stkData.MerchantRequestID,
+      phone: formattedPhone
     })
   } catch (error: any) {
-    console.error("Error in M-PESA STK Push handler:", error)
-    return NextResponse.json({ error: error.message || "Internal payment error" }, { status: 500 })
+    console.error("Error initiating STK push:", error)
+    return NextResponse.json(
+      { error: error.message || "Internal server error initiating STK push" },
+      { status: 500 }
+    )
   }
 }

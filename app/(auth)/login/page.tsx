@@ -76,11 +76,15 @@ export default function LoginPage() {
 
       // Log login event in auth_audit_logs table
       if (data.user) {
-        await supabase.from('auth_audit_logs').insert({
-          user_id: data.user.id,
-          event_type: 'login',
-          user_agent: typeof window !== 'undefined' ? window.navigator.userAgent : 'browser',
-        }).catch(() => {}) // Ignore if table isn't present
+        try {
+          await supabase.from('auth_audit_logs').insert({
+            user_id: data.user.id,
+            event_type: 'login',
+            user_agent: typeof window !== 'undefined' ? window.navigator.userAgent : 'browser',
+          })
+        } catch {
+          // Ignore if table isn't present
+        }
 
         // Check profile role for smart routing
         const { data: profile } = await supabase

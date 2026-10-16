@@ -111,7 +111,7 @@ export default function AdminPage() {
 
   return (
     <div style={{ height: "100vh", width: "100vw", overflow: "hidden" }}>
-      <TinaAdmin />
+      <TinaAdmin config={{}} />
     </div>
   );
 }

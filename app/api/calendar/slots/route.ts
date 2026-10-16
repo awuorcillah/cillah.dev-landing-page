@@ -4,6 +4,8 @@ import { notifyOwnerOfError } from "@/lib/error-notify";
 
 export async function GET(request: Request) {
   try {
+    // Only allow Wednesday (3), Friday (5), and Sunday (0)
+    // Operating Hours: 8:00 AM - 9:00 PM EAT (each slot is 60 mins + 30 mins buffer)
     const timeSlots = [
       "08:00 AM",
       "09:30 AM",
@@ -16,60 +18,59 @@ export async function GET(request: Request) {
       "08:00 PM"
     ];
 
-    // Generate next 30 days starting from tomorrow
-    const datesToQuery = [];
+    // Generate upcoming eligible days (Wednesdays, Fridays, Sundays only)
+    const datesToQuery: { value: string; label: string }[] = [];
     let current = new Date();
     current.setDate(current.getDate() + 1); // Start tomorrow
 
-    while (datesToQuery.length < 30) {
-      const year = current.getFullYear();
-      const month = String(current.getMonth() + 1).padStart(2, "0");
-      const dateStr = String(current.getDate()).padStart(2, "0");
-      const value = `${year}-${month}-${dateStr}`;
-      
-      const label = current.toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      });
-      
-      datesToQuery.push({ value, label });
+    // Look ahead up to 60 days to gather upcoming eligible booking days
+    let lookahead = 0;
+    while (datesToQuery.length < 12 && lookahead < 60) {
+      const dayOfWeek = current.getDay(); // 0 = Sun, 3 = Wed, 5 = Fri
+      if (dayOfWeek === 0 || dayOfWeek === 3 || dayOfWeek === 5) {
+        const year = current.getFullYear();
+        const month = String(current.getMonth() + 1).padStart(2, "0");
+        const dateStr = String(current.getDate()).padStart(2, "0");
+        const value = `${year}-${month}-${dateStr}`;
+        
+        const label = current.toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        });
+        
+        datesToQuery.push({ value, label });
+      }
       current.setDate(current.getDate() + 1);
+      lookahead++;
+    }
+
+    if (datesToQuery.length === 0) {
+      return NextResponse.json({ success: true, days: [] });
     }
 
     const startDate = datesToQuery[0].value;
     const endDate = datesToQuery[datesToQuery.length - 1].value;
 
-    // Fetch busy slots from Google Calendar — DO NOT silently ignore errors
+    // Fetch busy slots from Google Calendar if configured
     let busyIntervals: { start: string; end: string }[] = [];
-    let calendarError: string | null = null;
+    let calendarSynced = false;
 
-    try {
-      console.log(`[Calendar Slots] Fetching busy slots from Google Calendar for range ${startDate} to ${endDate}...`);
-      busyIntervals = await getBusySlotsForRange(startDate, endDate);
-      console.log(`[Calendar Slots] Successfully retrieved ${busyIntervals.length} busy interval(s) from Google Calendar.`);
-      if (busyIntervals.length > 0) {
-        console.log(`[Calendar Slots] Busy intervals:`, JSON.stringify(busyIntervals));
+    if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY && process.env.GOOGLE_CALENDAR_ID) {
+      try {
+        console.log(`[Calendar Slots] Fetching busy slots from Google Calendar for range ${startDate} to ${endDate}...`);
+        busyIntervals = await getBusySlotsForRange(startDate, endDate);
+        calendarSynced = true;
+        console.log(`[Calendar Slots] Successfully retrieved ${busyIntervals.length} busy interval(s) from Google Calendar.`);
+      } catch (e: any) {
+        console.warn("[Calendar Slots] Google Calendar FreeBusy sync warning:", e.message);
       }
-    } catch (e: any) {
-      // DO NOT default to all slots available — propagate the error
-      calendarError = e.message || "Unknown Google Calendar API error";
-      console.error("[Calendar Slots] CRITICAL: Google Calendar FreeBusy API failed:", calendarError);
-      // Notify owner via email
-      await notifyOwnerOfError({
-        source: "Calendar Slots — FreeBusy API",
-        errorMessage: calendarError,
-        extraDetails: `The booking page cannot load available slots. Clients are seeing an error. Range: ${startDate} to ${endDate}.`,
-      });
-      return NextResponse.json({
-        success: false,
-        error: `Google Calendar sync failed: ${calendarError}`,
-        hint: "Check your GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, and GOOGLE_CALENDAR_ID environment variables. Visit /api/calendar/test for diagnostics."
-      }, { status: 502 });
+    } else {
+      console.log("[Calendar Slots] Google Calendar credentials not configured in env, providing all standard slots.");
     }
 
     const now = new Date();
-    const minAdvanceTime = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
+    const minAdvanceTime = new Date(now.getTime() + 12 * 60 * 60 * 1000); // 12 hours minimum notice
 
     const daysWithAvailability = datesToQuery.map(({ value: dateStr, label }) => {
       const slots = timeSlots.map((time) => {
@@ -83,16 +84,16 @@ export async function GET(request: Request) {
         const slotStart = new Date(`${dateStr}T${String(hr).padStart(2, "0")}:${minutes}:00+03:00`);
         const slotEnd = new Date(slotStart.getTime() + 60 * 60 * 1000); // 1 hour duration
 
-        // 1. Enforce 24-hour advance booking rule
+        // 1. Enforce minimum notice rule
         if (slotStart < minAdvanceTime) {
-          return { time, available: false };
+          return { time, available: false, reason: "Too short notice" };
         }
 
-        // 2. Expand slot by 15-minute buffer on both ends (before and after)
-        const expandedStart = new Date(slotStart.getTime() - 15 * 60 * 1000); // 15 mins before
-        const expandedEnd = new Date(slotEnd.getTime() + 15 * 60 * 1000);    // 15 mins after
+        // 2. Expand slot with 30-minute buffer after meeting
+        const expandedStart = slotStart;
+        const expandedEnd = new Date(slotEnd.getTime() + 30 * 60 * 1000); // 30 mins buffer
 
-        // 3. Check overlap: expandedStart < busyEnd AND expandedEnd > busyStart
+        // 3. Check overlap with busy intervals from Google Calendar
         const isBusy = busyIntervals.some((b) => {
           const bStart = new Date(b.start);
           const bEnd = new Date(b.end);
@@ -116,15 +117,12 @@ export async function GET(request: Request) {
       };
     });
 
-    // Filter to keep only the days that actually have at least one available slot
-    const filteredDays = daysWithAvailability.filter((d) => d.hasAvailableSlots);
-
-    // Keep only the first 7 available days to show to the client
-    const finalDaysList = filteredDays.slice(0, 7);
+    // Filter to keep only days with available slots
+    const finalDaysList = daysWithAvailability.filter((d) => d.hasAvailableSlots);
 
     return NextResponse.json({
       success: true,
-      calendarSynced: true,
+      calendarSynced,
       busyIntervalsCount: busyIntervals.length,
       days: finalDaysList
     });

@@ -42,19 +42,20 @@ export async function POST(request: Request) {
 
     console.log(`[Calendar Book] Creating Google Calendar event for ${email} at ${appointmentDate}...`)
 
-    const calendarEventUrl = await createCalendarEvent({
+    const calendarResult = await createCalendarEvent({
       summary: eventTitle,
       description: eventDescription,
       startDateTime: appointmentDate,
       guestEmail: email,
     })
 
-    console.log(`[Calendar Book] Event created successfully: ${calendarEventUrl}`)
+    console.log(`[Calendar Book] Event created successfully:`, calendarResult)
 
     return NextResponse.json({
       success: true,
-      calendarEventUrl,
-      message: "Calendar event created and invites sent."
+      calendarEventUrl: calendarResult.htmlLink,
+      googleMeetUrl: calendarResult.hangoutLink,
+      message: "Calendar event created and Google Meet invite sent."
     })
   } catch (error: any) {
     console.error("[Calendar Book] Error creating calendar event:", error)

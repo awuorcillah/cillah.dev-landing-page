@@ -31,7 +31,7 @@ interface BookingItem {
   created_at?: string
 }
 
-const KNOWN_PROFILES: Record<string, { full_name: string; email: string }> = {
+const KNOWN_PROFILES: Record<string, { full_name: string; email: string; phone?: string }> = {
   'f9bd2708-ef30-44a8-bdff-68b9fa05ea54': { full_name: 'awuorc207', email: 'awuorc207@gmail.com' },
   '3e1dd463-b673-4104-8390-16cfcae0506e': { full_name: 'cherrylatulah2000', email: 'cherrylatulah2000@gmail.com' },
   '1fbfb50e-07cd-452e-b542-78bf5355f4f6': { full_name: 'Awuor Cilla', email: 'awuorcillah@gmail.com' }

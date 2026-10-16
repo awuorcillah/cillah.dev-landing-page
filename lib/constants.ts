@@ -13,8 +13,8 @@ export const SITE = {
   instagram:
     "https://www.instagram.com/awuor_cillah?igsh=MXhqZWZxbHppYWxmNA==",
   phone: "+254759442265",
-  calendarUrl: "https://cal.com/airaptorfx/ai-automation-strategy-call",
-  cta: "Book Automation Audit",
+  calendarUrl: "/book-consultation",
+  cta: "Book 1-on-1 Strategy Call",
 } as const
 
 // ============================================================
@@ -25,9 +25,9 @@ export const HERO = {
   headline: "Captures, Routes, and Converts Every Inquiry — Automatically.",
   subheadline:
     "Deploy one connected system that responds instantly, qualifies leads, takes payment and gives your team complete visibility.",
-  ctaPrimary: "Book Automation Audit",
+  ctaPrimary: "Book 1-on-1 Strategy Call",
   ctaSecondary: "Explore the System",
-  cta: "Book Automation Audit", // Legacy support
+  cta: "Book 1-on-1 Strategy Call", // Legacy support
 } as const
 
 // ============================================================
@@ -405,4 +405,9 @@ export const HOW_IT_WORKS = {
 export const GUARANTEE = {
   headline: "Our System Guarantee",
   copy: "We guarantee that our system will capture and respond to every single inquiry received on your integrated platforms within 10 seconds, or we'll work for free until it does."
+} as const
+
+export const LEAD_CAPTURE = {
+  headline: "Get the Real Estate Automation Blueprint",
+  offer: "Download our free architectural guide on how top agencies automate 80% of client inquiries."
 } as const

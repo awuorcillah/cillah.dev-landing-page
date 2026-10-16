@@ -37,7 +37,7 @@ export function DeliverablePageTemplate({
 
   return (
     <>
-      <Navbar onOpenBooking={openBooking} />
+      <Navbar />
 
       <main className="pt-20">
         {/* HERO */}
@@ -55,7 +55,7 @@ export function DeliverablePageTemplate({
                 onClick={openBooking}
                 className="bg-[#00B2FF] hover:bg-[#1F6FFF] text-[#FFFFFF] font-bold h-auto py-4 px-10 text-lg rounded-full shadow-[0_0_20px_rgba(0,178,255,0.3)] hover:shadow-[0_0_30px_rgba(31,111,255,0.4)] transition-all duration-300 text-wrap whitespace-normal"
               >
-                Book Automation Audit
+                Book 1-on-1 AI Strategy Call
               </Button>
             </motion.div>
           </div>

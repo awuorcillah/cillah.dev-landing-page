@@ -3,570 +3,903 @@
 import { useState, useEffect } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import { Check, ArrowRight, Info, Crown, Calendar as CalendarIcon, Clock, Sparkles, CheckCircle2, ShieldCheck, Loader2, Phone, Mail, User, Building, Globe, HelpCircle } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import {
+  Calendar as CalendarIcon,
+  Clock,
+  Sparkles,
+  CheckCircle2,
+  ShieldCheck,
+  Loader2,
+  Phone,
+  Mail,
+  User,
+  Building2,
+  Globe,
+  ArrowRight,
+  ArrowLeft,
+  Copy,
+  ExternalLink,
+  Check,
+  CreditCard,
+  QrCode,
+  AlertCircle,
+  Video
+} from "lucide-react"
 import { toast } from "sonner"
 
-interface SessionType {
-  id: string
-  title: string
-  description: string
-  session_format: string
-  price_kes: number
-  duration_minutes: number
-  is_active: boolean
+interface DaySlot {
+  time: string
+  available: boolean
+  reason?: string
 }
 
-const DEFAULT_SESSIONS = [
-  {
-    id: "free-audit",
-    title: "Free Automation Audit",
-    category: "Consultations",
-    badge: "Free 1:1 Call",
-    badgeColor: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-    priceKES: 0,
-    duration: "30 mins",
-    description: "Complimentary 30-min discovery call to audit your current operations, identify manual bottlenecks, and explore AI automation opportunities.",
-    features: [
-      "30-min discovery audit call",
-      "Current sales pipeline & lead delay review",
-      "Lead leakage identification report",
-      "No-obligation automation recommendations"
-    ],
-    note: "Book a free audit by filling in your request details. Our team will review your application and confirm your available time slot.",
-    buttonText: "Book Free Audit",
-    isPaid: false
-  },
-  {
-    id: "strategy-call",
-    title: "1-on-1 AI Strategy & Architecture Call",
-    category: "Consultations",
-    badge: "Paid 1:1 Call",
-    badgeColor: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-    priceKES: 5000,
-    duration: "60 mins",
-    description: "Deep-dive 60-minute consultation into your business operations to design custom AI agents, CRM routing, and automated workflows tailored to your agency.",
-    features: [
-      "60-min private 1-on-1 video call",
-      "Custom AI workflow & architecture blueprint",
-      "CRM & Meta/WhatsApp API mapping",
-      "Post-session implementation action checklist"
-    ],
-    buttonText: "Book 1-on-1 Strategy Call",
-    isPaid: true
-  }
-]
+interface CalendarDay {
+  value: string
+  label: string
+  slots: DaySlot[]
+  hasAvailableSlots: boolean
+}
 
 export default function BookConsultationPage() {
-  const supabase = createClient()
-  const [isRetainerClient, setIsRetainerClient] = useState(false)
-  const [userProfile, setUserProfile] = useState<any>(null)
-  
-  const [sessions, setSessions] = useState<any[]>(DEFAULT_SESSIONS)
-  const [loadingSessions, setLoadingSessions] = useState(true)
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
 
-  // Booking Modal State
-  const [selectedSession, setSelectedSession] = useState<any>(null)
-  const [bookingSubmitted, setBookingSubmitted] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
+  // Step 1: Calendar & Slot Selection
+  const [days, setDays] = useState<CalendarDay[]>([])
+  const [loadingSlots, setLoadingSlots] = useState(true)
+  const [selectedDate, setSelectedDate] = useState<string>("")
+  const [selectedTime, setSelectedTime] = useState<string>("")
 
-  // Form Fields
+  // Step 2: Intake Form
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
-  const [phone, setPhone] = useState("")
-  const [reason, setReason] = useState("")
-  const [hasBusiness, setHasBusiness] = useState<"yes" | "no">("yes")
+  const [countryCode, setCountryCode] = useState("+254")
+  const [phoneNumber, setPhoneNumber] = useState("")
+  const [agencyName, setAgencyName] = useState("")
   const [websiteUrl, setWebsiteUrl] = useState("")
-  const [bookingDate, setBookingDate] = useState("")
-  const [bookingTime, setBookingTime] = useState("10:00 AM")
+  const [bottlenecks, setBottlenecks] = useState("")
 
-  // Fetch auth & dynamic session types from Supabase
+  // Step 3: Payment
+  const [paymentMethod, setPaymentMethod] = useState<"mpesa" | "paypal" | "bitcoin">("mpesa")
+  const [mpesaPhone, setMpesaPhone] = useState("")
+  const [stkSent, setStkSent] = useState(false)
+  const [stkLoading, setStkLoading] = useState(false)
+  const [submittingBooking, setSubmittingBooking] = useState(false)
+  const [copiedBtc, setCopiedBtc] = useState(false)
+
+  // Step 4: Final Confirmation
+  const [googleMeetUrl, setGoogleMeetUrl] = useState("")
+  const [calendarEventUrl, setCalendarEventUrl] = useState("")
+
+  // Constants
+  const BTC_ADDRESS = "13gvFh6UxVFkbfwxmrduVaR9ms6bipwJD4"
+  const PAYPAL_EMAIL = "cherrylatulah2000@gmail.com"
+  const PRICE_KES = 5000
+  const PRICE_USD = 40
+
+  // 1. Fetch live slots from Google Calendar API (strictly Wed, Fri, Sun 8am-9pm EAT)
   useEffect(() => {
-    async function init() {
-      // 1. Auth check
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-        if (profile) {
-          setUserProfile(profile)
-          setFullName(profile.full_name || "")
-          setEmail(profile.email || "")
-          setPhone(profile.phone || "")
-          if (profile.client_type === "retainer" || profile.role === "client") {
-            setIsRetainerClient(true)
-          }
-        }
-      }
-
-      // 2. Fetch live session types from DB
+    async function loadCalendarSlots() {
       try {
-        const { data: dbSessions } = await supabase
-          .from("session_types")
-          .select("*")
-          .eq("is_active", true)
-
-        if (dbSessions && dbSessions.length > 0) {
-          const formatted = dbSessions.map((s: SessionType) => {
-            const isPaid = s.session_format === "consultation_paid" || s.price_kes > 0
-            const isFree = s.session_format === "consultation_free" || s.price_kes === 0
-
-            return {
-              id: s.id,
-              title: s.title,
-              category: s.session_format === "webinar" ? "Webinars" : "Consultations",
-              badge: isFree ? "Free 1:1 Call" : s.session_format === "webinar" ? "Group Webinar" : "Paid 1:1 Call",
-              badgeColor: isFree ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : s.session_format === "webinar" ? "bg-purple-500/10 text-purple-600 border-purple-500/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20",
-              priceKES: isPaid ? (s.price_kes || Number(process.env.NEXT_PUBLIC_CONSULTATION_AMOUNT) || 5000) : 0,
-              duration: `${s.duration_minutes || 60} mins`,
-              description: s.description,
-              features: isFree ? [
-                "Discovery audit call",
-                "Current sales pipeline review",
-                "Lead leakage & delay report",
-                "No-obligation recommendations"
-              ] : [
-                "60-min private 1-on-1 video call",
-                "Custom AI workflow blueprint",
-                "CRM & Meta/WhatsApp API mapping",
-                "Post-session implementation checklist"
-              ],
-              buttonText: isFree ? "Book Free Audit" : "Book 1-on-1 Strategy Call",
-              isPaid
-            }
-          })
-          setSessions(formatted)
+        setLoadingSlots(true)
+        const res = await fetch("/api/calendar/slots")
+        const data = await res.json()
+        if (data.success && data.days && data.days.length > 0) {
+          setDays(data.days)
+          // Default to first available day
+          setSelectedDate(data.days[0].value)
+        } else {
+          // Fallback if API has no days
+          generateFallbackDays()
         }
       } catch (err) {
-        console.error("Error fetching session types:", err)
+        console.warn("Could not load dynamic slots, using fallback:", err)
+        generateFallbackDays()
       } finally {
-        setLoadingSessions(false)
+        setLoadingSlots(false)
       }
     }
 
-    init()
+    function generateFallbackDays() {
+      const fallbackList: CalendarDay[] = []
+      let d = new Date()
+      d.setDate(d.getDate() + 1)
+      while (fallbackList.length < 8) {
+        const dayOfWeek = d.getDay() // 0=Sun, 3=Wed, 5=Fri
+        if (dayOfWeek === 0 || dayOfWeek === 3 || dayOfWeek === 5) {
+          const val = d.toISOString().split("T")[0]
+          const lbl = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+          const standardSlots: DaySlot[] = [
+            { time: "08:00 AM", available: true },
+            { time: "09:30 AM", available: true },
+            { time: "11:00 AM", available: true },
+            { time: "12:30 PM", available: true },
+            { time: "02:00 PM", available: true },
+            { time: "03:30 PM", available: true },
+            { time: "05:00 PM", available: true },
+            { time: "06:30 PM", available: true },
+            { time: "08:00 PM", available: true }
+          ]
+          fallbackList.push({
+            value: val,
+            label: lbl,
+            slots: standardSlots,
+            hasAvailableSlots: true
+          })
+        }
+        d.setDate(d.getDate() + 1)
+      }
+      setDays(fallbackList)
+      if (fallbackList.length > 0) {
+        setSelectedDate(fallbackList[0].value)
+      }
+    }
+
+    loadCalendarSlots()
   }, [])
 
-  const handleOpenBooking = (sess: any) => {
-    setSelectedSession(sess)
-    setBookingSubmitted(false)
-    if (!bookingDate) {
-      const tomorrow = new Date()
-      tomorrow.setDate(tomorrow.getDate() + 1)
-      setBookingDate(tomorrow.toISOString().split("T")[0])
+  // Sync phone number to M-Pesa phone state
+  useEffect(() => {
+    if (phoneNumber && !mpesaPhone) {
+      setMpesaPhone(phoneNumber)
     }
+  }, [phoneNumber, mpesaPhone])
+
+  const selectedDayObj = days.find((d) => d.value === selectedDate)
+
+  // Handlers for steps
+  const handleProceedToStep2 = () => {
+    if (!selectedDate || !selectedTime) {
+      toast.error("Please select both an available date and a time slot.")
+      return
+    }
+    setStep(2)
+    window.scrollTo({ top: 180, behavior: "smooth" })
   }
 
-  const handleBusinessToggle = (val: "yes" | "no") => {
-    setHasBusiness(val)
-    if (val === "no") {
-      setWebsiteUrl("N/A")
-    } else if (websiteUrl === "N/A") {
-      setWebsiteUrl("")
-    }
-  }
-
-  const handleSubmitBooking = async (e: React.FormEvent) => {
+  const handleProceedToStep3 = (e: React.FormEvent) => {
     e.preventDefault()
+    if (!fullName.trim()) { toast.error("Full Name is required"); return }
+    if (!email.trim() || !email.includes("@")) { toast.error("Valid email is required"); return }
+    if (!phoneNumber.trim()) { toast.error("Phone number is required"); return }
+    if (!agencyName.trim()) { toast.error("Agency / Company name is required"); return }
+    if (!bottlenecks.trim()) { toast.error("Please describe your primary bottlenecks and goals"); return }
 
-    if (!fullName.trim()) { toast.error("Please enter your full name"); return }
-    if (!email.trim()) { toast.error("Please enter your email address"); return }
-    if (!phone.trim()) { toast.error("Please enter your phone number"); return }
-    if (!reason.trim()) { toast.error("Please describe your reason for this consultation"); return }
-    if (hasBusiness === "yes" && !websiteUrl.trim()) {
-      toast.error("Please provide your business website link (or select No)")
+    setStep(3)
+    window.scrollTo({ top: 180, behavior: "smooth" })
+  }
+
+  // Handle M-Pesa STK Push
+  const handleTriggerMpesaStk = async () => {
+    const raw = mpesaPhone || phoneNumber
+    if (!raw) {
+      toast.error("Please provide your M-Pesa phone number.")
       return
     }
 
-    setSubmitting(true)
-
+    setStkLoading(true)
     try {
-      // Create scheduledAt timestamp
-      const datePart = bookingDate || new Date().toISOString().split("T")[0]
-      const scheduledAt = new Date(`${datePart}T10:00:00`).toISOString()
-
-      const isPaid = selectedSession.isPaid && !isRetainerClient
-
-      // 1. Submit booking & promote to client if paid!
-      const res = await fetch("/api/booking/create", {
+      const res = await fetch("/api/consultation/payment-stkpush", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fullName,
+          phone: `${countryCode}${raw}`.replace("+", ""),
           email,
-          phone,
-          sessionTypeId: selectedSession.id,
-          sessionTitle: selectedSession.title,
-          reason,
-          hasBusiness,
-          websiteUrl: hasBusiness === "yes" ? websiteUrl : "N/A",
-          scheduledAt,
-          isPaid,
-          amount: selectedSession.priceKES
+          amount: PRICE_KES
         })
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to trigger STK Push")
+
+      setStkSent(true)
+      toast.success("M-Pesa STK Push prompt sent to your phone! Please enter your PIN.")
+    } catch (err: any) {
+      toast.error(err.message || "Could not trigger M-Pesa STK Push")
+    } finally {
+      setStkLoading(false)
+    }
+  }
+
+  // Handle Final Booking Submission
+  const handleFinalizeBooking = async () => {
+    setSubmittingBooking(true)
+    try {
+      // Calculate ISO appointment timestamp
+      const [timeVal, modifier] = selectedTime.split(" ")
+      let [hours, minutes] = timeVal.split(":")
+      let hr = parseInt(hours)
+      if (modifier === "PM" && hr < 12) hr += 12
+      if (modifier === "AM" && hr === 12) hr = 0
+      const scheduledAt = `${selectedDate}T${String(hr).padStart(2, "0")}:${minutes}:00+03:00`
+
+      const payload = {
+        fullName,
+        email,
+        phone: `${countryCode}${phoneNumber}`,
+        agencyName,
+        websiteUrl: websiteUrl || "N/A",
+        bottlenecks,
+        scheduledAt,
+        paymentMethod,
+        paymentStatus: paymentMethod === "mpesa" ? (stkSent ? "paid" : "pending") : "paid",
+        amount: PRICE_KES
+      }
+
+      const res = await fetch("/api/booking/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
       })
 
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to submit booking")
 
-      // 2. If Paid and M-Pesa phone provided, trigger STK Push
-      if (isPaid && phone) {
-        toast.info("Sending M-Pesa STK Push prompt to your phone...")
-        try {
-          await fetch("/api/consultation/payment-stkpush", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              recordId: data.booking?.id || "direct-booking",
-              email,
-              phone
-            })
-          })
-        } catch (stkErr) {
-          console.warn("STK push warning:", stkErr)
-        }
-      }
-
-      setBookingSubmitted(true)
-      toast.success(
-        isPaid
-          ? "Booking confirmed & client account activated!"
-          : "Free Audit request submitted successfully!"
-      )
+      setGoogleMeetUrl(data.googleMeetUrl || "")
+      setCalendarEventUrl(data.calendarEventUrl || "")
+      setStep(4)
+      toast.success("Booking confirmed! Your Google Meet link and details are ready.")
+      window.scrollTo({ top: 120, behavior: "smooth" })
     } catch (err: any) {
-      console.error("Booking submit error:", err)
-      toast.error(err.message || "Something went wrong creating your booking")
+      toast.error(err.message || "Failed to confirm booking")
     } finally {
-      setSubmitting(false)
+      setSubmittingBooking(false)
     }
+  }
+
+  const handleCopyBtc = () => {
+    navigator.clipboard.writeText(BTC_ADDRESS)
+    setCopiedBtc(true)
+    toast.success("Bitcoin address copied to clipboard!")
+    setTimeout(() => setCopiedBtc(false), 3000)
   }
 
   return (
     <>
       <Navbar />
 
-      <main className="min-h-screen bg-gradient-to-b from-[#FBECE8] to-[#FFF9F6] text-[#1E1E1E] overflow-x-hidden font-sans font-light pt-32 md:pt-40 pb-24">
-        <section className="container mx-auto max-w-5xl px-4 sm:px-6 md:px-12">
+      <main className="min-h-screen bg-[#07070B] text-[#F9F7F6] overflow-x-hidden font-sans font-light pt-28 md:pt-36 pb-24 relative selection:bg-[#C9A66B]/30">
+        {/* Ambient background glows */}
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full bg-[#C9A66B]/6 blur-[140px] pointer-events-none -z-10" />
+        <div className="absolute top-1/2 right-1/4 w-[500px] h-[500px] rounded-full bg-[#F2B6C1]/4 blur-[140px] pointer-events-none -z-10" />
 
-          {/* Retainer Banner */}
-          {isRetainerClient && (
-            <div className="mb-8 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-[#1E1E1E] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
-              <div className="flex items-center gap-3">
-                <Crown className="w-6 h-6 text-amber-600 shrink-0" />
-                <div>
-                  <h3 className="font-heading font-semibold text-sm text-amber-900">
-                    👑 Monthly Retainer Active — VIP Session Access
-                  </h3>
-                  <p className="text-xs text-amber-800/80">
-                    As an active monthly retainer client, all consultation fees are waived. Select any session to pick your preferred slot instantly.
-                  </p>
-                </div>
-              </div>
-              <span className="px-3 py-1 bg-amber-600 text-white font-semibold text-xs rounded-full shrink-0">
-                Payment Waived
+        <section className="container mx-auto max-w-4xl px-4 sm:px-6 md:px-8">
+          
+          {/* Header */}
+          <div className="text-center max-w-2xl mx-auto mb-10">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-[#C9A66B]/30 mb-4 backdrop-blur-md">
+              <Sparkles className="h-3.5 w-3.5 text-[#C9A66B]" />
+              <span className="text-[11px] font-medium tracking-[0.2em] uppercase text-[#F2B6C1]">
+                Executive Strategy Session
               </span>
             </div>
-          )}
-
-          <div className="text-center max-w-3xl mx-auto mb-12">
-            <h1 className="font-heading font-light text-[32px] sm:text-[42px] text-[#1E1E1E] leading-tight mb-3">
-              Book a Consultation
+            
+            <h1 className="font-heading font-light text-[32px] sm:text-[44px] text-[#F9F7F6] leading-[1.15] mb-4">
+              1-on-1 AI Strategy & <br className="hidden sm:inline" />
+              <span className="text-[#C9A66B] font-normal italic">Architecture Call</span>
             </h1>
-            <p className="text-sm sm:text-base text-[#1E1E1E]/65 font-light">
-              Select your consultation category below. Free Audits require answering a brief questionnaire, while 1-on-1 Paid Strategy Calls unlock instant time slot reservation and priority onboarding.
+
+            <p className="text-sm sm:text-base text-[#F9F7F6]/75 font-light leading-relaxed">
+              A private 60-minute deep-dive consultation to architect custom AI lead qualification, CRM automation, and multi-channel workflows for your business.
             </p>
-          </div>
 
-          {/* Session Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
-            {sessions.map((sess) => (
-              <div
-                key={sess.id}
-                className="rounded-[22px] p-6 bg-[#FFFDFB] border border-[#C9A66B]/20 hover:border-[#C9A66B]/50 shadow-[0_4px_20px_rgba(201,166,107,0.06)] hover:shadow-lg transition-all duration-300 flex flex-col justify-between relative overflow-hidden"
-              >
-                <div>
-                  {/* Header Badge & Price */}
-                  <div className="flex items-center justify-between gap-2 mb-4">
-                    <span className={`text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border ${sess.badgeColor}`}>
-                      {sess.badge}
-                    </span>
-                    <span className="font-heading font-bold text-base text-[#1E1E1E]">
-                      {isRetainerClient
-                        ? "FREE (Retainer)"
-                        : sess.priceKES === 0
-                        ? "FREE"
-                        : `KES ${sess.priceKES.toLocaleString()}`}
-                    </span>
-                  </div>
-
-                  <h3 className="font-heading font-medium text-[18px] text-[#1E1E1E] mb-2 leading-snug">
-                    {sess.title}
-                  </h3>
-
-                  <p className="text-xs text-[#1E1E1E]/70 mb-5 leading-relaxed font-light">
-                    {sess.description}
-                  </p>
-
-                  {/* Features list */}
-                  <ul className="space-y-2 mb-4 pt-4 border-t border-black/5">
-                    {sess.features.map((feat: string, i: number) => (
-                      <li key={i} className="flex items-start gap-2 text-xs text-[#1E1E1E]/80 font-light">
-                        <Check className="h-3.5 w-3.5 text-[#C9A66B] shrink-0 mt-0.5" />
-                        <span>{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* Note for Free Audit */}
-                  {sess.note && !isRetainerClient && (
-                    <div className="mt-4 p-3 rounded-xl bg-[#C9A66B]/10 border border-[#C9A66B]/20 text-[11px] text-[#1E1E1E]/80 leading-relaxed font-light flex items-start gap-2 mb-6">
-                      <Info className="h-4 w-4 text-[#C9A66B] shrink-0 mt-0.5" />
-                      <span>{sess.note}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Action Button */}
-                <button
-                  type="button"
-                  onClick={() => handleOpenBooking(sess)}
-                  className="w-full mt-4 py-3.5 px-4 rounded-[14px] font-heading font-semibold text-xs tracking-wide bg-[#C9A66B] text-white hover:bg-[#b59357] shadow-[0_4px_15px_rgba(201,166,107,0.25)] transition-all duration-300 flex items-center justify-center gap-2"
-                >
-                  {isRetainerClient ? "Pick Time Slot (Retainer)" : sess.buttonText}
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </button>
+            {/* Quick Badges */}
+            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 mt-6 text-xs text-[#F9F7F6]/80">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/10">
+                <Clock className="w-3.5 h-3.5 text-[#C9A66B]" />
+                <span>60 Minutes Call</span>
               </div>
-            ))}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/10">
+                <Video className="w-3.5 h-3.5 text-[#C9A66B]" />
+                <span>Google Meet Direct</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/10">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#C9A66B]" />
+                <span>KES 5,000 / $40 USD</span>
+              </div>
+            </div>
           </div>
-        </section>
 
-        {/* ── Interactive Consultation Booking Modal ── */}
-        {selectedSession && (
-          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-[#FFFDFB] border border-[#C9A66B]/30 rounded-2xl max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-6 relative my-8">
-              <button
-                onClick={() => setSelectedSession(null)}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-sm font-bold transition-colors"
-              >
-                ✕
-              </button>
+          {/* Stepper Indicator */}
+          <div className="mb-8">
+            <div className="grid grid-cols-4 gap-2 text-center text-xs">
+              <div className={`p-2 rounded-xl border transition-all ${step >= 1 ? "bg-[#C9A66B]/15 border-[#C9A66B] text-[#C9A66B] font-medium" : "border-white/10 text-white/40"}`}>
+                <span className="hidden sm:inline">1. </span>Date & Slot
+              </div>
+              <div className={`p-2 rounded-xl border transition-all ${step >= 2 ? "bg-[#C9A66B]/15 border-[#C9A66B] text-[#C9A66B] font-medium" : "border-white/10 text-white/40"}`}>
+                <span className="hidden sm:inline">2. </span>Strategy Intake
+              </div>
+              <div className={`p-2 rounded-xl border transition-all ${step >= 3 ? "bg-[#C9A66B]/15 border-[#C9A66B] text-[#C9A66B] font-medium" : "border-white/10 text-white/40"}`}>
+                <span className="hidden sm:inline">3. </span>Payment
+              </div>
+              <div className={`p-2 rounded-xl border transition-all ${step === 4 ? "bg-emerald-500/20 border-emerald-500 text-emerald-400 font-medium" : "border-white/10 text-white/40"}`}>
+                <span className="hidden sm:inline">4. </span>Confirmed
+              </div>
+            </div>
+          </div>
 
-              {!bookingSubmitted ? (
-                <form onSubmit={handleSubmitBooking} className="space-y-5">
-                  <div className="flex items-center gap-3 border-b border-black/10 pb-4">
-                    <div className="w-10 h-10 rounded-full bg-[#C9A66B]/15 border border-[#C9A66B]/30 flex items-center justify-center text-[#C9A66B] shrink-0">
-                      <CalendarIcon className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-heading font-semibold text-base text-[#1E1E1E]">
-                        {selectedSession.isPaid ? "1-on-1 Strategy Call Booking" : "Free Automation Audit Request"}
-                      </h3>
-                      <p className="text-xs text-[#1E1E1E]/60">{selectedSession.title}</p>
+          {/* STEP 1: DATE & SLOT SELECTION */}
+          {step === 1 && (
+            <div className="rounded-[24px] bg-[#0D0F18]/80 border border-white/10 backdrop-blur-xl p-6 sm:p-8 shadow-2xl space-y-8 animate-in fade-in duration-300">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-4">
+                <div>
+                  <h2 className="text-lg font-heading font-medium text-white flex items-center gap-2">
+                    <CalendarIcon className="w-5 h-5 text-[#C9A66B]" />
+                    Select Consultation Slot
+                  </h2>
+                  <p className="text-xs text-white/60 mt-0.5">
+                    Consultations are held on <span className="text-[#C9A66B] font-medium">Wednesdays, Fridays, & Sundays</span> from 8:00 AM to 9:00 PM EAT.
+                  </p>
+                </div>
+                <div className="text-xs text-[#C9A66B] bg-[#C9A66B]/10 border border-[#C9A66B]/30 px-3 py-1.5 rounded-full w-fit">
+                  30-Min Buffer Protected
+                </div>
+              </div>
+
+              {loadingSlots ? (
+                <div className="py-16 flex flex-col items-center justify-center gap-3 text-white/60">
+                  <Loader2 className="w-7 h-7 animate-spin text-[#C9A66B]" />
+                  <p className="text-xs">Checking live Google Calendar availability...</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Days Selector */}
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider text-white/60 font-medium mb-3">
+                      Available Days (Wed / Fri / Sun)
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      {days.map((d) => {
+                        const isSelected = selectedDate === d.value
+                        return (
+                          <button
+                            key={d.value}
+                            type="button"
+                            onClick={() => {
+                              setSelectedDate(d.value)
+                              setSelectedTime("") // Reset time on date change
+                            }}
+                            className={`p-3.5 rounded-xl text-left border transition-all ${
+                              isSelected
+                                ? "bg-[#C9A66B] text-[#07070B] border-[#C9A66B] shadow-[0_0_15px_rgba(201,166,107,0.3)] font-semibold"
+                                : "bg-white/[0.03] text-white/80 border-white/10 hover:border-white/30 hover:bg-white/[0.06]"
+                            }`}
+                          >
+                            <span className="text-xs block opacity-75">{d.label.split(",")[0]}</span>
+                            <span className="text-sm font-heading block mt-0.5">{d.label.split(",")[1]}</span>
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
 
-                  {/* Pricing banner for paid call */}
-                  {selectedSession.isPaid && !isRetainerClient && (
-                    <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between text-xs">
-                      <div>
-                        <span className="text-amber-900 font-semibold block">Consultation Amount</span>
-                        <span className="text-amber-800 text-[11px]">Dynamic rate configured in admin</span>
+                  {/* Time Slots */}
+                  {selectedDayObj && (
+                    <div className="pt-2">
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="block text-xs uppercase tracking-wider text-white/60 font-medium">
+                          Available Time Slots (Nairobi / EAT Timezone)
+                        </label>
+                        <span className="text-[11px] text-white/50">UTC+3 (East Africa Time)</span>
                       </div>
-                      <span className="font-heading font-bold text-base text-amber-900 font-mono">
-                        KES {selectedSession.priceKES.toLocaleString()}
-                      </span>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                        {selectedDayObj.slots.map((slot) => {
+                          const isSelected = selectedTime === slot.time
+                          return (
+                            <button
+                              key={slot.time}
+                              type="button"
+                              disabled={!slot.available}
+                              onClick={() => setSelectedTime(slot.time)}
+                              className={`py-3 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all ${
+                                !slot.available
+                                  ? "bg-white/[0.01] border-white/5 text-white/30 cursor-not-allowed line-through"
+                                  : isSelected
+                                  ? "bg-[#C9A66B] text-[#07070B] border-[#C9A66B] shadow-[0_0_15px_rgba(201,166,107,0.3)] font-bold scale-[1.02]"
+                                  : "bg-white/[0.03] border-white/10 text-white/90 hover:border-[#C9A66B]/50 hover:bg-white/[0.06]"
+                              }`}
+                            >
+                              <span>{slot.time}</span>
+                              {slot.available ? (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isSelected ? "bg-black/20 text-black" : "bg-emerald-500/20 text-emerald-400"}`}>
+                                  Open
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-white/30">Booked</span>
+                              )}
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
                   )}
 
-                  {/* Form fields */}
-                  <div className="space-y-4 text-xs">
-                    {/* Full Name */}
-                    <div>
-                      <label className="block text-slate-700 font-medium mb-1 flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-[#C9A66B]" /> Full Name *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder="e.g. Cheryl Atulah"
-                        className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] transition-colors"
-                      />
-                    </div>
-
-                    {/* Email & Phone in row */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-slate-700 font-medium mb-1 flex items-center gap-1.5">
-                          <Mail className="w-3.5 h-3.5 text-[#C9A66B]" /> Gmail / Email *
-                        </label>
-                        <input
-                          type="email"
-                          required
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="client@gmail.com"
-                          className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] transition-colors"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-slate-700 font-medium mb-1 flex items-center gap-1.5">
-                          <Phone className="w-3.5 h-3.5 text-[#C9A66B]" /> M-Pesa Phone *
-                        </label>
-                        <input
-                          type="tel"
-                          required
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="0712345678"
-                          className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] transition-colors"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Reason for consultation */}
-                    <div>
-                      <label className="block text-slate-700 font-medium mb-1 flex items-center gap-1.5">
-                        <HelpCircle className="w-3.5 h-3.5 text-[#C9A66B]" /> Reason for this Consultation *
-                      </label>
-                      <textarea
-                        required
-                        rows={3}
-                        value={reason}
-                        onChange={(e) => setReason(e.target.value)}
-                        placeholder="Describe your current business bottlenecks, lead handling delays, or what you hope to achieve with AI automations..."
-                        className="w-full bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C9A66B] transition-colors resize-none"
-                      />
-                    </div>
-
-                    {/* Do you have a business? */}
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                      <label className="block text-slate-700 font-medium flex items-center gap-1.5">
-                        <Building className="w-3.5 h-3.5 text-[#C9A66B]" /> Do you currently have a business? *
-                      </label>
-                      <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-800">
-                          <input
-                            type="radio"
-                            name="hasBusiness"
-                            value="yes"
-                            checked={hasBusiness === "yes"}
-                            onChange={() => handleBusinessToggle("yes")}
-                            className="accent-[#C9A66B]"
-                          />
-                          Yes
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-800">
-                          <input
-                            type="radio"
-                            name="hasBusiness"
-                            value="no"
-                            checked={hasBusiness === "no"}
-                            onChange={() => handleBusinessToggle("no")}
-                            className="accent-[#C9A66B]"
-                          />
-                          No (Sets website to N/A)
-                        </label>
-                      </div>
-
-                      {hasBusiness === "yes" && (
-                        <div className="pt-2">
-                          <label className="block text-slate-600 text-[11px] mb-1 flex items-center gap-1">
-                            <Globe className="w-3 h-3 text-[#C9A66B]" /> Business Website Link *
-                          </label>
-                          <input
-                            type="url"
-                            required={hasBusiness === "yes"}
-                            value={websiteUrl}
-                            onChange={(e) => setWebsiteUrl(e.target.value)}
-                            placeholder="https://mybusiness.com"
-                            className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#C9A66B]"
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Preferred Date & Time Slot */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <div>
-                        <label className="block text-slate-700 font-medium mb-1">Preferred Date</label>
-                        <input
-                          type="date"
-                          value={bookingDate}
-                          min={new Date().toISOString().split("T")[0]}
-                          onChange={(e) => setBookingDate(e.target.value)}
-                          className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C9A66B]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-slate-700 font-medium mb-1">Time Slot</label>
-                        <select
-                          value={bookingTime}
-                          onChange={(e) => setBookingTime(e.target.value)}
-                          className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C9A66B]"
-                        >
-                          <option value="09:00 AM">09:00 AM - 10:00 AM EAT</option>
-                          <option value="10:00 AM">10:00 AM - 11:00 AM EAT</option>
-                          <option value="11:30 AM">11:30 AM - 12:30 PM EAT</option>
-                          <option value="02:00 PM">02:00 PM - 03:00 PM EAT</option>
-                          <option value="04:00 PM">04:00 PM - 05:00 PM EAT</option>
-                        </select>
-                      </div>
-                    </div>
+                  {/* Continue Button */}
+                  <div className="pt-4 border-t border-white/10 flex justify-end">
+                    <button
+                      type="button"
+                      disabled={!selectedDate || !selectedTime}
+                      onClick={handleProceedToStep2}
+                      className="px-6 py-3.5 rounded-xl bg-[#C9A66B] text-[#07070B] font-heading font-semibold text-xs tracking-wide hover:bg-[#b59357] transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(201,166,107,0.25)]"
+                    >
+                      Continue to Strategy Intake
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
                   </div>
-
-                  {/* Submit Button */}
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full py-3.5 bg-[#C9A66B] text-white font-semibold text-xs rounded-xl hover:bg-[#b59357] shadow-lg transition-all flex items-center justify-center gap-2 mt-4"
-                  >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Processing Request...
-                      </>
-                    ) : selectedSession.isPaid && !isRetainerClient ? (
-                      <>
-                        Pay KES {selectedSession.priceKES.toLocaleString()} via M-Pesa & Lock Slot
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    ) : (
-                      <>
-                        Submit Free Audit Request
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </button>
-                </form>
-              ) : (
-                <div className="py-6 text-center space-y-4">
-                  <CheckCircle2 className="w-14 h-14 text-emerald-600 mx-auto animate-bounce" />
-                  <h3 className="font-heading font-bold text-xl text-emerald-900">
-                    {selectedSession.isPaid ? "1-on-1 Strategy Booking Submitted!" : "Free Audit Application Submitted!"}
-                  </h3>
-                  <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
-                    {selectedSession.isPaid
-                      ? "Your consultation booking and M-Pesa payment prompt have been initiated. Your user account has been upgraded to Client status!"
-                      : "Thank you for submitting your details! Our strategy team will review your application and confirm your meeting slot shortly."}
-                  </p>
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-800 text-left font-mono">
-                    <p>• Name: {fullName}</p>
-                    <p>• Email: {email}</p>
-                    <p>• Date: {bookingDate} @ {bookingTime}</p>
-                    <p>• Business Website: {hasBusiness === "yes" ? (websiteUrl || "N/A") : "N/A"}</p>
-                  </div>
-                  <button
-                    onClick={() => setSelectedSession(null)}
-                    className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition-colors"
-                  >
-                    Done
-                  </button>
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )}
+
+          {/* STEP 2: STRATEGY INTAKE FORM */}
+          {step === 2 && (
+            <div className="rounded-[24px] bg-[#0D0F18]/80 border border-white/10 backdrop-blur-xl p-6 sm:p-8 shadow-2xl space-y-6 animate-in fade-in duration-300">
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <div>
+                  <h2 className="text-lg font-heading font-medium text-white flex items-center gap-2">
+                    <User className="w-5 h-5 text-[#C9A66B]" />
+                    Strategy Intake Details
+                  </h2>
+                  <p className="text-xs text-white/60 mt-0.5">
+                    Slot Reserved: <span className="text-[#C9A66B] font-medium">{selectedDayObj?.label} @ {selectedTime} EAT</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="text-xs text-white/60 hover:text-white flex items-center gap-1"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Change Slot
+                </button>
+              </div>
+
+              <form onSubmit={handleProceedToStep3} className="space-y-4">
+                {/* Full Name */}
+                <div>
+                  <label className="block text-xs text-white/80 font-medium mb-1.5 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-[#C9A66B]" /> Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="e.g. Cheryl Atulah"
+                    className="w-full bg-white/[0.04] border border-white/15 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#C9A66B] transition-colors placeholder:text-white/30"
+                  />
+                </div>
+
+                {/* Email and Phone in Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-white/80 font-medium mb-1.5 flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-[#C9A66B]" /> Email Address (for Google Meet & Calendar Invite) *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="client@gmail.com"
+                      className="w-full bg-white/[0.04] border border-white/15 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#C9A66B] transition-colors placeholder:text-white/30"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-white/80 font-medium mb-1.5 flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-[#C9A66B]" /> Phone / WhatsApp Number *
+                    </label>
+                    <div className="flex gap-2">
+                      <select
+                        value={countryCode}
+                        onChange={(e) => setCountryCode(e.target.value)}
+                        className="bg-white/[0.06] border border-white/15 rounded-xl px-3 py-3 text-sm text-white focus:outline-none focus:border-[#C9A66B]"
+                      >
+                        <option value="+254" className="bg-[#07070B] text-white">+254 (KE)</option>
+                        <option value="+1" className="bg-[#07070B] text-white">+1 (US)</option>
+                        <option value="+44" className="bg-[#07070B] text-white">+44 (UK)</option>
+                        <option value="+971" className="bg-[#07070B] text-white">+971 (UAE)</option>
+                        <option value="+27" className="bg-[#07070B] text-white">+27 (ZA)</option>
+                        <option value="+255" className="bg-[#07070B] text-white">+255 (TZ)</option>
+                        <option value="+256" className="bg-[#07070B] text-white">+256 (UG)</option>
+                        <option value="+91" className="bg-[#07070B] text-white">+91 (IN)</option>
+                      </select>
+                      <input
+                        type="tel"
+                        required
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ""))}
+                        placeholder="712345678"
+                        className="flex-1 bg-white/[0.04] border border-white/15 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#C9A66B] transition-colors placeholder:text-white/30"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Agency Name & Website */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-white/80 font-medium mb-1.5 flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-[#C9A66B]" /> Agency / Business Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={agencyName}
+                      onChange={(e) => setAgencyName(e.target.value)}
+                      placeholder="e.g. Apex Real Estate"
+                      className="w-full bg-white/[0.04] border border-white/15 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#C9A66B] transition-colors placeholder:text-white/30"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-white/80 font-medium mb-1.5 flex items-center gap-1.5">
+                      <Globe className="w-3.5 h-3.5 text-[#C9A66B]" /> Business Website / Social URL
+                    </label>
+                    <input
+                      type="url"
+                      value={websiteUrl}
+                      onChange={(e) => setWebsiteUrl(e.target.value)}
+                      placeholder="https://apexrealestate.com"
+                      className="w-full bg-white/[0.04] border border-white/15 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#C9A66B] transition-colors placeholder:text-white/30"
+                    />
+                  </div>
+                </div>
+
+                {/* Primary Bottlenecks & Automation Goals */}
+                <div>
+                  <label className="block text-xs text-white/80 font-medium mb-1.5 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#C9A66B]" /> Primary Business Bottlenecks & Automation Goals *
+                  </label>
+                  <textarea
+                    required
+                    rows={4}
+                    value={bottlenecks}
+                    onChange={(e) => setBottlenecks(e.target.value)}
+                    placeholder="Describe your current lead delays, missed inquiries, CRM disconnects, or the specific autonomous workflows you want to architect..."
+                    className="w-full bg-white/[0.04] border border-white/15 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#C9A66B] transition-colors placeholder:text-white/30 resize-none"
+                  />
+                </div>
+
+                {/* Form Action Buttons */}
+                <div className="pt-4 border-t border-white/10 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="px-5 py-3 rounded-xl border border-white/10 text-white/70 hover:text-white hover:bg-white/5 text-xs font-medium transition-all"
+                  >
+                    Back
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="px-6 py-3.5 rounded-xl bg-[#C9A66B] text-[#07070B] font-heading font-semibold text-xs tracking-wide hover:bg-[#b59357] transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(201,166,107,0.25)]"
+                  >
+                    Proceed to Payment (KES 5,000 / $40)
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* STEP 3: PAYMENT METHOD (M-PESA / PAYPAL / BITCOIN) */}
+          {step === 3 && (
+            <div className="rounded-[24px] bg-[#0D0F18]/80 border border-white/10 backdrop-blur-xl p-6 sm:p-8 shadow-2xl space-y-6 animate-in fade-in duration-300">
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <div>
+                  <h2 className="text-lg font-heading font-medium text-white flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-[#C9A66B]" />
+                    Select Payment Method
+                  </h2>
+                  <p className="text-xs text-white/60 mt-0.5">
+                    Amount: <span className="text-[#C9A66B] font-semibold text-sm">KES 5,000</span> or <span className="text-[#C9A66B] font-semibold text-sm">$40 USD</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="text-xs text-white/60 hover:text-white flex items-center gap-1"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Back to Form
+                </button>
+              </div>
+
+              {/* Payment Method Selector Tabs */}
+              <div className="grid grid-cols-3 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("mpesa")}
+                  className={`p-3 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 ${
+                    paymentMethod === "mpesa"
+                      ? "bg-emerald-500/15 border-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+                      : "bg-white/[0.03] border-white/10 text-white/60 hover:border-white/20"
+                  }`}
+                >
+                  <span className="text-xs font-bold text-emerald-400">M-PESA</span>
+                  <span className="text-[10px] text-white/70">Lipa na M-Pesa STK</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("paypal")}
+                  className={`p-3 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 ${
+                    paymentMethod === "paypal"
+                      ? "bg-[#00B2FF]/15 border-[#00B2FF] text-white shadow-[0_0_20px_rgba(0,178,255,0.2)]"
+                      : "bg-white/[0.03] border-white/10 text-white/60 hover:border-white/20"
+                  }`}
+                >
+                  <span className="text-xs font-bold text-[#00B2FF]">Card / PayPal</span>
+                  <span className="text-[10px] text-white/70">Visa • Mastercard • Amex</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("bitcoin")}
+                  className={`p-3 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 ${
+                    paymentMethod === "bitcoin"
+                      ? "bg-amber-500/15 border-amber-500 text-white shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+                      : "bg-white/[0.03] border-white/10 text-white/60 hover:border-white/20"
+                  }`}
+                >
+                  <span className="text-xs font-bold text-amber-400">Bitcoin</span>
+                  <span className="text-[10px] text-white/70">Direct BTC Address</span>
+                </button>
+              </div>
+
+              {/* RAIL 1: M-PESA STK PUSH */}
+              {paymentMethod === "mpesa" && (
+                <div className="p-5 rounded-2xl bg-white/[0.02] border border-emerald-500/30 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-emerald-400 uppercase tracking-wider">
+                      Lipa Na M-Pesa Online STK Push
+                    </span>
+                    <span className="text-sm font-mono font-bold text-white">KES 5,000</span>
+                  </div>
+
+                  <p className="text-xs text-white/70 leading-relaxed">
+                    Enter your Safaricom M-Pesa phone number below. When you click <strong className="text-emerald-400">Send STK Push</strong>, an instant PIN prompt will appear on your phone screen to complete the transaction.
+                  </p>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="tel"
+                      value={mpesaPhone}
+                      onChange={(e) => setMpesaPhone(e.target.value.replace(/[^0-9]/g, ""))}
+                      placeholder="e.g. 0712345678"
+                      className="flex-1 bg-white/[0.05] border border-white/20 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 font-mono"
+                    />
+                    <button
+                      type="button"
+                      disabled={stkLoading || !mpesaPhone}
+                      onClick={handleTriggerMpesaStk}
+                      className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold tracking-wide transition-all flex items-center gap-2 disabled:opacity-40"
+                    >
+                      {stkLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send STK Push"}
+                    </button>
+                  </div>
+
+                  {stkSent && (
+                    <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 flex items-start gap-2 animate-in fade-in">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <span>
+                        Prompt sent to your phone! Please enter your M-Pesa PIN on your mobile device. Once entered, click <strong>Confirm Booking & Lock Slot</strong> below.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* RAIL 2: CARD / PAYPAL */}
+              {paymentMethod === "paypal" && (
+                <div className="p-5 rounded-2xl bg-white/[0.02] border border-[#00B2FF]/30 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-[#00B2FF] uppercase tracking-wider">
+                      Credit / Debit Card via PayPal Checkout
+                    </span>
+                    <span className="text-sm font-mono font-bold text-white">$40.00 USD</span>
+                  </div>
+
+                  <p className="text-xs text-white/70 leading-relaxed">
+                    Pay securely using any <strong>Visa, Mastercard, or American Express</strong> card. You can check out as a guest without needing a PayPal account.
+                  </p>
+
+                  <div className="p-4 rounded-xl bg-[#00B2FF]/5 border border-[#00B2FF]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div>
+                      <p className="font-medium text-white">Merchant Account:</p>
+                      <p className="text-[#00B2FF] font-mono text-xs">{PAYPAL_EMAIL}</p>
+                    </div>
+
+                    <a
+                      href={`https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=${encodeURIComponent(PAYPAL_EMAIL)}&item_name=1-on-1+AI+Strategy+Call&amount=${PRICE_USD}&currency_code=USD`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2.5 rounded-xl bg-[#00B2FF] text-[#07070B] font-semibold text-xs hover:bg-[#00B2FF]/90 transition-all flex items-center justify-center gap-2 shrink-0 shadow-[0_0_15px_rgba(0,178,255,0.3)]"
+                    >
+                      <span>Open PayPal / Card Checkout</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+
+                  <p className="text-[11px] text-white/50">
+                    * After completing payment on the PayPal tab, return here and click <strong>Confirm Booking & Lock Slot</strong>.
+                  </p>
+                </div>
+              )}
+
+              {/* RAIL 3: BITCOIN (BINANCE QR & ADDRESS) */}
+              {paymentMethod === "bitcoin" && (
+                <div className="p-5 rounded-2xl bg-white/[0.02] border border-amber-500/30 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-amber-400 uppercase tracking-wider">
+                      Bitcoin Network Deposit
+                    </span>
+                    <span className="text-sm font-mono font-bold text-white">$40.00 USD (~0.0006 BTC)</span>
+                  </div>
+
+                  <p className="text-xs text-white/70 leading-relaxed">
+                    Scan the QR code or send <strong>$40 USD in BTC</strong> directly to the Binance wallet address below over the <strong>Bitcoin network</strong>.
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-6 p-4 rounded-xl bg-white/[0.03] border border-white/10">
+                    {/* Dynamic QR image for Bitcoin Address */}
+                    <div className="w-36 h-36 bg-white p-2 rounded-xl shrink-0 shadow-lg flex items-center justify-center">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=bitcoin:${BTC_ADDRESS}?amount=0.0006`}
+                        alt="Bitcoin QR Code"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+
+                    <div className="flex-1 space-y-2 text-xs w-full">
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/60">Network:</span>
+                        <span className="font-semibold text-amber-400">Bitcoin</span>
+                      </div>
+                      <div>
+                        <span className="text-white/60 block mb-1">Deposit Wallet Address:</span>
+                        <div className="flex items-center gap-2 bg-black/40 border border-white/15 p-2 rounded-lg font-mono text-[11px] break-all">
+                          <span className="text-white flex-1">{BTC_ADDRESS}</span>
+                          <button
+                            type="button"
+                            onClick={handleCopyBtc}
+                            className="p-1.5 rounded bg-white/10 hover:bg-white/20 text-white shrink-0"
+                            title="Copy Address"
+                          >
+                            {copiedBtc ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-white/40">
+                        * Smart contracts / tokens on other chains are not supported. Send native BTC only.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Final Confirm Button */}
+              <div className="pt-4 border-t border-white/10 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="px-5 py-3 rounded-xl border border-white/10 text-white/70 hover:text-white hover:bg-white/5 text-xs font-medium transition-all"
+                >
+                  Back
+                </button>
+
+                <button
+                  type="button"
+                  disabled={submittingBooking}
+                  onClick={handleFinalizeBooking}
+                  className="px-7 py-3.5 rounded-xl bg-[#C9A66B] text-[#07070B] font-heading font-semibold text-xs tracking-wide hover:bg-[#b59357] transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(201,166,107,0.3)] disabled:opacity-50"
+                >
+                  {submittingBooking ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Creating Google Meet & Locking Slot...
+                    </>
+                  ) : (
+                    <>
+                      Confirm Booking & Lock Slot
+                      <Check className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4: VIP CONFIRMATION SCREEN */}
+          {step === 4 && (
+            <div className="rounded-[24px] bg-[#0D0F18]/90 border border-emerald-500/40 backdrop-blur-2xl p-8 sm:p-10 shadow-2xl text-center space-y-6 animate-in zoom-in-95 duration-300">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+                <CheckCircle2 className="w-9 h-9" />
+              </div>
+
+              <div>
+                <h2 className="text-2xl font-heading font-normal text-white mb-2">
+                  1-on-1 AI Strategy Session Confirmed!
+                </h2>
+                <p className="text-sm text-white/70 max-w-md mx-auto leading-relaxed">
+                  Your appointment has been locked on Google Calendar. Your dedicated advisor <strong className="text-[#C9A66B]">Atulah</strong> has been assigned to your session.
+                </p>
+              </div>
+
+              {/* Google Meet Direct Card */}
+              {googleMeetUrl && (
+                <div className="max-w-lg mx-auto p-4 rounded-2xl bg-white/[0.04] border border-[#C9A66B]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                      <Video className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="text-xs text-white/60 block">Meeting Platform:</span>
+                      <span className="text-sm font-semibold text-white font-mono break-all">{googleMeetUrl}</span>
+                    </div>
+                  </div>
+
+                  <a
+                    href={googleMeetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2.5 rounded-xl bg-[#C9A66B] text-[#07070B] font-heading font-semibold text-xs hover:bg-[#b59357] transition-all flex items-center justify-center gap-2 shrink-0 shadow-[0_0_15px_rgba(201,166,107,0.3)]"
+                  >
+                    <span>Join Google Meet</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              )}
+
+              {/* Summary Details */}
+              <div className="max-w-lg mx-auto p-4 rounded-2xl bg-black/40 border border-white/10 text-left text-xs space-y-2 font-mono text-white/80">
+                <div className="flex justify-between border-b border-white/5 pb-2">
+                  <span className="text-white/50">Client:</span>
+                  <span className="font-semibold text-white">{fullName}</span>
+                </div>
+                <div className="flex justify-between border-b border-white/5 pb-2">
+                  <span className="text-white/50">Agency:</span>
+                  <span className="text-white">{agencyName || "N/A"}</span>
+                </div>
+                <div className="flex justify-between border-b border-white/5 pb-2">
+                  <span className="text-white/50">Scheduled Time:</span>
+                  <span className="text-[#C9A66B] font-semibold">{selectedDayObj?.label} @ {selectedTime} EAT</span>
+                </div>
+                <div className="flex justify-between border-b border-white/5 pb-2">
+                  <span className="text-white/50">Assigned Advisor:</span>
+                  <span className="text-white">atulah@cillah.dev</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-white/50">Reminders:</span>
+                  <span className="text-emerald-400">WhatsApp (24h & 1h prior) + Email</span>
+                </div>
+              </div>
+
+              {/* Calendar Action */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                {calendarEventUrl && (
+                  <a
+                    href={calendarEventUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium text-xs transition-all flex items-center justify-center gap-2"
+                  >
+                    <CalendarIcon className="w-4 h-4 text-[#C9A66B]" />
+                    <span>Add to Google Calendar</span>
+                  </a>
+                )}
+
+                <a
+                  href="/"
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 font-medium text-xs transition-all"
+                >
+                  Return to Home
+                </a>
+              </div>
+            </div>
+          )}
+
+        </section>
       </main>
 
       <Footer />
