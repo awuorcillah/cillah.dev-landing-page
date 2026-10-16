@@ -1,0 +1,289 @@
+const fs = require('fs');
+
+const workflowData = {
+  "name": "Stage Properties - AI Chat Agent & Property Advisor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stage-properties-ai-agent",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Instagram DM / Webhook Listener",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.body?.entry?.[0]?.changes?.[0]?.value?.item }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "singleValue": "comment"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-comment-check",
+      "name": "Is Instagram Comment?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [220, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph.facebook.com/v18.0/' + ($json.body?.entry?.[0]?.changes?.[0]?.value?.id || $json.body?.entry?.[0]?.changes?.[0]?.value?.comment_id) + '/replies' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "facebookGraphApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": \"Check your DMs 📩 I have sent you the details and luxury brochure for Stage Properties!\"\n}",
+        "options": {}
+      },
+      "id": "public-comment-reply",
+      "name": "Public Comment Reply (Check your DMs)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [460, 80],
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "FEfOoHyUA6pzcT3p",
+          "name": "Facebook Graph (cillah.ai Page token)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body?.entry?.[0]?.changes?.[0]?.value?.text || $json.body?.entry?.[0]?.changes?.[0]?.value?.message?.text || $json.chatInput }}",
+        "options": {
+          "systemMessage": "You are the official AI Property Advisor for Stage Properties Brokers L.L.C in Dubai, UAE.\n\nYour Goal:\nHelp prospects discover luxury real estate (Residential, Commercial, Off-Plan, Sobha Hartland) and qualify serious buyers/renters.\n\nStep-by-Step Conversation Flow:\n1. FIRST RESPONSE (Property Info): When a user comments a property name like Hartland, retrieve info and reply first: 'Sobha Hartland is a luxury waterfront development in MBR City, Dubai featuring ready to move-in and off-plan residences starting at AED 1,500,000 (~$408,000 USD).'\n\n2. INTENT CHECK: Send follow-up: 'Are you looking to BUY or RENT?'\n\n3. ADVISOR CONNECT CHECK: 'Would you like to be connected to one of our property advisors to explore more options on buying/renting in Dubai?'\n\n4. INFORMATION COLLECTION: Ask for Full Name and WhatsApp Phone Number.\n\n5. EXIT & HANDOFF: Output lead details and inform them Ador will be in touch shortly."
+        }
+      },
+      "id": "ai-agent-node",
+      "name": "Stage Properties Luxury AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [460, 320]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {}
+      },
+      "id": "openai-model",
+      "name": "OpenAI Model (GPT-4o)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [320, 520],
+      "credentials": {
+        "openAiApi": {
+          "id": "J5r9oYQWSirYqPwF",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Instagram DM / Webhook Listener').item.json.body?.entry?.[0]?.changes?.[0]?.value?.from?.id || 'default_session' }}",
+        "contextWindowLength": 10
+      },
+      "id": "memory-node",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [560, 520]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://hastygfosgyxrxzrzrur.supabase.co/rest/v1/stage_leads?ig_user_id=eq.' + ($('Instagram DM / Webhook Listener').item.json.body?.entry?.[0]?.changes?.[0]?.value?.from?.id || '') }}",
+        "options": {}
+      },
+      "id": "supabase-check-lead",
+      "name": "Supabase REST API (Check Repeat User)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [760, 320]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.length }}",
+              "operator": {
+                "type": "number",
+                "operation": "gt",
+                "singleValue": 0
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-repeat-user",
+      "name": "Is Repeat User?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [980, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cillah.dev/api/whatsapp/send-notification",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"to\": \"0794357912\",\n  \"message\": \"🔄 REPEAT INQUIRY - STAGE PROPERTIES\\n\\nUser ID: {{ $('Instagram DM / Webhook Listener').item.json.body?.entry?.[0]?.changes?.[0]?.value?.from?.id }}\\nAssigned Advisor: Ador\"\n}",
+        "options": {}
+      },
+      "id": "notify-repeat-whatsapp",
+      "name": "Notify Existing Agent on WhatsApp (Repeat User)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [1200, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cillah.dev/api/whatsapp/send-notification",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"to\": \"0794357912\",\n  \"message\": \"🏷️ NEW QUALIFIED LEAD - STAGE PROPERTIES\\n\\nUser ID: {{ $('Instagram DM / Webhook Listener').item.json.body?.entry?.[0]?.changes?.[0]?.value?.from?.id }}\\nProperty: Hartland\\nAssigned Agent: Ador\"\n}",
+        "options": {}
+      },
+      "id": "notify-new-lead-whatsapp",
+      "name": "Notify New Agent Ador on WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [1200, 420]
+    }
+  ],
+  "connections": {
+    "Instagram DM / Webhook Listener": {
+      "main": [
+        [
+          {
+            "node": "Is Instagram Comment?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Instagram Comment?": {
+      "main": [
+        [
+          {
+            "node": "Public Comment Reply (Check your DMs)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Stage Properties Luxury AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stage Properties Luxury AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Model (GPT-4o)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Stage Properties Luxury AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Stage Properties Luxury AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage Properties Luxury AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Supabase REST API (Check Repeat User)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase REST API (Check Repeat User)": {
+      "main": [
+        [
+          {
+            "node": "Is Repeat User?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Repeat User?": {
+      "main": [
+        [
+          {
+            "node": "Notify Existing Agent on WhatsApp (Repeat User)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify New Agent Ador on WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+};
+
+fs.writeFileSync('scratch/workflow_payload.json', JSON.stringify(workflowData, null, 2));
+console.log('Workflow payload written successfully');

@@ -1,0 +1,1236 @@
+{
+  "id": "qW9A17dDWIbyVisQ",
+  "name": "Stage Properties - AI Chat Agent & Property Advisor",
+  "active": true,
+  "isArchived": false,
+  "versionId": "9c130a25-9fe2-4083-900b-3bcce59ed7c7",
+  "activeVersionId": "40051262-3716-43c6-a258-864624e4179a",
+  "triggerCount": 1,
+  "nodeCount": 17,
+  "createdAt": "2026-10-09T18:18:32.897Z",
+  "updatedAt": "2026-10-12T04:51:33.888Z",
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "binaryMode": "separate"
+  },
+  "tags": [],
+  "parentFolderId": null,
+  "scopes": [
+    "execution:reveal",
+    "workflow:create",
+    "workflow:delete",
+    "workflow:disableRedaction",
+    "workflow:enableRedaction",
+    "workflow:execute",
+    "workflow:execute-chat",
+    "workflow:export",
+    "workflow:import",
+    "workflow:list",
+    "workflow:move",
+    "workflow:publish",
+    "workflow:read",
+    "workflow:share",
+    "workflow:unpublish",
+    "workflow:unshare",
+    "workflow:update"
+  ],
+  "canExecute": true,
+  "connections": {
+    "Instagram DM / Webhook Listener": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Incoming Customer Message?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Model (GPT-4o)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "real estate instagram dm",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "real estate instagram dm",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase REST API (Insert Lead)": {
+      "main": [
+        [
+          {
+            "node": "Notify New Agent Ador on WhatsApp",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Agent Handoff Confirmation DM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Supabase REST API (Sync to Sales Leads)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Customer Top-Level Comment?": {
+      "main": [
+        [
+          {
+            "node": "Public Comment Reply (Check your DMs)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "search_stage_properties": {
+      "ai_tool": [
+        [
+          {
+            "node": "real estate instagram dm",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Instagram Direct Message": {
+      "main": [
+        [
+          {
+            "node": "Is Lead Fully Qualified?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Agent Handoff Confirmation DM": {
+      "main": [
+        [
+          {
+            "node": "Notify New Agent Ador on WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Incoming Customer Message?": {
+      "main": [
+        [
+          {
+            "node": "Is Customer Top-Level Comment?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Supabase REST API (Check Repeat User)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Lead Fully Qualified?": {
+      "main": [
+        [
+          {
+            "node": "Parse Qualified Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "real estate instagram dm": {
+      "main": [
+        [
+          {
+            "node": "Send Instagram Direct Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase REST API (Check Repeat User)": {
+      "main": [
+        [
+          {
+            "node": "real estate instagram dm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Qualified Lead Data": {
+      "main": [
+        [
+          {
+            "node": "Supabase REST API (Insert Lead)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "multipleMethods": true,
+        "path": "stage-properties-ai-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "add8a554-d96e-4671-9d02-2cec2c840849",
+      "name": "Instagram DM / Webhook Listener",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -768,
+        128
+      ],
+      "webhookId": "a04a50bc-9fb3-4e22-94f3-ecaf88989d1b"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "18042fc8-2c78-4723-8807-4bc4497a793c",
+      "name": "OpenAI Model (GPT-4o)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -112,
+        528
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "J5r9oYQWSirYqPwF",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.body?.entry?.[0]?.messaging?.[0]?.sender?.id || $json.body?.entry?.[0]?.changes?.[0]?.value?.from?.id || 'default_session' }}",
+        "contextWindowLength": 10
+      },
+      "id": "a9851832-e85a-4683-a3c9-db3e35085938",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        256,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cillah.dev/api/whatsapp/send-notification",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    to: \"0794357912\",\n    message: \"🏷️ NEW QUALIFIED LEAD - STAGE PROPERTIES\\n\\nName: \" + ($json.full_name || $('Parse Qualified Lead Data').item.json.lead_name) + \"\\nPhone: \" + ($json.phone_number || $('Parse Qualified Lead Data').item.json.lead_phone) + \"\\nProperty: \" + ($json.property_interest || $('Parse Qualified Lead Data').item.json.property_interest) + \"\\nAssigned Agent: Ador\"\n  })\n}}",
+        "options": {}
+      },
+      "id": "d81f863e-42d3-44cc-aad8-fc113a658b71",
+      "name": "Notify New Agent Ador on WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2144,
+        -64
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://hastygfosgyxrxzrzrur.supabase.co/rest/v1/stage_leads?ig_user_id=eq.{{ $json.body?.entry?.[0]?.messaging?.[0]?.sender?.id || $json.body?.entry?.[0]?.changes?.[0]?.value?.from?.id || '' }}&order=created_at.desc&limit=1",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={\n  \"apikey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhc3R5Z2Zvc2d5eHJ4enJ6cnVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2NTA4ODEsImV4cCI6MjEwNjIyNjg4MX0.EVdnsyzWPuDJPJ_-ttg8DrA2Nl14Z04saG9Xj-rPjvg\",\n  \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhc3R5Z2Zvc2d5eHJ4enJ6cnVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2NTA4ODEsImV4cCI6MjEwNjIyNjg4MX0.EVdnsyzWPuDJPJ_-ttg8DrA2Nl14Z04saG9Xj-rPjvg\"\n}",
+        "options": {}
+      },
+      "id": "0ea9e5b4-d7fc-41ea-b400-54b9b0871f49",
+      "name": "Supabase REST API (Check Repeat User)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -160,
+        144
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cillah.dev/api/leads/connect-advisor",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={\n  \"Content-Type\": \"application/json\"\n}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "4c551a43-e877-4788-8886-43bb6a37da2e",
+      "name": "Supabase REST API (Insert Lead)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1344,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://graph.facebook.com/v18.0/' + ($json.body?.entry?.[0]?.changes?.[0]?.value?.id || $json.body?.entry?.[0]?.changes?.[0]?.value?.comment_id) + '/replies' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "facebookGraphApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"message\": \"Check your DMs 📩\"\n}",
+        "options": {}
+      },
+      "id": "ceca7336-fe8d-4c98-b351-2b780acd993b",
+      "name": "Public Comment Reply (Check your DMs)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        144,
+        -336
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "FEfOoHyUA6pzcT3p",
+          "name": "Facebook Graph (cillah.ai Page token)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.body?.entry?.[0]?.changes?.[0]?.field || '' }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "comments"
+            },
+            {
+              "leftValue": "={{ $json.body?.entry?.[0]?.changes?.[0]?.value?.from?.username || '' }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              },
+              "rightValue": "cillah.dev"
+            },
+            {
+              "leftValue": "={{ $json.body?.entry?.[0]?.changes?.[0]?.value?.parent_id }}",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            },
+            {
+              "leftValue": "={{ $json.body?.entry?.[0]?.changes?.[0]?.value?.id }}",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "608732c5-ab13-494f-bba9-8863c09534d0",
+      "name": "Is Customer Top-Level Comment?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -320,
+        -304
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body?.entry?.[0]?.messaging?.[0]?.message?.text || $json.body?.entry?.[0]?.changes?.[0]?.value?.text || $json.chatInput || '' }}",
+        "options": {
+          "systemMessage": "You are the official luxury AI Property Advisor for Stage Properties Brokers L.L.C in Dubai, UAE.\n\nCLIENT CRM PROFILE:\n- Client Status: {{ ($('Supabase REST API (Check Repeat User)').item.json?.[0]?.id || $('Supabase REST API (Check Repeat User)').item.json?.id) ? 'REPEAT_CLIENT' : 'NEW_PROSPECT' }}\n- Known Full Name: {{ ($('Supabase REST API (Check Repeat User)').item.json?.[0]?.full_name || $('Supabase REST API (Check Repeat User)').item.json?.full_name || 'UNKNOWN') }}\n- Known Phone: {{ ($('Supabase REST API (Check Repeat User)').item.json?.[0]?.phone_number || $('Supabase REST API (Check Repeat User)').item.json?.phone_number || 'UNKNOWN') }}\n- Assigned Property Advisor: {{ ($('Supabase REST API (Check Repeat User)').item.json?.[0]?.assigned_agent_name || $('Supabase REST API (Check Repeat User)').item.json?.assigned_agent_name || 'Ador') }}\n\nSTRICT CONVERSATION PROTOCOL:\n\n1. REPEAT CLIENT PROTOCOL (When Known Full Name is NOT 'UNKNOWN' and NOT 'Valued Lead' and NOT 'Valued Customer'):\n   - Warmly greet them by their real name: \"Welcome back {{ ($('Supabase REST API (Check Repeat User)').item.json?.[0]?.full_name || $('Supabase REST API (Check Repeat User)').item.json?.full_name) }}! Great to assist you again at Stage Properties.\"\n   - DO NOT ask for their name or phone number. We already have them.\n   - Proceed directly to answering their question about Dubai properties (using \"search_stage_properties\" tool).\n\n2. NEW PROSPECT PROTOCOL (When Known Full Name is 'UNKNOWN'):\n   - Qualification Question 1: Ask: \"Are you looking for Residential, Commercial, or Off-Plan properties in Dubai?\"\n   - Property Search: When they name a development or community (e.g. Sobha Hartland, Eden, Vitalia, Valia, Opus), use the \"search_stage_properties\" tool to look up inventory, prices, and amenities.\n   - Qualification Question 2: Ask: \"Are you looking to BUY or RENT?\"\n   - Advisor Offer: Ask: \"Would you like to be connected to our {{category}} property advisor to explore exclusive units?\"\n   - If they agree:\n     a) Ask: \"What is your full name?\"\n     b) Once name is given, ask: \"What is the best phone number (with country code) to reach you on?\"\n\n3. DETERMINISTIC ADVISOR HANDOFF & SUMMARY:\n   - As soon as you have their Full Name and Phone Number (or if a returning client asks for advisor callback):\n   - You MUST append this EXACT structured block at the very end of your response:\nCONNECT_ADVISOR_START\n{\n  \"full_name\": \"<lead's full name>\",\n  \"phone_number\": \"<lead's phone number>\",\n  \"category\": \"<Residential/Commercial/Off-Plan>\",\n  \"intent\": \"<BUY or RENT>\",\n  \"property_interest\": \"<property name>\",\n  \"conversation_summary\": \"<brief 2-sentence summary of what was discussed, budget, and specific preferences for the sales advisor>\"\n}\nCONNECT_ADVISOR_END\n   - In your customer-facing reply before the block, say:\n   \"Give me a moment as I connect you to your dedicated advisor... {{assigned agent or Ador}} will contact you shortly to discuss more on {{intent}} your {{property}} property. Is there anything else I can assist you with today?\""
+        }
+      },
+      "id": "510754bb-6bdc-4e3c-a78b-7611955a2807",
+      "name": "real estate instagram dm",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        160,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.query.hub_challenge }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -1152,
+        128
+      ],
+      "id": "9778915a-93aa-46d5-85a5-7c0d1c7214cb",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "url": "https://hastygfosgyxrxzrzrur.supabase.co/rest/v1/properties",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={\n  \"select\": \"*\"\n}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={\n  \"apikey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhc3R5Z2Zvc2d5eHJ4enJ6cnVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2NTA4ODEsImV4cCI6MjEwNjIyNjg4MX0.EVdnsyzWPuDJPJ_-ttg8DrA2Nl14Z04saG9Xj-rPjvg\",\n  \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhc3R5Z2Zvc2d5eHJ4enJ6cnVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2NTA4ODEsImV4cCI6MjEwNjIyNjg4MX0.EVdnsyzWPuDJPJ_-ttg8DrA2Nl14Z04saG9Xj-rPjvg\"\n}",
+        "options": {}
+      },
+      "id": "f0edcb50-83ad-4bc0-9ade-965a9b22b689",
+      "name": "search_stage_properties",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        560,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v18.0/me/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "facebookGraphApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  (() => {\n    const listenerBody = $('Instagram DM / Webhook Listener').item.json?.body;\n    const dmSenderId = listenerBody?.entry?.[0]?.messaging?.[0]?.sender?.id;\n    const commentId = listenerBody?.entry?.[0]?.changes?.[0]?.value?.id;\n    const commenterId = listenerBody?.entry?.[0]?.changes?.[0]?.value?.from?.id;\n\n    const recipient = dmSenderId\n      ? { id: dmSenderId }\n      : (commentId \n          ? { comment_id: commentId } \n          : { id: commenterId || '' });\n\n    const rawOutput = $json.output || '';\n    const cleanText = rawOutput\n      .replace(/CONNECT_ADVISOR_START[\\s\\S]*?CONNECT_ADVISOR_END/gi, '')\n      .replace(/\\{[\\s\\S]*?\"full_name\"[\\s\\S]*?\\}/gi, '')\n      .replace(/\\{[\\s\\S]*?\"lead_name\"[\\s\\S]*?\\}/gi, '')\n      .trim() || \"Hello! How can I assist you with Stage Properties today?\";\n\n    return JSON.stringify({\n      recipient,\n      message: {\n        text: cleanText\n      }\n    });\n  })()\n}}",
+        "options": {}
+      },
+      "id": "45c83df0-fb68-4ff7-b456-984f48f21446",
+      "name": "Send Instagram Direct Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        512,
+        144
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "FEfOoHyUA6pzcT3p",
+          "name": "Facebook Graph (cillah.ai Page token)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('real estate instagram dm').item.json?.output || '' }}",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              },
+              "rightValue": "CONNECT_ADVISOR_START"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "e9681337-9605-4b98-afc6-036b62daee3a",
+      "name": "Is Lead Fully Qualified?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        768,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v18.0/me/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "facebookGraphApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  (() => {\n    const listenerBody = $('Instagram DM / Webhook Listener').item.json?.body;\n    const dmSenderId = listenerBody?.entry?.[0]?.messaging?.[0]?.sender?.id;\n    const commentId = listenerBody?.entry?.[0]?.changes?.[0]?.value?.id;\n    const commenterId = listenerBody?.entry?.[0]?.changes?.[0]?.value?.from?.id;\n\n    const recipient = dmSenderId\n      ? { id: dmSenderId }\n      : (commentId \n          ? { comment_id: commentId } \n          : { id: commenterId || '' });\n\n    const activeAgent = $('Fetch Active Sales Agent').item.json?.[0] || $('Fetch Active Sales Agent').item.json || {};\n    const leadData = $('Parse Qualified Lead Data').item.json || {};\n    const agentName = $json.assigned_agent_name || activeAgent.full_name || 'Ador';\n    const intentStr = (leadData.intent || $json.intent) == 'RENT' ? 'renting' : 'buying';\n    const propStr = leadData.property_interest || $json.property_interest || 'property interest';\n\n    return JSON.stringify({\n      recipient,\n      message: {\n        text: agentName + \" will contact you shortly to discuss more on \" + intentStr + \" your \" + propStr + \" property.\"\n      }\n    });\n  })()\n}}",
+        "options": {}
+      },
+      "id": "d20d54f5-2fe3-4679-9521-6d7d745e6c76",
+      "name": "Send Agent Handoff Confirmation DM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1760,
+        192
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "FEfOoHyUA6pzcT3p",
+          "name": "Facebook Graph (cillah.ai Page token)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.body?.entry?.[0]?.changes?.[0]?.value?.from?.username || '' }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              },
+              "rightValue": "cillah.dev"
+            },
+            {
+              "leftValue": "={{ $json.body?.entry?.[0]?.changes?.[0]?.value?.text || '' }}",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              },
+              "rightValue": "Check your DMs"
+            },
+            {
+              "leftValue": "={{ $json.body?.entry?.[0]?.messaging?.[0]?.message?.is_echo || false }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            },
+            {
+              "leftValue": "={{ $json.body?.entry?.[0]?.messaging?.[0]?.sender?.id || '' }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              },
+              "rightValue": "17841416012634072"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3fee865c-a682-4a89-a6a8-b4888abe17b0",
+      "name": "Is Incoming Customer Message?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -480,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $('real estate instagram dm').item.json?.output || '';\nconst match = output.match(/CONNECT_ADVISOR_START([\\s\\S]*?)CONNECT_ADVISOR_END/);\n\nlet lead_name = 'Cheryl Atulah';\nlet lead_phone = '+254 794 357 912';\nlet category = 'Residential';\nlet intent = 'BUY';\nlet property_interest = 'Sobha Hartland';\nlet conversation_summary = 'Customer inquired about Dubai luxury real estate.';\n\nif (match) {\n  try {\n    const data = JSON.parse(match[1].trim());\n    lead_name = data.full_name || lead_name;\n    lead_phone = data.phone_number || lead_phone;\n    category = data.category || category;\n    intent = data.intent || intent;\n    property_interest = data.property_interest || property_interest;\n    conversation_summary = data.conversation_summary || conversation_summary;\n  } catch (e) {}\n}\n\nconst listenerBody = $('Instagram DM / Webhook Listener').item.json?.body;\nconst igUserId = listenerBody?.entry?.[0]?.messaging?.[0]?.sender?.id || listenerBody?.entry?.[0]?.changes?.[0]?.value?.from?.id || '';\n\nreturn [{\n  json: {\n    org_id: 'a1b2c3d4-e5f6-7890-abcd-111111111111',\n    ig_user_id: igUserId,\n    full_name: lead_name,\n    phone_number: lead_phone,\n    category: category,\n    intent: intent,\n    property_interest: property_interest,\n    conversation_summary: conversation_summary,\n    source: 'instagram'\n  }\n}];"
+      },
+      "id": "fa931047-9816-4b51-bc0a-f7a244fd12e5",
+      "name": "Parse Qualified Lead Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hastygfosgyxrxzrzrur.supabase.co/rest/v1/sales_leads",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "sendBody": true,
+        "specifyBody": "json",
+        "options": {}
+      },
+      "id": "71fb4e0a-64ab-46aa-b0ad-9b216c60a368",
+      "name": "Supabase REST API (Sync to Sales Leads)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1504,
+        448
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "nodeGroups": [],
+  "activeVersion": {
+    "sameAsDraft": false,
+    "nodes": [
+      {
+        "parameters": {
+          "multipleMethods": true,
+          "path": "stage-properties-ai-agent",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "id": "add8a554-d96e-4671-9d02-2cec2c840849",
+        "name": "Instagram DM / Webhook Listener",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          -768,
+          128
+        ],
+        "webhookId": "a04a50bc-9fb3-4e22-94f3-ecaf88989d1b"
+      },
+      {
+        "parameters": {
+          "model": {
+            "__rl": true,
+            "value": "gpt-4o",
+            "mode": "list"
+          },
+          "builtInTools": {},
+          "options": {}
+        },
+        "id": "18042fc8-2c78-4723-8807-4bc4497a793c",
+        "name": "OpenAI Model (GPT-4o)",
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "typeVersion": 1.3,
+        "position": [
+          -144,
+          656
+        ],
+        "credentials": {
+          "openAiApi": {
+            "id": "J5r9oYQWSirYqPwF",
+            "name": "OpenAI account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "sessionIdType": "customKey",
+          "sessionKey": "={{ $json.body?.entry?.[0]?.messaging?.[0]?.sender?.id || $json.body?.entry?.[0]?.changes?.[0]?.value?.from?.id || 'default_session' }}",
+          "contextWindowLength": 10
+        },
+        "id": "a9851832-e85a-4683-a3c9-db3e35085938",
+        "name": "Window Buffer Memory",
+        "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "typeVersion": 1.3,
+        "position": [
+          256,
+          528
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://cillah.dev/api/whatsapp/send-notification",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{\n  JSON.stringify({\n    to: \"0794357912\",\n    message: \"🏷️ NEW QUALIFIED LEAD - STAGE PROPERTIES\\n\\nName: \" + ($json.full_name || $('Parse Qualified Lead Data').item.json.lead_name) + \"\\nPhone: \" + ($json.phone_number || $('Parse Qualified Lead Data').item.json.lead_phone) + \"\\nProperty: \" + ($json.property_interest || $('Parse Qualified Lead Data').item.json.property_interest) + \"\\nAssigned Agent: Ador\"\n  })\n}}",
+          "options": {}
+        },
+        "id": "d81f863e-42d3-44cc-aad8-fc113a658b71",
+        "name": "Notify New Agent Ador on WhatsApp",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.3,
+        "position": [
+          2512,
+          160
+        ],
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "method": "GET",
+          "url": "=https://hastygfosgyxrxzrzrur.supabase.co/rest/v1/stage_leads?ig_user_id=eq.{{ $json.body?.entry?.[0]?.messaging?.[0]?.sender?.id || $json.body?.entry?.[0]?.changes?.[0]?.value?.from?.id || '' }}&order=created_at.desc&limit=1",
+          "sendHeaders": true,
+          "specifyHeaders": "json",
+          "jsonHeaders": "={\n  \"apikey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhc3R5Z2Zvc2d5eHJ4enJ6cnVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2NTA4ODEsImV4cCI6MjEwNjIyNjg4MX0.EVdnsyzWPuDJPJ_-ttg8DrA2Nl14Z04saG9Xj-rPjvg\",\n  \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhc3R5Z2Zvc2d5eHJ4enJ6cnVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2NTA4ODEsImV4cCI6MjEwNjIyNjg4MX0.EVdnsyzWPuDJPJ_-ttg8DrA2Nl14Z04saG9Xj-rPjvg\"\n}",
+          "options": {}
+        },
+        "id": "0ea9e5b4-d7fc-41ea-b400-54b9b0871f49",
+        "name": "Supabase REST API (Check Repeat User)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.3,
+        "position": [
+          -160,
+          144
+        ],
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://cillah.dev/api/leads/connect-advisor",
+          "sendHeaders": true,
+          "specifyHeaders": "json",
+          "jsonHeaders": "={\n  \"Content-Type\": \"application/json\"\n}",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json) }}",
+          "options": {}
+        },
+        "id": "4c551a43-e877-4788-8886-43bb6a37da2e",
+        "name": "Supabase REST API (Insert Lead)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.3,
+        "position": [
+          1920,
+          160
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{ 'https://graph.facebook.com/v18.0/' + ($json.body?.entry?.[0]?.changes?.[0]?.value?.id || $json.body?.entry?.[0]?.changes?.[0]?.value?.comment_id) + '/replies' }}",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "facebookGraphApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "{\n  \"message\": \"Check your DMs 📩\"\n}",
+          "options": {}
+        },
+        "id": "ceca7336-fe8d-4c98-b351-2b780acd993b",
+        "name": "Public Comment Reply (Check your DMs)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.3,
+        "position": [
+          544,
+          -192
+        ],
+        "onError": "continueRegularOutput",
+        "credentials": {
+          "facebookGraphApi": {
+            "id": "FEfOoHyUA6pzcT3p",
+            "name": "Facebook Graph (cillah.ai Page token)"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose",
+              "version": 1
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $json.body?.entry?.[0]?.changes?.[0]?.field || '' }}",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                },
+                "rightValue": "comments"
+              },
+              {
+                "leftValue": "={{ $json.body?.entry?.[0]?.changes?.[0]?.value?.from?.username || '' }}",
+                "operator": {
+                  "type": "string",
+                  "operation": "notEquals"
+                },
+                "rightValue": "cillah.dev"
+              },
+              {
+                "leftValue": "={{ $json.body?.entry?.[0]?.changes?.[0]?.value?.parent_id }}",
+                "operator": {
+                  "type": "string",
+                  "operation": "empty",
+                  "singleValue": true
+                }
+              },
+              {
+                "leftValue": "={{ $json.body?.entry?.[0]?.changes?.[0]?.value?.id }}",
+                "operator": {
+                  "type": "string",
+                  "operation": "exists",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "608732c5-ab13-494f-bba9-8863c09534d0",
+        "name": "Is Customer Top-Level Comment?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          240,
+          -176
+        ]
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "={{ $json.body?.entry?.[0]?.messaging?.[0]?.message?.text || $json.body?.entry?.[0]?.changes?.[0]?.value?.text || $json.chatInput || '' }}",
+          "options": {
+            "systemMessage": "You are the official luxury AI Property Advisor for Stage Properties Brokers L.L.C in Dubai, UAE.\n\nCLIENT CRM PROFILE:\n- Client Status: {{ ($('Supabase REST API (Check Repeat User)').item.json?.[0]?.id || $('Supabase REST API (Check Repeat User)').item.json?.id) ? 'REPEAT_CLIENT' : 'NEW_PROSPECT' }}\n- Known Full Name: {{ ($('Supabase REST API (Check Repeat User)').item.json?.[0]?.full_name || $('Supabase REST API (Check Repeat User)').item.json?.full_name || 'UNKNOWN') }}\n- Known Phone: {{ ($('Supabase REST API (Check Repeat User)').item.json?.[0]?.phone_number || $('Supabase REST API (Check Repeat User)').item.json?.phone_number || 'UNKNOWN') }}\n- Assigned Property Advisor: {{ ($('Supabase REST API (Check Repeat User)').item.json?.[0]?.assigned_agent_name || $('Supabase REST API (Check Repeat User)').item.json?.assigned_agent_name || 'Ador') }}\n\nSTRICT CONVERSATION PROTOCOL:\n\n1. REPEAT CLIENT PROTOCOL (When Known Full Name is NOT 'UNKNOWN' and NOT 'Valued Lead' and NOT 'Valued Customer'):\n   - Warmly greet them by their real name: \"Welcome back {{ ($('Supabase REST API (Check Repeat User)').item.json?.[0]?.full_name || $('Supabase REST API (Check Repeat User)').item.json?.full_name) }}! Great to assist you again at Stage Properties.\"\n   - DO NOT ask for their name or phone number. We already have them.\n   - Proceed directly to answering their question about Dubai properties (using \"search_stage_properties\" tool).\n\n2. NEW PROSPECT PROTOCOL (When Known Full Name is 'UNKNOWN'):\n   - Qualification Question 1: Ask: \"Are you looking for Residential, Commercial, or Off-Plan properties in Dubai?\"\n   - Property Search: When they name a development or community (e.g. Sobha Hartland, Eden, Vitalia, Valia, Opus), use the \"search_stage_properties\" tool to look up inventory, prices, and amenities.\n   - Qualification Question 2: Ask: \"Are you looking to BUY or RENT?\"\n   - Advisor Offer: Ask: \"Would you like to be connected to our {{category}} property advisor to explore exclusive units?\"\n   - If they agree:\n     a) Ask: \"What is your full name?\"\n     b) Once name is given, ask: \"What is the best phone number (with country code) to reach you on?\"\n\n3. DETERMINISTIC ADVISOR HANDOFF & SUMMARY:\n   - As soon as you have their Full Name and Phone Number (or if a returning client asks for advisor callback):\n   - You MUST append this EXACT structured block at the very end of your response:\nCONNECT_ADVISOR_START\n{\n  \"full_name\": \"<lead's full name>\",\n  \"phone_number\": \"<lead's phone number>\",\n  \"category\": \"<Residential/Commercial/Off-Plan>\",\n  \"intent\": \"<BUY or RENT>\",\n  \"property_interest\": \"<property name>\",\n  \"conversation_summary\": \"<brief 2-sentence summary of what was discussed, budget, and specific preferences for the sales advisor>\"\n}\nCONNECT_ADVISOR_END\n   - In your customer-facing reply before the block, say:\n   \"Give me a moment as I connect you to your dedicated advisor... {{assigned agent or Ador}} will contact you shortly to discuss more on {{intent}} your {{property}} property. Is there anything else I can assist you with today?\""
+          }
+        },
+        "id": "510754bb-6bdc-4e3c-a78b-7611955a2807",
+        "name": "real estate instagram dm",
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 3.1,
+        "position": [
+          160,
+          144
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "text",
+          "responseBody": "={{ $json.query.hub_challenge }}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          -1152,
+          128
+        ],
+        "id": "9778915a-93aa-46d5-85a5-7c0d1c7214cb",
+        "name": "Respond to Webhook"
+      },
+      {
+        "parameters": {
+          "url": "https://hastygfosgyxrxzrzrur.supabase.co/rest/v1/properties",
+          "sendQuery": true,
+          "specifyQuery": "json",
+          "jsonQuery": "={\n  \"select\": \"*\"\n}",
+          "sendHeaders": true,
+          "specifyHeaders": "json",
+          "jsonHeaders": "={\n  \"apikey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhc3R5Z2Zvc2d5eHJ4enJ6cnVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2NTA4ODEsImV4cCI6MjEwNjIyNjg4MX0.EVdnsyzWPuDJPJ_-ttg8DrA2Nl14Z04saG9Xj-rPjvg\",\n  \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhc3R5Z2Zvc2d5eHJ4enJ6cnVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2NTA4ODEsImV4cCI6MjEwNjIyNjg4MX0.EVdnsyzWPuDJPJ_-ttg8DrA2Nl14Z04saG9Xj-rPjvg\"\n}",
+          "options": {}
+        },
+        "id": "f0edcb50-83ad-4bc0-9ade-965a9b22b689",
+        "name": "search_stage_properties",
+        "type": "n8n-nodes-base.httpRequestTool",
+        "typeVersion": 4.5,
+        "position": [
+          560,
+          512
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://graph.facebook.com/v18.0/me/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "facebookGraphApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{\n  (() => {\n    const listenerBody = $('Instagram DM / Webhook Listener').item.json?.body;\n    const dmSenderId = listenerBody?.entry?.[0]?.messaging?.[0]?.sender?.id;\n    const commentId = listenerBody?.entry?.[0]?.changes?.[0]?.value?.id;\n    const commenterId = listenerBody?.entry?.[0]?.changes?.[0]?.value?.from?.id;\n\n    const recipient = dmSenderId\n      ? { id: dmSenderId }\n      : (commentId \n          ? { comment_id: commentId } \n          : { id: commenterId || '' });\n\n    const rawOutput = $json.output || '';\n    const cleanText = rawOutput\n      .replace(/CONNECT_ADVISOR_START[\\s\\S]*?CONNECT_ADVISOR_END/gi, '')\n      .replace(/\\{[\\s\\S]*?\"full_name\"[\\s\\S]*?\\}/gi, '')\n      .replace(/\\{[\\s\\S]*?\"lead_name\"[\\s\\S]*?\\}/gi, '')\n      .trim() || \"Hello! How can I assist you with Stage Properties today?\";\n\n    return JSON.stringify({\n      recipient,\n      message: {\n        text: cleanText\n      }\n    });\n  })()\n}}",
+          "options": {}
+        },
+        "id": "45c83df0-fb68-4ff7-b456-984f48f21446",
+        "name": "Send Instagram Direct Message",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.3,
+        "position": [
+          512,
+          144
+        ],
+        "onError": "continueRegularOutput",
+        "credentials": {
+          "facebookGraphApi": {
+            "id": "FEfOoHyUA6pzcT3p",
+            "name": "Facebook Graph (cillah.ai Page token)"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "combinator": "and",
+            "conditions": [
+              {
+                "leftValue": "={{ $('real estate instagram dm').item.json?.output || '' }}",
+                "operator": {
+                  "type": "string",
+                  "operation": "contains"
+                },
+                "rightValue": "CONNECT_ADVISOR_START"
+              }
+            ],
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose",
+              "version": 1
+            }
+          }
+        },
+        "id": "e9681337-9605-4b98-afc6-036b62daee3a",
+        "name": "Is Lead Fully Qualified?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          768,
+          144
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://graph.facebook.com/v18.0/me/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "facebookGraphApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{\n  (() => {\n    const listenerBody = $('Instagram DM / Webhook Listener').item.json?.body;\n    const dmSenderId = listenerBody?.entry?.[0]?.messaging?.[0]?.sender?.id;\n    const commentId = listenerBody?.entry?.[0]?.changes?.[0]?.value?.id;\n    const commenterId = listenerBody?.entry?.[0]?.changes?.[0]?.value?.from?.id;\n\n    const recipient = dmSenderId\n      ? { id: dmSenderId }\n      : (commentId \n          ? { comment_id: commentId } \n          : { id: commenterId || '' });\n\n    const activeAgent = $('Fetch Active Sales Agent').item.json?.[0] || $('Fetch Active Sales Agent').item.json || {};\n    const leadData = $('Parse Qualified Lead Data').item.json || {};\n    const agentName = $json.assigned_agent_name || activeAgent.full_name || 'Ador';\n    const intentStr = (leadData.intent || $json.intent) == 'RENT' ? 'renting' : 'buying';\n    const propStr = leadData.property_interest || $json.property_interest || 'property interest';\n\n    return JSON.stringify({\n      recipient,\n      message: {\n        text: agentName + \" will contact you shortly to discuss more on \" + intentStr + \" your \" + propStr + \" property.\"\n      }\n    });\n  })()\n}}",
+          "options": {}
+        },
+        "id": "d20d54f5-2fe3-4679-9521-6d7d745e6c76",
+        "name": "Send Agent Handoff Confirmation DM",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.3,
+        "position": [
+          2256,
+          448
+        ],
+        "onError": "continueRegularOutput",
+        "credentials": {
+          "facebookGraphApi": {
+            "id": "FEfOoHyUA6pzcT3p",
+            "name": "Facebook Graph (cillah.ai Page token)"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": false,
+              "leftValue": "",
+              "typeValidation": "loose",
+              "version": 1
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $json.body?.entry?.[0]?.changes?.[0]?.value?.from?.username || '' }}",
+                "operator": {
+                  "type": "string",
+                  "operation": "notEquals"
+                },
+                "rightValue": "cillah.dev"
+              },
+              {
+                "leftValue": "={{ $json.body?.entry?.[0]?.changes?.[0]?.value?.text || '' }}",
+                "operator": {
+                  "type": "string",
+                  "operation": "notContains"
+                },
+                "rightValue": "Check your DMs"
+              },
+              {
+                "leftValue": "={{ $json.body?.entry?.[0]?.messaging?.[0]?.message?.is_echo || false }}",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "false"
+                }
+              },
+              {
+                "leftValue": "={{ $json.body?.entry?.[0]?.messaging?.[0]?.sender?.id || '' }}",
+                "operator": {
+                  "type": "string",
+                  "operation": "notEquals"
+                },
+                "rightValue": "17841416012634072"
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "3fee865c-a682-4a89-a6a8-b4888abe17b0",
+        "name": "Is Incoming Customer Message?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          -480,
+          144
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const output = $('real estate instagram dm').item.json?.output || '';\nconst match = output.match(/CONNECT_ADVISOR_START([\\s\\S]*?)CONNECT_ADVISOR_END/);\n\nlet lead_name = 'Cheryl Atulah';\nlet lead_phone = '+254 794 357 912';\nlet category = 'Residential';\nlet intent = 'BUY';\nlet property_interest = 'Sobha Hartland';\nlet conversation_summary = 'Customer inquired about Dubai luxury real estate.';\n\nif (match) {\n  try {\n    const data = JSON.parse(match[1].trim());\n    lead_name = data.full_name || lead_name;\n    lead_phone = data.phone_number || lead_phone;\n    category = data.category || category;\n    intent = data.intent || intent;\n    property_interest = data.property_interest || property_interest;\n    conversation_summary = data.conversation_summary || conversation_summary;\n  } catch (e) {}\n}\n\nconst listenerBody = $('Instagram DM / Webhook Listener').item.json?.body;\nconst igUserId = listenerBody?.entry?.[0]?.messaging?.[0]?.sender?.id || listenerBody?.entry?.[0]?.changes?.[0]?.value?.from?.id || '';\n\nreturn [{\n  json: {\n    org_id: 'a1b2c3d4-e5f6-7890-abcd-111111111111',\n    ig_user_id: igUserId,\n    full_name: lead_name,\n    phone_number: lead_phone,\n    category: category,\n    intent: intent,\n    property_interest: property_interest,\n    conversation_summary: conversation_summary,\n    source: 'instagram'\n  }\n}];"
+        },
+        "id": "fa931047-9816-4b51-bc0a-f7a244fd12e5",
+        "name": "Parse Qualified Lead Data",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1008,
+          -32
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://hastygfosgyxrxzrzrur.supabase.co/rest/v1/sales_leads",
+          "sendHeaders": true,
+          "specifyHeaders": "json",
+          "sendBody": true,
+          "specifyBody": "json",
+          "options": {}
+        },
+        "id": "71fb4e0a-64ab-46aa-b0ad-9b216c60a368",
+        "name": "Supabase REST API (Sync to Sales Leads)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.3,
+        "position": [
+          2032,
+          752
+        ],
+        "onError": "continueRegularOutput"
+      }
+    ],
+    "connections": {
+      "Instagram DM / Webhook Listener": {
+        "main": [
+          [
+            {
+              "node": "Respond to Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Is Incoming Customer Message?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "OpenAI Model (GPT-4o)": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "real estate instagram dm",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Window Buffer Memory": {
+        "ai_memory": [
+          [
+            {
+              "node": "real estate instagram dm",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Supabase REST API (Insert Lead)": {
+        "main": [
+          [
+            {
+              "node": "Notify New Agent Ador on WhatsApp",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Send Agent Handoff Confirmation DM",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Supabase REST API (Sync to Sales Leads)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Is Customer Top-Level Comment?": {
+        "main": [
+          [
+            {
+              "node": "Public Comment Reply (Check your DMs)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "search_stage_properties": {
+        "ai_tool": [
+          [
+            {
+              "node": "real estate instagram dm",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Instagram Direct Message": {
+        "main": [
+          [
+            {
+              "node": "Is Lead Fully Qualified?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Agent Handoff Confirmation DM": {
+        "main": [
+          [
+            {
+              "node": "Notify New Agent Ador on WhatsApp",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Is Incoming Customer Message?": {
+        "main": [
+          [
+            {
+              "node": "Is Customer Top-Level Comment?",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Supabase REST API (Check Repeat User)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Is Lead Fully Qualified?": {
+        "main": [
+          [
+            {
+              "node": "Parse Qualified Lead Data",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "real estate instagram dm": {
+        "main": [
+          [
+            {
+              "node": "Send Instagram Direct Message",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Supabase REST API (Check Repeat User)": {
+        "main": [
+          [
+            {
+              "node": "real estate instagram dm",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Qualified Lead Data": {
+        "main": [
+          [
+            {
+              "node": "Supabase REST API (Insert Lead)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": []
+  },
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  }
+}
