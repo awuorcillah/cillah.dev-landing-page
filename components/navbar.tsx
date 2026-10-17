@@ -50,13 +50,11 @@ export function Navbar() {
 
   const navItems = [
     { name: "Home", href: "/" },
-    { name: "Our Services", href: "/#the-interface" },
+    { name: "Our Services", href: "/our-services" },
     { name: "Use Cases", href: "/use-cases" },
     { name: "Pricing", href: "/pricing" },
     { name: "Book Consultation", href: "/book-consultation" },
   ]
-
-  const clientPortalUrl = "https://cillah.convocore.ai/"
 
   const isActive = (path: string) => {
     if (path === "/" && pathname !== "/") return false
