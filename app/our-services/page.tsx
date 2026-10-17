@@ -128,7 +128,7 @@ export default function ServicesPage() {
               </h1>
 
               <p className="text-[15px] sm:text-[17px] leading-relaxed text-[#F9F7F6]/70 max-w-2xl mx-auto font-light pt-2">
-                No confusing tech jargon. We build the central digital headquarters and 24/7 AI systems that turn customer inquiries into revenue while saving your team hundreds of manual hours.
+                We build the central digital headquarters and 24/7 AI systems that turn customer inquiries into revenue while saving your team hundreds of manual hours.
               </p>
             </motion.div>
           </div>
