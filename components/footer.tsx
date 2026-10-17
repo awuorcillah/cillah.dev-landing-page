@@ -40,7 +40,7 @@ export function Footer() {
             <Link href="/" className="flex items-center gap-3 mb-6 group">
               <div className="relative h-10 w-10 rounded-full overflow-hidden border border-[#C9A66B]/30">
                 <img 
-                  src="/images/cillah-logo.jpg" 
+                  src="/images/cillah-emblem.png" 
                   alt="Cillah.dev Logo"
                   className="object-cover h-full w-full"
                 />

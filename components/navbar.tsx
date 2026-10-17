@@ -70,7 +70,7 @@ export function Navbar() {
         <Link href="/" className="flex items-center gap-3 group">
           <div className="relative h-12 w-12 rounded-full overflow-hidden border border-[#C9A66B]/30 group-hover:border-[#C9A66B] transition-colors duration-300">
             <img 
-              src="/images/cillah-logo.jpg" 
+              src="/images/cillah-emblem.png" 
               alt="Cillah.dev Logo"
               className="object-cover h-full w-full"
             />

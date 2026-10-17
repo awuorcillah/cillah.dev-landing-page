@@ -24,7 +24,7 @@ export default function ClientPortalRedirect() {
           className="relative h-20 w-20 rounded-full overflow-hidden border border-[#C9A66B]/30 mx-auto mb-8"
         >
           <img 
-            src="/images/cillah-logo.jpg" 
+            src="/images/cillah-emblem.png" 
             alt="Cillah.ai Logo"
             className="object-cover h-full w-full"
           />

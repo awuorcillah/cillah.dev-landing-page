@@ -45,9 +45,9 @@ export const metadata: Metadata = {
       "Cillah.dev is the luxury operating system behind high-performing real estate agencies. Streamline your operations, client services, and workflows.",
   },
   icons: {
-    icon: "/images/cillah-logo.jpg",
-    shortcut: "/images/cillah-logo.jpg",
-    apple: "/images/cillah-logo.jpg",
+    icon: "/images/cillah-emblem.png",
+    shortcut: "/images/cillah-emblem.png",
+    apple: "/images/cillah-emblem.png",
   },
 }
 

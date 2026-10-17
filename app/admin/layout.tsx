@@ -190,7 +190,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Logo */}
         <div className="flex items-center gap-3 px-3 py-4 border-b border-slate-800 flex-shrink-0">
           <div className="w-8 h-8 rounded-full overflow-hidden border border-[#C9A66B]/40 flex-shrink-0">
-            <img src="/images/cillah-logo.jpg" alt="Logo" className="w-full h-full object-cover" />
+            <img src="/images/cillah-emblem.png" alt="Logo" className="w-full h-full object-cover" />
           </div>
           {expanded && (
             <div className="overflow-hidden">
