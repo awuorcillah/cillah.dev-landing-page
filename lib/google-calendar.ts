@@ -229,22 +229,16 @@ export async function createCalendarEvent(event: {
       dateTime: end.toISOString(),
       timeZone: "Africa/Nairobi"
     },
-    attendees: [
-      { email: event.guestEmail, displayName: "Client" },
-      { email: "atulah@cillah.dev", displayName: "Atulah (Cillah.dev)" }
-    ],
     reminders: {
       useDefault: false,
       overrides: [
-        { method: "email", minutes: 1440 }, // 24 hours before
-        { method: "email", minutes: 60 },   // 1 hour before
         { method: "popup", minutes: 30 }
       ]
     }
   };
 
   const response = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=all`,
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
     {
       method: "POST",
       headers: {
