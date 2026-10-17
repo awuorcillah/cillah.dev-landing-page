@@ -180,7 +180,7 @@ export async function POST(request: Request) {
 
     // Fallback Google Meet link if not returned
     if (!googleMeetUrl) {
-      googleMeetUrl = process.env.GOOGLE_MEET_URL || "https://meet.google.com/qmv-oxsm-vvg"
+      googleMeetUrl = process.env.GOOGLE_MEET_URL || "https://meet.google.com/nic-uekp-fwh"
     }
 
     // 5. Create Appointment in public.appointments

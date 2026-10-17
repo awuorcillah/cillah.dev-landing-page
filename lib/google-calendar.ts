@@ -213,7 +213,7 @@ export async function createCalendarEvent(event: {
 
   const start = new Date(event.startDateTime);
   const end = new Date(start.getTime() + 60 * 60 * 1000); // 1 hour duration
-  const designatedMeetUrl = event.meetUrl || process.env.GOOGLE_MEET_URL || "https://meet.google.com/qmv-oxsm-vvg";
+  const designatedMeetUrl = event.meetUrl || process.env.GOOGLE_MEET_URL || "https://meet.google.com/nic-uekp-fwh";
 
   const payload: any = {
     summary: event.summary,
