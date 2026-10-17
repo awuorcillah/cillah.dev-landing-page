@@ -189,8 +189,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className={`flex flex-col h-full bg-slate-900 border-r border-slate-800 transition-all duration-300 ${expanded ? 'w-60' : 'w-14'} overflow-hidden`}>
         {/* Logo */}
         <div className="flex items-center gap-3 px-3 py-4 border-b border-slate-800 flex-shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-[#C9A66B]/20 border border-[#C9A66B]/40 flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-4 h-4 text-[#C9A66B]" />
+          <div className="w-8 h-8 rounded-full overflow-hidden border border-[#C9A66B]/40 flex-shrink-0">
+            <img src="/images/cillah-logo.jpg" alt="Logo" className="w-full h-full object-cover" />
           </div>
           {expanded && (
             <div className="overflow-hidden">

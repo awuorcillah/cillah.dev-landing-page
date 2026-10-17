@@ -99,8 +99,8 @@ export default function SignUpPage() {
       
       <Card className="w-full max-w-md bg-slate-900/80 border-slate-800 backdrop-blur-xl shadow-2xl relative z-10">
         <CardHeader className="text-center space-y-2">
-          <div className="mx-auto w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
-            <Sparkles className="w-6 h-6" />
+          <div className="mx-auto w-14 h-14 rounded-full overflow-hidden border border-[#C9A66B]/40 shadow-lg">
+            <img src="/images/cillah-logo.jpg" alt="cillah.dev" className="w-full h-full object-cover" />
           </div>
           <CardTitle className="text-2xl font-bold bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
             Create an Account
