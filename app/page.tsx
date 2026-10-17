@@ -22,7 +22,6 @@ import {
 } from "lucide-react"
 
 export default function HomePage() {
-  const clientPortalUrl = "https://cillah.convocore.ai/"
 
   const scrollToHowItWorks = () => {
     document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })
@@ -95,59 +94,13 @@ export default function HomePage() {
         <section className="relative pt-32 pb-24 md:pt-40 md:pb-32 flex flex-col items-center justify-center border-b border-white/5">
           <div className="container mx-auto max-w-5xl px-6 md:px-12 relative z-10 text-center flex flex-col items-center">
             
-            {/* 1. Top 4 Action Buttons - 2 Rows of 2 Side-by-Side Buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: "easeOut" }}
-              className="w-full max-w-lg mx-auto mb-12 px-2"
-            >
-              <div className="grid grid-cols-2 gap-3 w-full">
-                {/* Row 1: Login & Sign Up */}
-                <a
-                  href="/login"
-                  className="w-full inline-flex items-center justify-center px-4 py-3.5 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#C9A66B]/50 font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_15px_rgba(201,166,107,0.2)] text-center"
-                >
-                  Login
-                </a>
-                <a
-                  href="/signup"
-                  className="w-full inline-flex items-center justify-center px-4 py-3.5 rounded-[14px] bg-[#C9A66B] text-[#07070B] hover:bg-[#C9A66B]/90 font-heading font-semibold text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 hover:shadow-[0_0_20px_rgba(201,166,107,0.4)] text-center"
-                >
-                  Sign Up
-                </a>
-
-                {/* Row 2: Book a Consultation & Our Services */}
-                <a
-                  href="/book-consultation"
-                  className="w-full inline-flex items-center justify-center px-4 py-3.5 rounded-[14px] bg-white/5 border border-[#C9A66B]/40 text-[#C9A66B] hover:bg-[#C9A66B]/10 hover:border-[#C9A66B] font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_20px_rgba(201,166,107,0.25)] text-center"
-                >
-                  Book a Consultation
-                </a>
-                <a
-                  href="#the-interface"
-                  className="w-full inline-flex items-center justify-center px-4 py-3.5 rounded-[14px] bg-white/5 border border-white/15 text-[#F9F7F6] hover:bg-white/10 hover:border-[#F2B6C1]/50 font-heading font-medium text-[13px] sm:text-[14px] tracking-wide transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_15px_rgba(242,182,193,0.2)] text-center"
-                >
-                  Our Services
-                </a>
-              </div>
-            </motion.div>
-
-            {/* 2. Headline & Subtexts */}
+            {/* Headline & Subtexts */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
               className="max-w-4xl mx-auto flex flex-col items-center text-center mb-16"
             >
-              {/* Luxury Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 mb-8 backdrop-blur-md">
-                <Sparkles className="h-4 w-4 text-[#C9A66B]" />
-                <span className="text-[11px] font-medium tracking-[0.25em] uppercase text-[#F2B6C1]">
-                  Ultra-Premium AI Systems
-                </span>
-              </div>
-
               {/* Luxury Headline */}
               <h1 className="font-heading font-light text-[34px] sm:text-[44px] md:text-[56px] leading-[1.12] text-[#F9F7F6] mb-8 text-balance">
                 The business owner who values <br className="hidden md:inline" />

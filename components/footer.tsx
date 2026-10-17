@@ -23,7 +23,6 @@ export function Footer() {
   const instagram = "https://www.instagram.com/cheryl_cilla"
   const facebook = "https://www.facebook.com/share/1EbU2KjfER/"
   const tiktok = "https://www.tiktok.com/@cillah.dev"
-  const clientPortalUrl = "https://cillah.convocore.ai/"
 
   const quickLinks = [
     { name: "Home", href: "/" },
@@ -109,16 +108,6 @@ export function Footer() {
                   </Link>
                 </li>
               ))}
-              <li>
-                <a 
-                  href={clientPortalUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#F9F7F6]/60 hover:text-[#C9A66B] text-[15px] transition-colors duration-300"
-                >
-                  Client Portal
-                </a>
-              </li>
             </ul>
           </div>
 
