@@ -18,7 +18,9 @@ import {
   CheckCircle,
   TrendingUp,
   Cpu,
-  ArrowUpRight
+  ArrowUpRight,
+  MapPin,
+  ShieldCheck
 } from "lucide-react"
 
 export default function HomePage() {
@@ -160,10 +162,23 @@ export default function HomePage() {
               className="text-center"
             >
               {/* Gold accent divider */}
-              <div className="flex items-center justify-center gap-4 mb-8">
+              <div className="flex items-center justify-center gap-4 mb-6">
                 <div className="h-px w-16 bg-gradient-to-r from-transparent to-[#C9A66B]" />
                 <Sparkles className="h-5 w-5 text-[#C9A66B]" />
                 <div className="h-px w-16 bg-gradient-to-l from-transparent to-[#C9A66B]" />
+              </div>
+
+              {/* Sleek Trust & Registration Badge */}
+              <div className="inline-flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 px-4 py-2 rounded-full bg-[#4A2D35]/[0.08] border border-[#4A2D35]/20 text-[#2A1A1F] text-xs font-medium mb-6 shadow-sm">
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-[#C9A66B] shrink-0" />
+                  <span>Headquartered in Nairobi, Kenya</span>
+                </span>
+                <span className="text-[#4A2D35]/30 hidden sm:inline">&bull;</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#C9A66B] shrink-0" />
+                  <span>Registered as Cillah AI Automation (Govt. of Kenya &bull; BN-5559Q2JL)</span>
+                </span>
               </div>
 
               {/* Main headline */}

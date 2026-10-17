@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Linkedin, Instagram, Mail, Phone, Facebook } from "lucide-react"
+import { Linkedin, Instagram, Mail, Phone, Facebook, MapPin } from "lucide-react"
 
 // Inline TikTok icon to prevent version compatibility issues
 function TikTokIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -118,6 +118,12 @@ export function Footer() {
             </h4>
             <ul className="space-y-4">
               <li>
+                <div className="inline-flex items-center gap-3 text-[#F9F7F6]/60 text-[15px]">
+                  <MapPin className="h-4 w-4 text-[#C9A66B] shrink-0" />
+                  <span>Nairobi, Kenya</span>
+                </div>
+              </li>
+              <li>
                 <a 
                   href={`mailto:${contactEmail}`} 
                   className="inline-flex items-center gap-3 text-[#F9F7F6]/60 hover:text-[#C9A66B] text-[15px] transition-colors duration-300"
@@ -157,10 +163,10 @@ export function Footer() {
 
         <div className="pt-8 border-t border-[#F4E7E7]/10 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
           <p className="text-sm text-[#F9F7F6]/40 font-sans">
-            &copy; {currentYear} {brandName} — Operated by Cillah AI Automation (BN-5559Q2JL). All rights reserved.
+            &copy; {currentYear} {brandName} — Registered as Cillah AI Automation (Govt. of Kenya &bull; BN-5559Q2JL). All rights reserved.
           </p>
           <p className="text-sm text-[#F9F7F6]/30 font-sans">
-            Operating System for Premium Real Estate
+            Nairobi, Kenya &bull; Modern Digital Operating Systems
           </p>
         </div>
       </div>
