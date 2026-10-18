@@ -99,9 +99,68 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
-              "@type": "Organization",
-              name: "Cillah.dev",
-              description: "The Operating System Behind High-Performing Real Estate Agencies",
+              "@graph": [
+                {
+                  "@type": ["Organization", "ProfessionalService"],
+                  "@id": "https://cillah.dev/#organization",
+                  "name": "Cillah.dev",
+                  "legalName": "Cillah AI Automation",
+                  "url": "https://cillah.dev",
+                  "logo": {
+                    "@type": "ImageObject",
+                    "@id": "https://cillah.dev/#logo",
+                    "url": "https://cillah.dev/images/cillah-emblem.png",
+                    "contentUrl": "https://cillah.dev/images/cillah-emblem.png",
+                    "caption": "Cillah.dev Logo"
+                  },
+                  "image": "https://cillah.dev/images/cillah-emblem.png",
+                  "description": "Cillah.dev is a software solutions company and digital operating system builder. We build custom web applications, autonomous AI agents in messaging inboxes (WhatsApp, Instagram), and unified CRM marketing automations for businesses in Nairobi, Kenya and globally.",
+                  "email": "atulah@cillah.dev",
+                  "telephone": "+254759442265",
+                  "address": {
+                    "@type": "PostalAddress",
+                    "addressLocality": "Nairobi",
+                    "addressCountry": "KE",
+                    "streetAddress": "Nairobi, Kenya"
+                  },
+                  "geo": {
+                    "@type": "GeoCoordinates",
+                    "latitude": -1.2921,
+                    "longitude": 36.8219
+                  },
+                  "identifier": {
+                    "@type": "PropertyValue",
+                    "name": "Government of Kenya Business Registration",
+                    "value": "BN-5559Q2JL"
+                  },
+                  "sameAs": [
+                    "https://www.linkedin.com/in/cheryl-cilla-77a125415",
+                    "https://www.instagram.com/cheryl_cilla",
+                    "https://www.facebook.com/share/1EbU2KjfER/",
+                    "https://www.tiktok.com/@cillah.dev"
+                  ],
+                  "priceRange": "$$$$",
+                  "currenciesAccepted": "KES, USD",
+                  "paymentAccepted": "M-Pesa, Credit Card, Bank Transfer",
+                  "areaServed": [
+                    { "@type": "Country", "name": "Kenya" },
+                    { "@type": "Country", "name": "United States" },
+                    { "@type": "Country", "name": "United Kingdom" },
+                    { "@type": "Country", "name": "United Arab Emirates" }
+                  ]
+                },
+                {
+                  "@type": "WebSite",
+                  "@id": "https://cillah.dev/#website",
+                  "url": "https://cillah.dev",
+                  "name": "Cillah.dev",
+                  "description": "Modern Digital Operating Systems, Custom Web Applications & Autonomous AI Agents",
+                  "publisher": {
+                    "@id": "https://cillah.dev/#organization"
+                  },
+                  "inLanguage": "en-US"
+                }
+              ]
             }),
           }}
         />

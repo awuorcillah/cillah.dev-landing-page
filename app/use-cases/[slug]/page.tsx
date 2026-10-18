@@ -1,6 +1,7 @@
 import fs from "fs"
 import path from "path"
 import Link from "next/link"
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
@@ -162,6 +163,40 @@ interface PageProps {
   params: Promise<{ slug: string }>
 }
 
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params
+  const useCase = getUseCase(slug)
+
+  if (!useCase) {
+    return {
+      title: "Case Study Not Found | Cillah.dev",
+    }
+  }
+
+  const canonicalUrl = `https://cillah.dev/use-cases/${slug}`
+
+  return {
+    title: `${useCase.title} | Case Study | Cillah.dev`,
+    description: useCase.teaser,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title: `${useCase.title} | Cillah.dev`,
+      description: useCase.teaser,
+      url: canonicalUrl,
+      type: "article",
+      images: useCase.featuredImage ? [useCase.featuredImage] : ["/images/cillah-emblem.png"],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${useCase.title} | Cillah.dev`,
+      description: useCase.teaser,
+      images: useCase.featuredImage ? [useCase.featuredImage] : ["/images/cillah-emblem.png"],
+    },
+  }
+}
+
 export default async function UseCasePage({ params }: PageProps) {
   const { slug } = await params
   const useCase = getUseCase(slug)
@@ -248,6 +283,38 @@ export default async function UseCasePage({ params }: PageProps) {
           </div>
         </section>
 
+        {/* Schema.org Article / Case Study JSON-LD */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Article",
+              headline: useCase.title,
+              description: useCase.teaser,
+              datePublished: useCase.publishedAt || "2026-09-01",
+              mainEntityOfPage: {
+                "@type": "WebPage",
+                "@id": `https://cillah.dev/use-cases/${slug}`,
+              },
+              author: {
+                "@type": "Organization",
+                name: "Cillah AI Automation",
+                url: "https://cillah.dev",
+              },
+              publisher: {
+                "@type": "Organization",
+                name: "Cillah.dev",
+                legalName: "Cillah AI Automation",
+                url: "https://cillah.dev",
+                logo: {
+                  "@type": "ImageObject",
+                  url: "https://cillah.dev/images/cillah-emblem.png",
+                },
+              },
+            }),
+          }}
+        />
       </main>
 
       <Footer />
