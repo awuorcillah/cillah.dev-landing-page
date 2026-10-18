@@ -52,6 +52,7 @@ export function Navbar() {
     { name: "Home", href: "/" },
     { name: "Our Services", href: "/our-services" },
     { name: "Use Cases", href: "/use-cases" },
+    { name: "Articles", href: "/articles" },
     { name: "Pricing", href: "/pricing" },
     { name: "FAQs", href: "/#faq" },
     { name: "Book Consultation", href: "/book-consultation" },

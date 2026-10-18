@@ -28,6 +28,7 @@ export function Footer() {
     { name: "Home", href: "/" },
     { name: "Our Services", href: "/our-services" },
     { name: "Use Cases", href: "/use-cases" },
+    { name: "Articles", href: "/articles" },
     { name: "FAQs", href: "/#faq" },
     { name: "Book Consultation", href: "/book-consultation" },
   ]

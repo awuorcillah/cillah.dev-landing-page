@@ -20,6 +20,10 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://cillah.dev"),
+  alternates: {
+    canonical: "https://cillah.dev",
+  },
   title: "Cillah.dev | The Operating System Behind High-Performing Real Estate Agencies",
   description:
     "Cillah.dev is the luxury operating system behind high-performing real estate agencies. Streamline your operations, client services, and workflows with premium SaaS technology.",
