@@ -28,6 +28,7 @@ export function Footer() {
     { name: "Home", href: "/" },
     { name: "Our Services", href: "/our-services" },
     { name: "Use Cases", href: "/use-cases" },
+    { name: "FAQs", href: "/#faq" },
     { name: "Book Consultation", href: "/book-consultation" },
   ]
 
@@ -161,10 +162,17 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="pt-8 border-t border-[#F4E7E7]/10 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
-          <p className="text-sm text-[#F9F7F6]/40 font-sans">
-            &copy; {currentYear} {brandName} — Registered as Cillah AI Automation (Govt. of Kenya &bull; BN-5559Q2JL). All rights reserved.
-          </p>
+        <div className="pt-8 border-t border-[#F4E7E7]/10 flex flex-col lg:flex-row justify-between items-center gap-4 text-center lg:text-left">
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <p className="text-sm text-[#F9F7F6]/40 font-sans">
+              &copy; {currentYear} {brandName} — Registered as Cillah AI Automation (Govt. of Kenya &bull; BN-5559Q2JL). All rights reserved.
+            </p>
+            <span className="hidden sm:inline text-[#F4E7E7]/20">&bull;</span>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-sans">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Systems Active &bull; Last Audit: October 2026</span>
+            </div>
+          </div>
           <p className="text-sm text-[#F9F7F6]/30 font-sans">
             Nairobi, Kenya &bull; Modern Digital Operating Systems
           </p>

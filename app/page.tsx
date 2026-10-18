@@ -1,6 +1,7 @@
 "use client"
 
-import { motion } from "framer-motion"
+import { useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { 
@@ -20,7 +21,9 @@ import {
   Cpu,
   ArrowUpRight,
   MapPin,
-  ShieldCheck
+  ShieldCheck,
+  ChevronDown,
+  HelpCircle
 } from "lucide-react"
 
 export default function HomePage() {
@@ -68,6 +71,51 @@ export default function HomePage() {
     { label: "Lead Qualification", val: "Automatic", note: "Budget, location & intent", category: "AI" },
     { label: "Lead Distribution", val: "Automatic", note: "Assigned to the right sales agent", category: "Smart" },
     { label: "Viewings", val: "more sales", note: "Without manual coordination", category: "Growth" }
+  ]
+
+  const [openFaq, setOpenFaq] = useState<number | null>(0)
+
+  const faqs = [
+    {
+      question: "What exactly does Cillah.dev build for my business?",
+      answer: "We build custom digital operating systems. That includes a luxury, high-converting website or client-facing web application (front-end), a private command dashboard where your team manages listings, clients, and orders (back-end), and autonomous AI agents in your WhatsApp, Instagram, and web chat that handle customer inquiries and lead qualification 24/7."
+    },
+    {
+      question: "How do your AI agents work inside WhatsApp and Instagram?",
+      answer: "Our AI agents connect directly into your official business inboxes. When a potential customer sends a DM on Instagram, a message on WhatsApp, or asks a question on your website, the AI responds in under 30 seconds. It answers questions using your business rules, qualifies the lead (budget, timeline, location), captures their contact information, and can even process payments or book appointments directly into your calendar."
+    },
+    {
+      question: "Will the AI replace my human sales team or assist them?",
+      answer: "It empowers your team by eliminating repetitive busywork. The AI handles the initial 80% of repetitive questions (availability, pricing, location, basic onboarding) instantly at any time of day or night. As soon as a lead is qualified or requests a consultation, the AI immediately routes the full conversation and customer profile to your human sales representatives."
+    },
+    {
+      question: "How is a custom web application different from a standard WordPress or Wix template?",
+      answer: "Standard website templates are static digital brochures that often break, run slowly, and require manual maintenance. We build custom web applications on modern infrastructure that act as a single source of truth for your business—integrating inventory, customer databases, payment gateways (like M-Pesa and credit cards), and team workflows into one centralized system that your business owns completely."
+    },
+    {
+      question: "Can you connect our website and inboxes to our existing CRM or spreadsheets?",
+      answer: "Yes. We connect your website, social media ad campaigns (Meta, TikTok, Google), inboxes, and internal tools into one cohesive pipeline. Inquiries flowing in from social media ads or website forms are automatically formatted, categorized, and fed into your CRM, database, or Google Sheets without anyone needing to copy and paste manually."
+    },
+    {
+      question: "Can customers pay deposits or book consultations directly on our website?",
+      answer: "Absolutely. We integrate direct payment processing (such as M-Pesa STK push, credit cards, or bank transfers) and calendar booking workflows. Customers can select an available time slot, complete their payment, and receive instant confirmation via email and SMS with Google Meet or in-person meeting details automatically generated."
+    },
+    {
+      question: "How long does a typical project take from start to finish?",
+      answer: "Most standard implementations—including custom web application build, AI agent training, inbox integration, and workflow automations—take between 2 to 4 weeks. We work with speed and precision so your business starts capturing more revenue without long development delays."
+    },
+    {
+      question: "What ongoing support and maintenance do you provide after launch?",
+      answer: "We don't just launch and leave. We provide ongoing system monitoring, AI knowledge base updates as your services expand, server maintenance, performance audits, and rapid technical support to ensure your operating system runs smoothly at all times."
+    },
+    {
+      question: "Is our business data and customer information secure?",
+      answer: "Yes. Security and privacy are foundational. Your customer data, conversations, and internal databases are protected using enterprise-grade encryption, secure server authentication, and role-based access control. You maintain full ownership and control over your proprietary data."
+    },
+    {
+      question: "Where is Cillah.dev located and how do we get started?",
+      answer: "Cillah.dev is headquartered in Nairobi, Kenya, and officially registered as Cillah AI Automation (Govt. of Kenya • BN-5559Q2JL). To get started, you can book a one-on-one consultation through our website or reach out directly to our team via WhatsApp or email to discuss your business requirements."
+    }
   ]
 
   return (
@@ -784,7 +832,97 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 8. FINAL CTA BUTTONS */}
+        {/* 8. FREQUENTLY ASKED QUESTIONS (AEO / DIRECT ANSWERS) */}
+        <section id="faq" className="py-24 md:py-32 border-b border-white/5 bg-[#0A0A0E] relative overflow-hidden">
+          {/* Subtle ambient rose-gold glow */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#C9A66B]/5 blur-[140px] pointer-events-none rounded-full" />
+
+          <div className="container mx-auto max-w-4xl px-6 md:px-12 relative z-10">
+            {/* Header */}
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-heading font-medium tracking-widest uppercase text-[#C9A66B] mb-4">
+                <HelpCircle className="w-3.5 h-3.5" />
+                <span>Answers &amp; Clarity</span>
+              </div>
+              <h2 className="font-heading font-light text-[30px] sm:text-[38px] md:text-[44px] text-[#F9F7F6] leading-tight mb-4">
+                Frequently Asked Questions
+              </h2>
+              <p className="text-[15px] sm:text-[17px] text-[#F9F7F6]/60 font-light max-w-2xl mx-auto">
+                Clear, direct answers for business owners who value speed, control, and automated revenue.
+              </p>
+            </div>
+
+            {/* Accordion List */}
+            <div className="space-y-4">
+              {faqs.map((faq, idx) => {
+                const isOpen = openFaq === idx
+                return (
+                  <div
+                    key={idx}
+                    className={`rounded-[18px] border transition-all duration-300 overflow-hidden ${
+                      isOpen
+                        ? "bg-white/[0.04] border-[#C9A66B]/40 shadow-[0_4px_24px_rgba(0,0,0,0.3)]"
+                        : "bg-white/[0.015] border-white/10 hover:border-white/20 hover:bg-white/[0.03]"
+                    }`}
+                  >
+                    <button
+                      onClick={() => setOpenFaq(isOpen ? null : idx)}
+                      className="w-full p-6 text-left flex items-center justify-between gap-4 cursor-pointer focus:outline-none"
+                      aria-expanded={isOpen}
+                    >
+                      <span className="font-heading font-medium text-[16px] sm:text-[18px] text-[#F9F7F6] pr-4">
+                        {faq.question}
+                      </span>
+                      <div
+                        className={`h-8 w-8 rounded-full border border-white/10 flex items-center justify-center shrink-0 transition-transform duration-300 ${
+                          isOpen ? "rotate-180 bg-[#C9A66B]/15 border-[#C9A66B]/50" : "bg-white/5"
+                        }`}
+                      >
+                        <ChevronDown className={`w-4 h-4 ${isOpen ? "text-[#C9A66B]" : "text-[#F9F7F6]/60"}`} />
+                      </div>
+                    </button>
+
+                    <AnimatePresence initial={false}>
+                      {isOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25, ease: "easeInOut" }}
+                        >
+                          <div className="px-6 pb-6 pt-1 text-[14px] sm:text-[15px] leading-relaxed text-[#F9F7F6]/75 font-light border-t border-white/5">
+                            {faq.answer}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Schema.org FAQPage for Answer Engine Optimization (AEO) */}
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{
+                __html: JSON.stringify({
+                  "@context": "https://schema.org",
+                  "@type": "FAQPage",
+                  "mainEntity": faqs.map((faq) => ({
+                    "@type": "Question",
+                    "name": faq.question,
+                    "acceptedAnswer": {
+                      "@type": "Answer",
+                      "text": faq.answer
+                    }
+                  }))
+                })
+              }}
+            />
+          </div>
+        </section>
+
+        {/* 9. FINAL CTA BUTTONS */}
         <section className="py-24 bg-[#07070B]">
           <div className="container mx-auto max-w-5xl px-6 text-center">
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
