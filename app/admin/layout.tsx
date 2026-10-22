@@ -204,9 +204,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           {expanded && (
             <div className="overflow-hidden">
-              <p className="text-sm font-bold text-slate-100 leading-none">cillah.dev</p>
+              <p className="text-sm font-bold text-slate-100 leading-none">
+                {isSuperAdmin ? 'Cillah AI Automation' : 'cillah.dev'}
+              </p>
               <p className="text-[10px] text-[#C9A66B] mt-0.5 font-semibold">
-                {isSuperAdmin ? 'CEO Control Panel' : 'Sales Admin Panel'}
+                {isSuperAdmin ? 'SaaS Platform Owner' : 'Organization Admin (cillah.dev)'}
               </p>
             </div>
           )}
@@ -214,89 +216,95 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Nav Links */}
         <nav className="flex-1 px-2 py-3 space-y-2 overflow-y-auto">
-          {/* Dashboard (VISIBLE TO ALL ADMINS & SALES AGENTS) */}
+          {/* Dashboard */}
           <Link href="/admin/dashboard" className={navCls(isActive('/admin/dashboard'))}>
             <LayoutDashboard className="w-4 h-4 flex-shrink-0 text-[#C9A66B]" />
             {expanded && <span>Dashboard</span>}
           </Link>
 
-          {/* ORGANIZATIONS HEADER */}
-          {isSuperAdmin && (
-            <div className="pt-2 space-y-3">
-              <div className="px-3 flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                <Building2 className="w-3.5 h-3.5 text-sky-400" />
-                {expanded && <span>Organizations</span>}
-              </div>
+          {/* CILLAH.DEV INTERNAL ORGANIZATION SECTION */}
+          <div className="pt-2 space-y-1">
+            <div className="px-3 flex items-center justify-between text-[11px] font-bold text-cyan-400 uppercase tracking-wider">
+              <span>cillah.dev Operations</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-950/60 border border-cyan-800/40 text-cyan-300">Internal Org</span>
+            </div>
 
-              {/* ORGANIZATION 1: CILLAH.DEV */}
-              <div className="ml-2 pl-2 border-l border-cyan-500/40 space-y-1">
-                {expanded && (
-                  <p className="text-[11px] font-bold text-cyan-400 px-2 py-1 uppercase tracking-wider">
-                    cillah.dev
-                  </p>
-                )}
+            <div className="ml-2 pl-2 border-l border-cyan-500/40 space-y-1">
+              {/* 1. Teams & Roles */}
+              <Link href="/admin/organizations/cillah-dev/teams" className={navCls(isActive('/admin/organizations/cillah-dev/teams'), true)}>
+                <Users className="w-3.5 h-3.5 flex-shrink-0 text-cyan-400" />
+                {expanded && <span>Teams & Roles</span>}
+              </Link>
 
-                {/* 1. Teams & Roles */}
-                <Link href="/admin/organizations/cillah-dev/teams" className={navCls(isActive('/admin/organizations/cillah-dev/teams'), true)}>
-                  <Users className="w-3.5 h-3.5 flex-shrink-0 text-cyan-400" />
-                  {expanded && <span>Teams & Roles</span>}
-                </Link>
-
-                {/* 2. Sales Department Dropdown */}
-                <div>
-                  <button
-                    onClick={() => setCillahSalesExpanded((p) => !p)}
-                    className={`w-full ${navCls(false, true)} ${pathname.includes('/pipeline') || pathname.includes('/appointments') ? 'text-slate-200' : ''}`}
-                  >
-                    <BarChart3 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />
-                    {expanded && (
-                      <>
-                        <span className="flex-1 text-left font-semibold text-emerald-400">Sales Department</span>
-                        <ChevronDown className={`w-3 h-3 transition-transform ${cillahSalesExpanded ? 'rotate-180' : ''}`} />
-                      </>
-                    )}
-                  </button>
-
-                  {cillahSalesExpanded && expanded && (
-                    <div className="ml-3 mt-0.5 pl-2.5 border-l border-emerald-500/30 space-y-1">
-                      <Link href="/admin/pipeline" className={navCls(isActive('/admin/pipeline'), true)}>
-                        <TrendingUp className="w-3 h-3 flex-shrink-0 text-[#C9A66B]" />
-                        <span>Sales CRM Pipeline</span>
-                      </Link>
-                      <Link href="/admin/appointments" className={navCls(isActive('/admin/appointments'), true)}>
-                        <Calendar className="w-3 h-3 flex-shrink-0 text-purple-400" />
-                        <span>Upcoming Appointments</span>
-                      </Link>
-                    </div>
+              {/* 2. Sales Department Dropdown */}
+              <div>
+                <button
+                  onClick={() => setCillahSalesExpanded((p) => !p)}
+                  className={`w-full ${navCls(false, true)} ${pathname.includes('/pipeline') || pathname.includes('/appointments') ? 'text-slate-200' : ''}`}
+                >
+                  <BarChart3 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />
+                  {expanded && (
+                    <>
+                      <span className="flex-1 text-left font-semibold text-emerald-400">Sales Department</span>
+                      <ChevronDown className={`w-3 h-3 transition-transform ${cillahSalesExpanded ? 'rotate-180' : ''}`} />
+                    </>
                   )}
-                </div>
+                </button>
 
-                {/* 3. Marketing Department */}
-                <Link href="/admin/marketing" className={navCls(isActive('/admin/marketing'), true)}>
-                  <Megaphone className="w-3.5 h-3.5 flex-shrink-0 text-purple-400" />
-                  {expanded && <span>Marketing Department</span>}
-                </Link>
-
-                {/* 4. Finance Department */}
-                <Link href="/admin/finance" className={navCls(isActive('/admin/finance'), true)}>
-                  <DollarSign className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />
-                  {expanded && <span>Finance Department</span>}
-                </Link>
-
-                {/* 5. Sessions */}
-                <Link href="/admin/sessions" className={navCls(isActive('/admin/sessions'), true)}>
-                  <Video className="w-3.5 h-3.5 flex-shrink-0 text-sky-400" />
-                  {expanded && <span>Sessions</span>}
-                </Link>
-
-                {/* 6. Monthly Retainers */}
-                <Link href="/admin/clients" className={navCls(isActive('/admin/clients'), true)}>
-                  <UserCheck className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
-                  {expanded && <span>Monthly Retainers</span>}
-                </Link>
+                {cillahSalesExpanded && expanded && (
+                  <div className="ml-3 mt-0.5 pl-2.5 border-l border-emerald-500/30 space-y-1">
+                    <Link href="/admin/pipeline" className={navCls(isActive('/admin/pipeline'), true)}>
+                      <TrendingUp className="w-3 h-3 flex-shrink-0 text-[#C9A66B]" />
+                      <span>Sales CRM Pipeline</span>
+                    </Link>
+                    <Link href="/admin/appointments" className={navCls(isActive('/admin/appointments'), true)}>
+                      <Calendar className="w-3 h-3 flex-shrink-0 text-purple-400" />
+                      <span>Upcoming Appointments</span>
+                    </Link>
+                  </div>
+                )}
               </div>
 
-              {/* ORGANIZATION 2: STAGE PROPERTIES BROKERS */}
+              {/* 3. Marketing Department */}
+              <Link href="/admin/marketing" className={navCls(isActive('/admin/marketing'), true)}>
+                <Megaphone className="w-3.5 h-3.5 flex-shrink-0 text-purple-400" />
+                {expanded && <span>Marketing Department</span>}
+              </Link>
+
+              {/* 4. Finance Department */}
+              <Link href="/admin/finance" className={navCls(isActive('/admin/finance'), true)}>
+                <DollarSign className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />
+                {expanded && <span>Finance Department</span>}
+              </Link>
+
+              {/* 5. Sessions */}
+              <Link href="/admin/sessions" className={navCls(isActive('/admin/sessions'), true)}>
+                <Video className="w-3.5 h-3.5 flex-shrink-0 text-sky-400" />
+                {expanded && <span>Sessions</span>}
+              </Link>
+
+              {/* 6. Monthly Retainers */}
+              <Link href="/admin/clients" className={navCls(isActive('/admin/clients'), true)}>
+                <UserCheck className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
+                {expanded && <span>Monthly Retainers</span>}
+              </Link>
+            </div>
+          </div>
+
+          {/* CLIENT ORGANIZATIONS (SUPER ADMIN ONLY: awuorcillah@gmail.com) */}
+          {isSuperAdmin && (
+            <div className="pt-3 space-y-3 border-t border-slate-800/80">
+              <div className="px-3 flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-3.5 h-3.5 text-sky-400" />
+                  {expanded && <span>Client Organizations</span>}
+                </div>
+                {expanded && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-950/60 border border-sky-800/40 text-sky-300">SaaS Multi-Tenant</span>
+                )}
+              </div>
+
+              {/* CLIENT 1: STAGE PROPERTIES BROKERS */}
               <div className="ml-2 pl-2 border-l border-amber-500/40 space-y-1 pt-2">
                 {expanded && (
                   <p className="text-[11px] font-bold text-amber-400 px-2 py-1 uppercase tracking-wider">
