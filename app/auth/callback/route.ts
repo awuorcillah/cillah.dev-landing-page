@@ -6,7 +6,22 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   const next = requestUrl.searchParams.get('next') ?? ''
-  const origin = requestUrl.origin
+  const errorParam = requestUrl.searchParams.get('error')
+  const errorDesc = requestUrl.searchParams.get('error_description')
+
+  // Resolve proper origin behind load balancers / Vercel
+  const forwardedHost = request.headers.get('x-forwarded-host')
+  const origin = (process.env.NODE_ENV === 'production' && forwardedHost)
+    ? `https://${forwardedHost}`
+    : requestUrl.origin
+
+  // If OAuth provider returned an explicit error
+  if (errorParam) {
+    console.error('[OAuth Provider Error]:', errorParam, errorDesc)
+    return NextResponse.redirect(
+      `${origin}/login?error=${encodeURIComponent(errorParam)}&error_description=${encodeURIComponent(errorDesc || '')}`
+    )
+  }
 
   if (code) {
     const cookieStore = await cookies()
@@ -44,9 +59,12 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error('[OAuth Callback Error]:', error.message || error)
+      return NextResponse.redirect(
+        `${origin}/login?error=exchange_failed&error_description=${encodeURIComponent(error.message)}`
+      )
     }
 
-    if (!error && data?.user) {
+    if (data?.user) {
       const user = data.user
       const email = user.email?.toLowerCase() || ''
 
@@ -102,11 +120,9 @@ export async function GET(request: Request) {
 
       const isUserAdmin = role === 'admin' || isEmailAdmin
 
-      let redirectPath = next || '/user/dashboard'
-      if (isUserAdmin) {
+      let redirectPath = next || (isUserAdmin ? '/admin/dashboard' : '/user/dashboard')
+      if (isUserAdmin && !next) {
         redirectPath = '/admin/dashboard'
-      } else if (role === 'client') {
-        redirectPath = '/client/dashboard'
       }
 
       return NextResponse.redirect(`${origin}${redirectPath}`)
@@ -114,5 +130,5 @@ export async function GET(request: Request) {
   }
 
   // Auth failed or missing code — redirect to login with error
-  return NextResponse.redirect(`${origin}/login?error=oauth_failed`)
+  return NextResponse.redirect(`${origin}/login?error=missing_code&error_description=No+authorization+code+provided`)
 }

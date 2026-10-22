@@ -74,7 +74,7 @@ const STAGES = [
   { id: 'repeat_lead', name: 'Repeat Inquiries', color: 'bg-violet-500/10 border-violet-500/30 text-violet-400', badge: 'bg-violet-500' },
   { id: 'hot_lead', name: 'Hot Lead', color: 'bg-amber-500/10 border-amber-500/30 text-amber-400', badge: 'bg-amber-500' },
   { id: 'warm_lead', name: 'Warm Lead', color: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400', badge: 'bg-yellow-500' },
-  { id: 'viewing', name: 'Viewing Scheduled', color: 'bg-purple-500/10 border-purple-500/30 text-purple-400', badge: 'bg-purple-500' },
+  { id: 'viewing', name: 'Booked Consultations', color: 'bg-purple-500/10 border-purple-500/30 text-purple-400', badge: 'bg-purple-500' },
   { id: 'cold_lead', name: 'Cold Lead', color: 'bg-slate-500/10 border-slate-500/30 text-slate-400', badge: 'bg-slate-500' },
   { id: 'spam', name: 'Spam', color: 'bg-red-500/10 border-red-500/30 text-red-400', badge: 'bg-red-500' },
   { id: 'closed_won', name: 'Won Deals', color: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400', badge: 'bg-emerald-500' }
@@ -83,19 +83,25 @@ const STAGES = [
 interface CRMPipelineBoardProps {
   currentUserEmail?: string
   isStaffAdmin?: boolean
+  forceUserOnly?: boolean
+  embedded?: boolean
 }
 
 export default function CRMPipelineBoard({
   currentUserEmail = 'atulah@cillah.dev',
-  isStaffAdmin = true
+  isStaffAdmin = true,
+  forceUserOnly = false,
+  embedded = false
 }: CRMPipelineBoardProps) {
   const supabase = createClient()
   const [leads, setLeads] = useState<SalesLead[]>([])
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([])
   const [loading, setLoading] = useState(true)
 
+  const effectiveIsAdmin = isStaffAdmin && !forceUserOnly
+
   // Filters & State
-  const [agentFilter, setAgentFilter] = useState<string>(isStaffAdmin ? 'all' : currentUserEmail)
+  const [agentFilter, setAgentFilter] = useState<string>(effectiveIsAdmin ? 'all' : currentUserEmail)
   const [timeFilter, setTimeFilter] = useState<'24h' | '7d' | '30d' | 'all'>('all')
   const [stageFilter, setStageFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -193,11 +199,11 @@ export default function CRMPipelineBoard({
         lead_id: selectedLead.id,
         author_email: currentUserEmail,
         author_name: currentUserEmail.split('@')[0],
-        source: 'viewing_scheduled',
-        note_text: `Viewing date scheduled for ${new Date(viewingDateInput).toLocaleString()}`
+        source: 'consultation_scheduled',
+        note_text: `Booked consultation scheduled for ${new Date(viewingDateInput).toLocaleString()}`
       })
 
-      setActionSuccessMsg(`Viewing scheduled for ${new Date(viewingDateInput).toLocaleString()}! Stage moved to Viewing.`)
+      setActionSuccessMsg(`Booked consultation scheduled for ${new Date(viewingDateInput).toLocaleString()}! Stage moved to Booked Consultations.`)
       setTimeout(() => setActionSuccessMsg(''), 4000)
     }
     setSavingViewingDate(false)
@@ -241,7 +247,7 @@ export default function CRMPipelineBoard({
       // Fetch Sales Leads
       let query = supabase.from('sales_leads').select('*').order('created_at', { ascending: false })
 
-      if (!isStaffAdmin) {
+      if (!effectiveIsAdmin) {
         query = query.eq('assigned_agent_email', currentUserEmail)
       } else if (agentFilter !== 'all') {
         query = query.eq('assigned_agent_email', agentFilter)
@@ -269,7 +275,7 @@ export default function CRMPipelineBoard({
       // Also Fetch Stage Properties organization leads assigned to this agent
       try {
         let stageQuery = supabase.from('stage_leads').select('*').order('created_at', { ascending: false })
-        if (!isStaffAdmin) {
+        if (!effectiveIsAdmin) {
           const matchingStaff = staffData?.find((s: any) => s.email?.toLowerCase() === currentUserEmail.toLowerCase())
           const agentName = matchingStaff?.full_name || currentUserEmail.split('@')[0]
           stageQuery = stageQuery.or(`assigned_agent_email.eq.${currentUserEmail},assigned_agent_name.ilike.%${agentName}%`)
@@ -355,10 +361,10 @@ export default function CRMPipelineBoard({
             playVictorySound()
           }
 
-          // 2. Site Viewing Booked Alert
+          // 2. Consultation Booked Alert
           if ((!oldLead?.viewing_date && newLead?.viewing_date) || (oldLead?.stage !== 'viewing' && newLead?.stage === 'viewing')) {
             const agentName = newLead.assigned_agent_email?.split('@')[0] || 'Sales Agent'
-            toast.info(`🏠 VIEWING BOOKED! ${agentName} just scheduled a Site Viewing with ${newLead.full_name}!`, {
+            toast.info(`📅 CONSULTATION BOOKED! ${agentName} just scheduled a Booked Consultation with ${newLead.full_name}!`, {
               duration: 6000
             })
             playVictorySound()
@@ -372,7 +378,7 @@ export default function CRMPipelineBoard({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [agentFilter, isStaffAdmin, currentUserEmail])
+  }, [agentFilter, effectiveIsAdmin, currentUserEmail, forceUserOnly])
 
   // Fetch Notes when a lead is selected
   useEffect(() => {
@@ -410,7 +416,10 @@ export default function CRMPipelineBoard({
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {
       // Agent Filter
-      if (isStaffAdmin && agentFilter !== 'all' && lead.assigned_agent_email !== agentFilter) {
+      if (effectiveIsAdmin && agentFilter !== 'all' && lead.assigned_agent_email !== agentFilter) {
+        return false
+      }
+      if (!effectiveIsAdmin && lead.assigned_agent_email !== currentUserEmail) {
         return false
       }
 
@@ -654,28 +663,29 @@ export default function CRMPipelineBoard({
   }
 
   return (
-    <div className="w-full min-h-screen bg-[#0E131F] text-slate-100 p-4 md:p-8 font-sans">
+    <div className={`w-full ${embedded ? 'bg-transparent p-0' : 'min-h-screen bg-[#0E131F] p-3 sm:p-6 md:p-8'} text-slate-100 font-sans`}>
       {/* HEADER BAR */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8 border-b border-slate-800 pb-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 md:mb-8 border-b border-slate-800 pb-5 md:pb-6">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
-              <Sparkles className="w-7 h-7 text-[#C9A66B]" /> Sales Engine & CRM Pipeline
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-[#C9A66B] flex-shrink-0" />
+              <span>{forceUserOnly ? 'My Sales Pipeline' : 'Sales Engine & CRM Pipeline'}</span>
             </h1>
-            <span className="px-3 py-1 bg-[#C9A66B]/20 text-[#C9A66B] text-xs font-semibold rounded-full border border-[#C9A66B]/30 uppercase">
-              {isStaffAdmin ? 'Admin Control (Viewer)' : 'Sales Workspace'}
+            <span className="px-2.5 py-0.5 sm:px-3 sm:py-1 bg-[#C9A66B]/20 text-[#C9A66B] text-[10px] sm:text-xs font-semibold rounded-full border border-[#C9A66B]/30 uppercase whitespace-nowrap">
+              {forceUserOnly ? 'Personal Pipeline' : effectiveIsAdmin ? 'Admin Control (All Agents)' : 'Sales Workspace'}
             </span>
           </div>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">
             Logged in as <span className="text-slate-200 font-medium">{currentUserEmail}</span>
           </p>
         </div>
 
         {/* CONTROLS: AGENT FILTER & VIEW MODE */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* Staff Admin Agent Switcher */}
-          {isStaffAdmin && (
-            <div className="flex items-center gap-2 bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs">
+          {effectiveIsAdmin && (
+            <div className="flex items-center gap-2 bg-slate-900 border border-slate-700/80 rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs">
               <UserCheck className="w-4 h-4 text-[#C9A66B]" />
               <span className="text-slate-400">Agent:</span>
               <select
@@ -775,47 +785,47 @@ export default function CRMPipelineBoard({
         </div>
       </div>
 
-      {/* METRICS ROW */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg flex items-center gap-4">
-          <div className="p-3 bg-sky-500/10 text-sky-400 rounded-xl border border-sky-500/20">
-            <InboxIcon className="w-6 h-6" />
+      {/* METRICS ROW - HORIZONTAL SWIPEABLE ON MOBILE */}
+      <div className="flex overflow-x-auto pb-3 pt-1 -mx-3 px-3 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 md:mb-8 scrollbar-none snap-x snap-mandatory">
+        <div className="min-w-[210px] sm:min-w-0 flex-1 snap-start bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center gap-3 sm:gap-4 flex-shrink-0 sm:flex-shrink">
+          <div className="p-2.5 sm:p-3 bg-sky-500/10 text-sky-400 rounded-xl border border-sky-500/20 flex-shrink-0">
+            <InboxIcon className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
-            <div className="text-2xl font-black text-white">{metrics.newToday}</div>
-            <div className="text-xs text-slate-400 font-medium">New Leads (24h)</div>
+            <div className="text-xl sm:text-2xl font-black text-white">{metrics.newToday}</div>
+            <div className="text-[11px] sm:text-xs text-slate-400 font-medium">New Leads (24h)</div>
           </div>
         </div>
 
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg flex items-center gap-4">
-          <div className="p-3 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
-            <Flame className="w-6 h-6" />
+        <div className="min-w-[210px] sm:min-w-0 flex-1 snap-start bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center gap-3 sm:gap-4 flex-shrink-0 sm:flex-shrink">
+          <div className="p-2.5 sm:p-3 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20 flex-shrink-0">
+            <Flame className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
-            <div className="text-2xl font-black text-amber-400">{metrics.hotLeads}</div>
-            <div className="text-xs text-slate-400 font-medium">Hot Leads</div>
+            <div className="text-xl sm:text-2xl font-black text-amber-400">{metrics.hotLeads}</div>
+            <div className="text-[11px] sm:text-xs text-slate-400 font-medium">Hot Leads</div>
           </div>
         </div>
 
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-lg flex items-center gap-4">
-          <div className="p-3 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/20">
-            <Calendar className="w-6 h-6" />
+        <div className="min-w-[210px] sm:min-w-0 flex-1 snap-start bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center gap-3 sm:gap-4 flex-shrink-0 sm:flex-shrink">
+          <div className="p-2.5 sm:p-3 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/20 flex-shrink-0">
+            <Calendar className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
-            <div className="text-2xl font-black text-purple-300">{metrics.upcomingAppointments}</div>
-            <div className="text-xs text-slate-400 font-medium">Upcoming Follow-ups</div>
+            <div className="text-xl sm:text-2xl font-black text-purple-300">{metrics.upcomingAppointments}</div>
+            <div className="text-[11px] sm:text-xs text-slate-400 font-medium">Upcoming Follow-ups</div>
           </div>
         </div>
 
-        <div className="bg-slate-900/90 border border-emerald-500/20 rounded-2xl p-5 shadow-lg flex items-center gap-4">
-          <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
-            <Award className="w-6 h-6" />
+        <div className="min-w-[210px] sm:min-w-0 flex-1 snap-start bg-slate-900/90 border border-emerald-500/20 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center gap-3 sm:gap-4 flex-shrink-0 sm:flex-shrink">
+          <div className="p-2.5 sm:p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20 flex-shrink-0">
+            <Award className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
-            <div className="text-2xl font-black text-emerald-400">
+            <div className="text-xl sm:text-2xl font-black text-emerald-400">
               ${metrics.wonDealsValue.toLocaleString()}
             </div>
-            <div className="text-xs text-slate-400 font-medium">
+            <div className="text-[11px] sm:text-xs text-slate-400 font-medium">
               Won Deals ({metrics.wonDealsCount})
             </div>
           </div>
@@ -874,14 +884,14 @@ export default function CRMPipelineBoard({
 
       {/* KANBAN BOARD VIEW */}
       {viewMode === 'kanban' && (
-        <div className="flex gap-4 overflow-x-auto pb-8 min-w-full items-start">
+        <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-8 -mx-3 px-3 sm:mx-0 sm:px-0 items-start snap-x snap-mandatory scrollbar-thin">
           {STAGES.map((stage) => {
             const stageLeads = filteredLeads.filter((l) => l.stage === stage.id)
 
             return (
               <div
                 key={stage.id}
-                className="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-4 flex flex-col min-h-[500px] min-w-[280px] flex-1"
+                className="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-3.5 sm:p-4 flex flex-col min-h-[500px] w-[84vw] max-w-[320px] sm:w-[290px] sm:max-w-none flex-shrink-0 snap-center sm:snap-align-none"
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault()
@@ -951,11 +961,11 @@ export default function CRMPipelineBoard({
                           </div>
                         )}
 
-                        {/* Display Viewing Date Badge */}
+                        {/* Display Booked Consultation Date Badge */}
                         {lead.viewing_date && (
                           <div className="text-[11px] text-purple-300 font-semibold flex items-center gap-1.5 mt-2 bg-purple-500/10 px-2 py-1 rounded-md border border-purple-500/25">
-                            <Eye className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
-                            <span className="truncate">Viewing: {new Date(lead.viewing_date).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                            <Calendar className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
+                            <span className="truncate">Consultation: {new Date(lead.viewing_date).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
                         )}
 
@@ -1380,13 +1390,13 @@ export default function CRMPipelineBoard({
                 </div>
               )}
 
-              {/* SCHEDULE PROPERTY SITE / DEMO VIEWING SECTION */}
+              {/* SCHEDULE BOOKED CONSULTATION & STRATEGY CALL SECTION */}
               <div className="bg-slate-900/80 border border-purple-500/25 rounded-2xl p-5 mb-6">
                 <h4 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-purple-400" /> Site / Demo Viewing Scheduler
+                  <Calendar className="w-4 h-4 text-purple-400" /> Booked Consultations & Strategy Call Scheduler
                 </h4>
                 <p className="text-[11px] text-slate-400 mb-3">
-                  Schedule a physical property site viewing or virtual demo call date for this lead.
+                  Schedule a booked consultation, discovery call, or strategy meeting date for this lead.
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-2">
@@ -1401,7 +1411,7 @@ export default function CRMPipelineBoard({
                     disabled={savingViewingDate || !viewingDateInput}
                     className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs transition-all disabled:opacity-50 shadow-md flex items-center justify-center gap-1.5 shrink-0"
                   >
-                    <Eye className="w-4 h-4" /> {savingViewingDate ? 'Scheduling...' : 'Save Viewing Date'}
+                    <Calendar className="w-4 h-4" /> {savingViewingDate ? 'Scheduling...' : 'Save Booked Consultation'}
                   </button>
                 </div>
               </div>

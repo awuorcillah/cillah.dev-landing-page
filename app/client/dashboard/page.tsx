@@ -60,16 +60,37 @@ export default function ClientDashboard() {
 
         setUserEmail(user.email || '')
 
-        const { data, error } = await supabase
+        const { data: existingProfile, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
-          .single()
+          .maybeSingle()
 
-        if (error) throw error
-        setProfile(data)
+        if (error) {
+          console.warn('Profile fetch warning:', error)
+        }
 
-        if (data?.role === 'admin') {
+        let userProfile = existingProfile
+        if (!userProfile) {
+          // Fallback create basic client profile
+          const { data: newProfile } = await supabase
+            .from('profiles')
+            .upsert({
+              id: user.id,
+              email: user.email,
+              full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
+              role: 'client',
+              status: 'active',
+              updated_at: new Date().toISOString(),
+            })
+            .select()
+            .maybeSingle()
+          userProfile = newProfile
+        }
+
+        setProfile(userProfile)
+
+        if (userProfile?.role === 'admin') {
           window.location.href = '/admin/dashboard'
           return
         }

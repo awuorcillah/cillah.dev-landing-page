@@ -78,6 +78,37 @@ export default function SignUpPage() {
 
       if (error) throw error
 
+      if (data.user) {
+        // Attempt to create client profile in profiles table
+        try {
+          await supabase.from('profiles').upsert({
+            id: data.user.id,
+            email: formData.email,
+            full_name: `${formData.firstName} ${formData.lastName}`.trim(),
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            phone_number: formData.phone,
+            phone_prefix: formData.phonePrefix,
+            company_name: formData.company,
+            role: 'client',
+            status: 'active',
+            updated_at: new Date().toISOString(),
+          })
+        } catch (profileErr) {
+          console.warn('Profile sync warning on signup:', profileErr)
+        }
+
+        // Check if Supabase requires email confirmation
+        if (!data.session) {
+          toast.success('Account created! Please check your email to confirm your account, then log in.', {
+            position: 'top-left',
+            duration: 8000,
+          })
+          router.push('/login')
+          return
+        }
+      }
+
       toast.success('Account created successfully! Redirecting...', {
         position: 'top-left',
       })

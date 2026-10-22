@@ -22,7 +22,7 @@ export default function UnifiedDashboardRedirect() {
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
 
       const email = user.email?.toLowerCase() || ''
       const role = profile?.role || 'user'
@@ -30,8 +30,6 @@ export default function UnifiedDashboardRedirect() {
 
       if (isAdmin) {
         window.location.href = '/admin/dashboard'
-      } else if (role === 'client') {
-        window.location.href = '/client/dashboard'
       } else {
         window.location.href = '/user/dashboard'
       }

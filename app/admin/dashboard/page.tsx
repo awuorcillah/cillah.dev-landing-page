@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import CRMPipelineBoard from '@/components/crm/crm-pipeline-board'
 import { 
   Trophy, 
   DollarSign, 
@@ -33,9 +34,7 @@ interface AgentStats {
 }
 
 const DEFAULT_STAFF = [
-  { email: 'awuorcillah@gmail.com', name: 'Cillah Awuor', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80' },
-  { email: 'atulah@cillah.dev', name: 'Atulah Admin', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80' },
-  { email: 'cherrylatulah2000@gmail.com', name: 'Cherryl Atulah', avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80' }
+  { email: 'atulah@cillah.dev', name: 'Atulah Admin', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80' }
 ]
 
 export default function SalesAdminDashboard() {
@@ -114,7 +113,7 @@ export default function SalesAdminDashboard() {
       const victories: any[] = []
 
       allLeads.forEach((lead: any) => {
-        const assigned = (lead.assigned_to || 'awuorcillah@gmail.com').toLowerCase()
+        const assigned = (lead.assigned_agent_email || lead.assigned_to || 'atulah@cillah.dev').toLowerCase()
         if (!agentMap[assigned]) {
           const parts = assigned.split('@')[0].split('.')
           const displayName = parts.map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
@@ -131,7 +130,7 @@ export default function SalesAdminDashboard() {
         }
 
         const agent = agentMap[assigned]
-        const val = Number(lead.value) || 0
+        const val = Number(lead.estimated_value || lead.value) || 0
 
         // Won Deals
         if (lead.stage === 'closed_won' || lead.stage === 'closed') {
@@ -144,38 +143,38 @@ export default function SalesAdminDashboard() {
             id: lead.id,
             type: 'won',
             agentName: agent.name,
-            title: lead.name || 'Qualified Lead',
+            title: lead.full_name || lead.name || 'Qualified Lead',
             amount: val,
             time: lead.updated_at || lead.created_at
           })
         }
 
-        // Viewings Scheduled
-        if (lead.stage === 'viewing' || lead.viewing_date) {
+        // Booked Consultations
+        if (lead.stage === 'viewing' || lead.stage === 'viewing_scheduled' || Boolean(lead.viewing_date)) {
           agent.viewingsCount += 1
           overallViewings += 1
 
-          if (lead.stage === 'viewing') {
-            victories.push({
-              id: lead.id,
-              type: 'viewing',
-              agentName: agent.name,
-              title: lead.name || 'Property Demo',
-              viewingDate: lead.viewing_date,
-              time: lead.updated_at || lead.created_at
-            })
-          }
+          victories.push({
+            id: lead.id,
+            type: 'consultation',
+            agentName: agent.name,
+            title: lead.full_name || lead.name || 'Strategy Consultation',
+            viewingDate: lead.viewing_date,
+            amount: 0,
+            time: lead.updated_at || lead.created_at
+          })
         }
 
         // Hot Leads
-        if (lead.score >= 80 || lead.priority === 'high' || lead.stage === 'proposal' || lead.stage === 'negotiation') {
+        if (lead.stage === 'hot_lead' || lead.is_qualified === true || (lead.score && lead.score >= 80)) {
           agent.hotLeadsCount += 1
           overallHot += 1
         }
 
-        // Mock Speed to lead calculation in minutes based on lead creation vs updated_at or static score
-        const mockSpeed = Math.max(1, Math.round(15 - (lead.score || 50) / 10))
-        agent.responseTimes.push(mockSpeed)
+        // Dynamic Speed to lead calculation in minutes
+        const diffMs = lead.updated_at && lead.created_at ? Math.abs(new Date(lead.updated_at).getTime() - new Date(lead.created_at).getTime()) : 180000
+        const calculatedMinutes = Math.min(15, Math.max(2, Math.round(diffMs / 60000)))
+        agent.responseTimes.push(calculatedMinutes)
       })
 
       setTotalMetrics({
@@ -265,7 +264,7 @@ export default function SalesAdminDashboard() {
             Sales Leaderboard & Competition
           </h1>
           <p className="text-slate-400 text-sm mt-1">
-            Real-time agent rankings, won deal metrics, scheduled property viewings, and speed-to-lead benchmarks.
+            Real-time agent rankings, won deal metrics, scheduled booked consultations, and speed-to-lead benchmarks.
           </p>
         </div>
 
@@ -278,10 +277,10 @@ export default function SalesAdminDashboard() {
             Refresh Rankings
           </button>
           <Link
-            href="/admin/pipeline"
+            href="/user/dashboard"
             className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-semibold text-sm rounded-xl shadow-lg shadow-amber-500/20 transition-all"
           >
-            Open Sales CRM Pipeline
+            My Sales Pipeline
             <ArrowUpRight className="w-4 h-4" />
           </Link>
         </div>
@@ -327,19 +326,19 @@ export default function SalesAdminDashboard() {
 
         <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900/90 via-slate-900/50 to-slate-950 border border-slate-800/80 shadow-lg relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Eye className="w-20 h-20 text-cyan-400" />
+            <Calendar className="w-20 h-20 text-purple-400" />
           </div>
           <div className="flex items-center gap-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">
-            <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-              <Eye className="w-4 h-4" />
+            <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+              <Calendar className="w-4 h-4" />
             </div>
-            Property Viewings
+            Booked Consultations
           </div>
           <div className="mt-4 text-3xl font-black text-white tracking-tight">
             {totalMetrics.totalViewings} <span className="text-sm font-normal text-slate-400">Scheduled</span>
           </div>
-          <p className="text-xs text-cyan-400 mt-2 font-medium flex items-center gap-1">
-            <Calendar className="w-3.5 h-3.5" /> Site tours & demo meetings
+          <p className="text-xs text-purple-400 mt-2 font-medium flex items-center gap-1">
+            <Calendar className="w-3.5 h-3.5" /> Discovery calls & strategy meetings
           </p>
         </div>
 
@@ -408,7 +407,7 @@ export default function SalesAdminDashboard() {
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  👁️ Viewings
+                  📅 Booked Consultations
                 </button>
                 <button
                   onClick={() => setSortBy('speed')}
@@ -494,9 +493,9 @@ export default function SalesAdminDashboard() {
                         </div>
 
                         <div>
-                          <div className="text-slate-400 text-[10px] font-semibold uppercase">Viewings</div>
-                          <div className="font-bold text-cyan-400 mt-0.5">
-                            {agent.viewingsCount} 👁️
+                          <div className="text-slate-400 text-[10px] font-semibold uppercase">Consultations</div>
+                          <div className="font-bold text-purple-400 mt-0.5">
+                            {agent.viewingsCount} 📅
                           </div>
                         </div>
 
@@ -553,13 +552,13 @@ export default function SalesAdminDashboard() {
               Recent Sales Victories
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              Live updates when deals are won or site viewings booked.
+              Live updates when deals are won or consultations booked.
             </p>
 
             <div className="mt-4 space-y-3">
               {recentVictories.length === 0 ? (
                 <div className="text-xs text-slate-500 text-center py-6">
-                  No recent won deals recorded yet.
+                  No recent won deals or consultations recorded yet.
                 </div>
               ) : (
                 recentVictories.map((vic, idx) => (
@@ -568,11 +567,11 @@ export default function SalesAdminDashboard() {
                     className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-start gap-3"
                   >
                     <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400 mt-0.5">
-                      {vic.type === 'won' ? <Trophy className="w-4 h-4" /> : <Eye className="w-4 h-4 text-cyan-400" />}
+                      {vic.type === 'won' ? <Trophy className="w-4 h-4" /> : <Calendar className="w-4 h-4 text-purple-400" />}
                     </div>
                     <div className="text-xs flex-1">
                       <div className="font-semibold text-white">
-                        {vic.agentName} {vic.type === 'won' ? 'CLOSED A DEAL! 🎉' : 'BOOKED A VIEWING! 👁️'}
+                        {vic.agentName} {vic.type === 'won' ? 'CLOSED A DEAL! 🎉' : 'BOOKED A CONSULTATION! 📅'}
                       </div>
                       <div className="text-slate-400 mt-0.5">{vic.title}</div>
                       {vic.amount > 0 && (
@@ -587,6 +586,11 @@ export default function SalesAdminDashboard() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Embedded Sales Engine & CRM Pipeline (All Agents / Per-Agent Filtering) */}
+      <div className="border-t border-slate-800/80 pt-8 mt-10">
+        <CRMPipelineBoard currentUserEmail="atulah@cillah.dev" isStaffAdmin={true} forceUserOnly={false} embedded={true} />
       </div>
     </div>
   )

@@ -20,8 +20,22 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
-  // Auto-redirect if user is already authenticated
+  // Auto-redirect if user is already authenticated or display OAuth error
   useEffect(() => {
+    // Check for error in URL parameters from OAuth callback redirect
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search)
+      const oauthError = searchParams.get('error')
+      const oauthDesc = searchParams.get('error_description')
+      if (oauthError) {
+        toast.error(`Login failed: ${oauthDesc || oauthError}`, {
+          position: 'top-left',
+          duration: 7000,
+        })
+        setGoogleLoading(false)
+      }
+    }
+
     async function checkActiveUser() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
@@ -32,13 +46,13 @@ export default function LoginPage() {
           .maybeSingle()
 
         const userEmail = user.email?.toLowerCase() || ''
-        const isAdmin = profile?.role === 'admin' || userEmail.includes('cillah') || userEmail.includes('admin') || userEmail.includes('atula') || userEmail.includes('cheryl') || userEmail === 'awuorcillah@gmail.com'
+        const isSuperAdmin = userEmail === 'awuorcillah@gmail.com'
+        const isAdmin = isSuperAdmin || profile?.role === 'admin' || userEmail.includes('cillah') || userEmail.includes('admin') || userEmail.includes('atula')
 
         if (isAdmin) {
           window.location.href = '/admin/dashboard'
-        } else if (profile?.role === 'client') {
-          window.location.href = '/client/dashboard'
         } else {
+          // Sales agent user dashboard: personal CRM pipeline board
           window.location.href = '/user/dashboard'
         }
       }
@@ -104,9 +118,8 @@ export default function LoginPage() {
 
         if (isAdmin) {
           window.location.href = '/admin/dashboard'
-        } else if (userRole === 'client') {
-          window.location.href = '/client/dashboard'
         } else {
+          // Sales agent personal pipeline
           window.location.href = '/user/dashboard'
         }
       }

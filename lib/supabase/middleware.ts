@@ -84,21 +84,10 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // Protect /client routes -> Only 'client' or 'admin' allowed
+  // Protect /client routes -> Any authenticated client, user or admin allowed
   if (url.pathname.startsWith('/client')) {
     if (!user) {
       url.pathname = '/login'
-      return NextResponse.redirect(url)
-    }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (profile?.role === 'user' && !isUserAdmin(user, profile)) {
-      url.pathname = '/user/dashboard'
       return NextResponse.redirect(url)
     }
   }
