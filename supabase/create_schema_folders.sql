@@ -21,6 +21,9 @@ GRANT USAGE ON SCHEMA dendri_africa TO anon, authenticated, service_role;
 -- 2. FOLDER: cillah_dev (Internal Agency Organization for atulah@cillah.dev)
 -- Connected directly to public tables so active n8n email campaigns NEVER break!
 -- ==============================================================================
+CREATE OR REPLACE VIEW cillah_dev.sales_leads AS 
+SELECT * FROM public.sales_leads;
+
 CREATE OR REPLACE VIEW cillah_dev.sales_pipeline AS 
 SELECT * FROM public.sales_leads;
 
