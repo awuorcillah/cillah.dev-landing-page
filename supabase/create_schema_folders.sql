@@ -36,6 +36,9 @@ SELECT * FROM public.bookings;
 CREATE OR REPLACE VIEW cillah_dev.deliverables AS 
 SELECT * FROM public.deliverables;
 
+CREATE OR REPLACE VIEW cillah_dev.lead_notes AS 
+SELECT * FROM public.lead_notes;
+
 CREATE OR REPLACE VIEW cillah_dev.staff AS 
 SELECT * FROM public.staff_members 
 WHERE org_id = 'a1b2c3d4-e5f6-7890-abcd-222222222222';
