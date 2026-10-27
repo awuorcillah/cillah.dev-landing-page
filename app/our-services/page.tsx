@@ -1,6 +1,7 @@
 "use client"
 
-import { motion } from "framer-motion"
+import { useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { 
@@ -10,15 +11,29 @@ import {
   Bot, 
   Workflow, 
   ArrowRight,
-  ShieldCheck,
-  Zap,
-  Clock,
-  Smartphone,
-  CreditCard,
-  BellRing
+  Send,
+  HelpCircle,
+  ChevronDown,
+  Layers
 } from "lucide-react"
+import { FAQS_BY_SERVICE } from "@/lib/faqs-data"
 
 export default function ServicesPage() {
+  const [activeCategory, setActiveCategory] = useState<string>("all")
+  const [openFaq, setOpenFaq] = useState<string | null>("web-1")
+
+  const categories = [
+    { id: "all", label: "All Questions (20)" },
+    { id: "web-apps", label: "Web & Backend (5)" },
+    { id: "ai-agents", label: "AI Inboxes (5)" },
+    { id: "automation", label: "Workflow Automation (5)" },
+    { id: "outreach", label: "Cold Outreach (5)" },
+  ]
+
+  const filteredFaqs = activeCategory === "all" 
+    ? FAQS_BY_SERVICE 
+    : FAQS_BY_SERVICE.filter(item => item.category === activeCategory)
+
   const pillars = [
     {
       badge: "Your Digital Headquarters",
@@ -94,6 +109,31 @@ export default function ServicesPage() {
           desc: "Automatically sends personalized updates to past inquiries whenever you release new listings or special offers."
         }
       ]
+    },
+    {
+      badge: "Predictable B2B Client Acquisition",
+      title: "Direct-to-Decision-Maker Cold Email Outreach",
+      tagline: "Fill your pipeline with pre-qualified meetings with CEOs, founders, and department heads ready to buy — without your team spending a single hour prospecting.",
+      description: "If your highest-value clients are on LinkedIn and corporate networks, waiting for them to stumble upon your website is costing you revenue. We identify verified decision-makers (CEOs, COOs, Heads of Marketing, and Operations) who match your exact target profile, reach their direct corporate inboxes with tailored value propositions, and book qualified conversations straight onto your calendar. Your sales team only focuses on one thing: closing deals.",
+      icon: <Send className="h-6 w-6 text-[#C9A66B]" />,
+      benefits: [
+        {
+          title: "Guaranteed C-Suite Access",
+          desc: "Bypass gatekeepers and land straight in the private inboxes of verified CEOs, Managing Directors, and budget holders who have the authority to make purchasing decisions."
+        },
+        {
+          title: "Predictable Calendar Pipeline",
+          desc: "Transform irregular referrals and unpredictable word-of-mouth into a reliable, measurable monthly volume of sales conversations."
+        },
+        {
+          title: "100% Domain & Reputation Protection",
+          desc: "We configure isolated outreach infrastructure with enterprise authentication (SPF, DKIM, DMARC) so your primary company domain is never exposed to spam filters or delivery risks."
+        },
+        {
+          title: "Zero Manual Prospecting for Your Team",
+          desc: "Eliminate the 20+ hours your staff wastes each week manually browsing LinkedIn and copying data into spreadsheets. Your reps only show up to pre-warmed, scheduled meetings."
+        }
+      ]
     }
   ]
 
@@ -128,13 +168,13 @@ export default function ServicesPage() {
               </h1>
 
               <p className="text-[15px] sm:text-[17px] leading-relaxed text-[#F9F7F6]/70 max-w-2xl mx-auto font-light pt-2">
-                We build the central digital headquarters and 24/7 AI systems that turn customer inquiries into revenue while saving your team hundreds of manual hours.
+                We build the central digital headquarters, 24/7 AI systems, and outbound client acquisition engines that turn customer interest into revenue while saving your team hundreds of manual hours.
               </p>
             </motion.div>
           </div>
         </section>
 
-        {/* THE 3 CORE PILLARS */}
+        {/* THE 4 CORE PILLARS */}
         <section className="py-20 md:py-28">
           <div className="container mx-auto max-w-6xl px-6 md:px-12 space-y-20">
             {pillars.map((pillar, idx) => (
@@ -215,8 +255,125 @@ export default function ServicesPage() {
           </div>
         </section>
 
+        {/* 20 DETAILED FAQS TAGGED BY SERVICE (AEO & LLM CITED) */}
+        <section id="services-faq" className="py-24 border-t border-b border-white/5 bg-[#090A10] relative overflow-hidden">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-[#C9A66B]/5 blur-[160px] pointer-events-none rounded-full" />
+
+          <div className="container mx-auto max-w-5xl px-6 md:px-12 relative z-10">
+            {/* Header */}
+            <div className="text-center max-w-3xl mx-auto mb-12">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-heading font-medium tracking-widest uppercase text-[#C9A66B] mb-4">
+                <HelpCircle className="w-3.5 h-3.5" />
+                <span>Service Knowledge Base &bull; 20 Direct Answers</span>
+              </div>
+              <h2 className="font-heading font-light text-[30px] sm:text-[38px] md:text-[44px] text-[#F9F7F6] leading-tight mb-4">
+                Frequently Asked Questions
+              </h2>
+              <p className="text-[15px] sm:text-[17px] text-[#F9F7F6]/60 font-light max-w-2xl mx-auto">
+                Detailed, transparent answers for decision-makers evaluating our 4 core services. Tagged by service for instant clarity.
+              </p>
+            </div>
+
+            {/* Category Filter Pills */}
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-10">
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={`px-4 py-2 rounded-full text-xs font-medium tracking-wide transition-all cursor-pointer ${
+                    activeCategory === cat.id
+                      ? "bg-[#C9A66B] text-[#07070B] font-semibold shadow-[0_0_15px_rgba(201,166,107,0.3)]"
+                      : "bg-white/5 text-[#F9F7F6]/70 hover:bg-white/10 hover:text-[#F9F7F6] border border-white/5"
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Accordion List */}
+            <div className="space-y-4">
+              {filteredFaqs.map((faq) => {
+                const isOpen = openFaq === faq.id
+                return (
+                  <div
+                    key={faq.id}
+                    className={`rounded-[20px] border transition-all duration-300 overflow-hidden ${
+                      isOpen
+                        ? "bg-white/[0.04] border-[#C9A66B]/40 shadow-[0_4px_24px_rgba(0,0,0,0.4)]"
+                        : "bg-white/[0.015] border-white/10 hover:border-white/20 hover:bg-white/[0.03]"
+                    }`}
+                  >
+                    <button
+                      onClick={() => setOpenFaq(isOpen ? null : faq.id)}
+                      className="w-full p-6 text-left flex items-start justify-between gap-4 cursor-pointer focus:outline-none"
+                      aria-expanded={isOpen}
+                    >
+                      <div className="space-y-2 pr-4">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#C9A66B]/10 border border-[#C9A66B]/25 text-[10px] font-mono tracking-wider uppercase text-[#C9A66B]">
+                          <span>{faq.serviceTag}</span>
+                        </div>
+                        <h3 className="font-heading font-medium text-[16px] sm:text-[18px] text-[#F9F7F6] leading-snug">
+                          {faq.question}
+                        </h3>
+                      </div>
+                      <div
+                        className={`h-8 w-8 rounded-full border border-white/10 flex items-center justify-center shrink-0 mt-1 transition-transform duration-300 ${
+                          isOpen ? "rotate-180 bg-[#C9A66B]/15 border-[#C9A66B]/50" : "bg-white/5"
+                        }`}
+                      >
+                        <ChevronDown className={`w-4 h-4 ${isOpen ? "text-[#C9A66B]" : "text-[#F9F7F6]/60"}`} />
+                      </div>
+                    </button>
+
+                    <AnimatePresence initial={false}>
+                      {isOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25, ease: "easeInOut" }}
+                        >
+                          <div className="px-6 pb-6 pt-2 text-[14px] sm:text-[15px] leading-relaxed text-[#F9F7F6]/75 font-light border-t border-white/5 space-y-3">
+                            <p className="text-[#F9F7F6]/90 font-normal">
+                              {faq.shortAnswer}
+                            </p>
+                            <p className="text-[13px] sm:text-[14px] text-[#C9A66B]/90 font-light pl-3 border-l-2 border-[#C9A66B]/40">
+                              <span className="font-medium text-[#C9A66B]">The Value to Your Business: </span>
+                              {faq.valueAnswer}
+                            </p>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Schema.org FAQPage for Answer Engine Optimization (AEO) */}
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{
+                __html: JSON.stringify({
+                  "@context": "https://schema.org",
+                  "@type": "FAQPage",
+                  "mainEntity": FAQS_BY_SERVICE.map((faq) => ({
+                    "@type": "Question",
+                    "name": faq.question,
+                    "acceptedAnswer": {
+                      "@type": "Answer",
+                      "text": `${faq.shortAnswer} The Value to Your Business: ${faq.valueAnswer}`
+                    }
+                  }))
+                })
+              }}
+            />
+          </div>
+        </section>
+
         {/* BOTTOM EXECUTIVE CTA */}
-        <section className="py-16 md:py-24 border-t border-white/5">
+        <section className="py-16 md:py-24">
           <div className="container mx-auto max-w-4xl px-6 text-center space-y-6">
             <h2 className="text-2xl sm:text-4xl font-heading font-light text-white leading-tight">
               Ready to give your business an <br className="hidden sm:inline" />
@@ -244,3 +401,4 @@ export default function ServicesPage() {
     </>
   )
 }
+
