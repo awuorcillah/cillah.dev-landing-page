@@ -4,12 +4,12 @@ export const metadata: Metadata = {
   title: 'Sign Up | Cillah.dev Client & Admin Portal',
   description: 'Create your Cillah.dev account to access autonomous AI inboxes, lead qualification workflows, and CRM pipeline automation.',
   alternates: {
-    canonical: 'https://cillah.dev/signup',
+    canonical: 'https://www.cillah.dev/signup',
   },
   openGraph: {
     title: 'Sign Up | Cillah.dev Client & Admin Portal',
     description: 'Create your Cillah.dev account to access autonomous AI inboxes, lead qualification workflows, and CRM pipeline automation.',
-    url: 'https://cillah.dev/signup',
+    url: 'https://www.cillah.dev/signup',
     images: ['/images/cillah-emblem.png'],
   },
   twitter: {
