@@ -30,6 +30,115 @@ export async function POST(request: Request) {
       );
     }
 
+    // =========================================================================
+    // 0. DUPLICATE & REPEAT INQUIRY DETECTION RULE
+    // If the lead exists in the database:
+    // - Keep their previously assigned agent
+    // - Move to 'repeat_lead' (Repeat Inquiries)
+    // - Do not reassign unless transferred by agent inside
+    // =========================================================================
+    let existingLead: any = null;
+
+    if (email && email.trim()) {
+      const { data: emailMatches } = await supabase
+        .from('sales_leads')
+        .select('*')
+        .ilike('email', email.trim())
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (emailMatches && emailMatches.length > 0) {
+        existingLead = emailMatches[0];
+      }
+    }
+
+    if (!existingLead && phone_number && phone_number.trim()) {
+      const cleanPhone = phone_number.replace(/[^0-9]/g, '');
+      if (cleanPhone.length >= 7) {
+        const { data: allPhoneLeads } = await supabase
+          .from('sales_leads')
+          .select('*')
+          .not('phone_number', 'is', null);
+
+        if (allPhoneLeads) {
+          existingLead = allPhoneLeads.find((l: any) => {
+            if (!l.phone_number) return false;
+            const p = l.phone_number.replace(/[^0-9]/g, '');
+            return p.endsWith(cleanPhone.slice(-8)) || cleanPhone.endsWith(p.slice(-8));
+          });
+        }
+      }
+    }
+
+    if (!existingLead && full_name && full_name.trim()) {
+      const { data: nameMatches } = await supabase
+        .from('sales_leads')
+        .select('*')
+        .ilike('full_name', full_name.trim())
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (nameMatches && nameMatches.length > 0) {
+        existingLead = nameMatches[0];
+      }
+    }
+
+    if (existingLead) {
+      // PRESERVE ASSIGNED AGENT
+      const assignedEmail = existingLead.assigned_agent_email || 'atulah@cillah.dev';
+      const assignedId = existingLead.assigned_agent_id || null;
+
+      const updatePayload: any = {
+        stage: 'repeat_lead', // LANDS IN REPEAT INQUIRIES
+        assigned_agent_email: assignedEmail,
+        assigned_agent_id: assignedId,
+        last_interaction_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      if (phone_number && (!existingLead.phone_number || existingLead.phone_number === 'N/A')) {
+        updatePayload.phone_number = phone_number;
+      }
+      if (company_name && !existingLead.company_name) {
+        updatePayload.company_name = company_name;
+      }
+      if (email && !existingLead.email) {
+        updatePayload.email = email;
+      }
+
+      const { data: updatedLead, error: updateErr } = await supabase
+        .from('sales_leads')
+        .update(updatePayload)
+        .eq('id', existingLead.id)
+        .select('*')
+        .single();
+
+      if (updateErr) {
+        console.error('Error updating repeat inquiry:', updateErr);
+        return NextResponse.json({ success: false, error: updateErr.message }, { status: 500 });
+      }
+
+      // Record interaction note
+      const repeatNoteText = `Repeat inquiry received via ${source}. Automatically routed to Repeat Inquiries under assigned agent ${assignedEmail}.${initial_note ? ` Note: ${initial_note}` : ''}`;
+
+      await supabase.from('lead_notes').insert({
+        lead_id: existingLead.id,
+        author_email: assignedEmail,
+        author_name: 'Repeat Inquiry Detector',
+        source: source === 'email_campaign' ? 'email_reply' : source,
+        note_text: repeatNoteText
+      });
+
+      return NextResponse.json({
+        success: true,
+        is_repeat: true,
+        message: `Existing lead recognized. Moved to Repeat Inquiries under assigned agent (${assignedEmail}).`,
+        lead: updatedLead,
+        assigned_to: {
+          email: assignedEmail,
+          agent_id: assignedId
+        }
+      });
+    }
+
     let finalAgentEmail = assigned_agent_email?.trim();
     let finalAgentId: string | null = null;
 

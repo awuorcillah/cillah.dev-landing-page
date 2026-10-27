@@ -81,12 +81,12 @@ export function Navbar() {
         </Link>
 
         {/* DESKTOP NAV */}
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden lg:flex items-center gap-4 xl:gap-7">
           {navItems.map((item) => (
             <Link 
               key={item.href}
               href={item.href} 
-              className={`text-[15px] font-medium tracking-wide transition-all duration-300 ${
+              className={`text-sm xl:text-[15px] font-medium tracking-wide transition-all duration-300 ${
                 isActive(item.href) 
                   ? "text-[#C9A66B]" 
                   : "text-[#F9F7F6]/70 hover:text-[#F4E7E7]"
@@ -95,79 +95,100 @@ export function Navbar() {
               {item.name}
             </Link>
           ))}
-          {/* Profile Avatar Dropdown */}
-          <div className="relative" ref={profileRef}>
-            <button
-              className="flex items-center gap-2 text-[#F9F7F6] hover:text-[#C9A66B] focus:outline-none"
-              onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-            >
-              <img
-                src={user?.user_metadata?.avatar_url || '/placeholder-avatar.png'}
-                alt="Avatar"
-                className="h-9 w-9 rounded-full border-2 border-[#C9A66B]/40 object-cover"
-              />
-              {role === 'admin' && (
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#C9A66B]">Admin</span>
+
+          {/* Profile Avatar Dropdown - ONLY SHOWN WHEN ACTIVELY LOGGED IN */}
+          {user && (
+            <div className="relative" ref={profileRef}>
+              <button
+                className="flex items-center gap-2 text-[#F9F7F6] hover:text-[#C9A66B] focus:outline-none cursor-pointer"
+                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+              >
+                <img
+                  src={user?.user_metadata?.avatar_url || '/placeholder-avatar.png'}
+                  alt="Avatar"
+                  className="h-8 w-8 xl:h-9 xl:w-9 rounded-full border-2 border-[#C9A66B]/50 object-cover"
+                />
+                {role === 'admin' && (
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#C9A66B]">Admin</span>
+                )}
+              </button>
+              {profileMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-[#1C1C1C] border border-[#F4E7E7]/15 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-white/5">
+                  <div className="px-4 py-2.5 bg-black/40">
+                    <p className="text-xs font-semibold text-white truncate">{user.email?.split('@')[0]}</p>
+                    <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
+                  </div>
+                  <div className="py-1">
+                    <Link
+                      href="/user/profile"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#F9F7F6] hover:bg-[#C9A66B]/20 transition-colors"
+                    >
+                      Profile
+                    </Link>
+                    <Link
+                      href={role === 'admin' ? '/admin/dashboard' : '/user/dashboard'}
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#F9F7F6] hover:bg-[#C9A66B]/20 transition-colors"
+                    >
+                      Dashboard
+                    </Link>
+                    <Link
+                      href={role === 'admin' ? '/admin/pipeline' : '/user/dashboard'}
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#C9A66B] hover:bg-[#C9A66B]/20 transition-colors font-semibold"
+                    >
+                      Sales Pipeline
+                    </Link>
+                  </div>
+                  <div className="py-1">
+                    <button
+                      onClick={async () => {
+                        setProfileMenuOpen(false)
+                        await supabase.auth.signOut()
+                        window.location.href = '/login'
+                      }}
+                      className="w-full text-left flex items-center gap-2 px-4 py-2 text-xs text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                    >
+                      Log Out
+                    </button>
+                  </div>
+                </div>
               )}
-            </button>
-            {profileMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-[#1C1C1C] border border-[#F4E7E7]/15 rounded-xl shadow-2xl z-50 overflow-hidden">
-                <Link
-                  href="/user/profile"
-                  onClick={() => setProfileMenuOpen(false)}
-                  className="flex items-center gap-2 px-4 py-3 text-sm text-[#F9F7F6] hover:bg-[#C9A66B]/20 transition-colors"
-                >
-                  Profile
-                </Link>
-                <Link
-                  href="/admin/dashboard"
-                  onClick={() => setProfileMenuOpen(false)}
-                  className="flex items-center gap-2 px-4 py-3 text-sm text-[#F9F7F6] hover:bg-[#C9A66B]/20 transition-colors"
-                >
-                  Dashboard
-                </Link>
-                <Link
-                  href="/admin/pipeline"
-                  onClick={() => setProfileMenuOpen(false)}
-                  className="flex items-center gap-2 px-4 py-3 text-sm text-[#C9A66B] hover:bg-[#C9A66B]/20 transition-colors font-semibold"
-                >
-                  Sales Pipeline
-                </Link>
-                <div className="h-px bg-white/5 mx-3" />
-                <button
-                  onClick={async () => {
-                    setProfileMenuOpen(false)
-                    await supabase.auth.signOut()
-                    window.location.href = '/login'
-                  }}
-                  className="w-full text-left flex items-center gap-2 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
-                >
-                  Log Out
-                </button>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </nav>
 
         {/* DESKTOP NAV CTA BUTTONS */}
-        <div className="hidden md:flex items-center gap-4">
-          <Link
-            href="/login"
-            className="text-[15px] font-medium text-[#F9F7F6]/80 hover:text-[#C9A66B] px-3 py-2 transition-colors duration-300"
-          >
-            Log In
-          </Link>
-          <Link 
-            href="/signup"
-            className="inline-flex items-center justify-center bg-[#C9A66B] text-[#1C1C1C] hover:bg-[#C9A66B]/90 font-heading font-medium rounded-[16px] px-6 py-2.5 text-[15px] tracking-wide transition-all duration-300 hover:shadow-[0_4px_20px_rgba(201,166,107,0.15)]"
-          >
-            Sign Up
-          </Link>
+        <div className="hidden lg:flex items-center gap-3 xl:gap-4">
+          {user ? (
+            <Link
+              href={role === 'admin' ? '/admin/dashboard' : '/user/dashboard'}
+              className="inline-flex items-center justify-center bg-[#C9A66B] text-[#1C1C1C] hover:bg-[#C9A66B]/90 font-heading font-semibold rounded-[14px] px-5 py-2 text-sm tracking-wide transition-all duration-300 shadow-md shadow-[#C9A66B]/20"
+            >
+              Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="text-sm xl:text-[15px] font-medium text-[#F9F7F6]/80 hover:text-[#C9A66B] px-3 py-2 transition-colors duration-300"
+              >
+                Log In
+              </Link>
+              <Link 
+                href="/signup"
+                className="inline-flex items-center justify-center bg-[#C9A66B] text-[#1C1C1C] hover:bg-[#C9A66B]/90 font-heading font-medium rounded-[14px] px-5 py-2 text-sm tracking-wide transition-all duration-300 hover:shadow-[0_4px_20px_rgba(201,166,107,0.15)]"
+              >
+                Sign Up
+              </Link>
+            </>
+          )}
         </div>
 
-        {/* MOBILE MENU BUTTON */}
+        {/* MOBILE MENU BUTTON (visible below lg breakpoint) */}
         <button
-          className="md:hidden text-[#F9F7F6] p-2 hover:bg-[#F4E7E7]/5 rounded-lg transition-colors"
+          className="lg:hidden text-[#F9F7F6] p-2 hover:bg-[#F4E7E7]/5 rounded-lg transition-colors cursor-pointer"
           onClick={() => setIsOpen(!isOpen)}
           aria-label="Toggle Menu"
         >
@@ -177,14 +198,14 @@ export function Navbar() {
 
       {/* MOBILE NAV OVERLAY */}
       {isOpen && (
-        <div className="md:hidden absolute top-20 left-0 right-0 bg-[#1C1C1C] border-b border-[#F4E7E7]/10 px-6 py-8 flex flex-col gap-6 shadow-2xl animate-in fade-in slide-in-from-top-5 duration-200">
-          <nav className="flex flex-col gap-4">
+        <div className="lg:hidden absolute top-20 left-0 right-0 bg-[#1C1C1C] border-b border-[#F4E7E7]/10 px-6 py-8 flex flex-col gap-6 shadow-2xl animate-in fade-in slide-in-from-top-5 duration-200 z-50">
+          <nav className="flex flex-col gap-3">
             {navItems.map((item) => (
               <Link 
                 key={item.href}
                 href={item.href} 
                 onClick={() => setIsOpen(false)}
-                className={`text-lg font-medium tracking-wide py-2 border-b border-[#F4E7E7]/5 ${
+                className={`text-base font-medium tracking-wide py-2 border-b border-[#F4E7E7]/5 ${
                   isActive(item.href) 
                     ? "text-[#C9A66B]" 
                     : "text-[#F9F7F6]/80"
@@ -196,20 +217,44 @@ export function Navbar() {
           </nav>
           
           <div className="flex flex-col gap-3 pt-2">
-            <Link 
-              href="/login"
-              onClick={() => setIsOpen(false)}
-              className="w-full text-center border border-[#C9A66B]/30 text-[#F9F7F6] hover:bg-[#F4E7E7]/5 font-heading font-medium rounded-[16px] py-3 text-[16px] tracking-wide transition-all duration-300"
-            >
-              Log In
-            </Link>
-            <Link 
-              href="/signup"
-              onClick={() => setIsOpen(false)}
-              className="w-full text-center bg-[#C9A66B] text-[#1C1C1C] hover:bg-[#C9A66B]/90 font-heading font-medium rounded-[16px] py-3 text-[16px] tracking-wide transition-all duration-300"
-            >
-              Sign Up
-            </Link>
+            {user ? (
+              <>
+                <Link
+                  href={role === 'admin' ? '/admin/dashboard' : '/user/dashboard'}
+                  onClick={() => setIsOpen(false)}
+                  className="w-full text-center bg-[#C9A66B] text-[#1C1C1C] font-heading font-semibold rounded-[16px] py-3 text-[15px] tracking-wide"
+                >
+                  Go to Dashboard
+                </Link>
+                <button
+                  onClick={async () => {
+                    setIsOpen(false)
+                    await supabase.auth.signOut()
+                    window.location.href = '/login'
+                  }}
+                  className="w-full text-center border border-red-500/30 text-red-400 font-heading font-medium rounded-[16px] py-2.5 text-sm"
+                >
+                  Log Out ({user.email})
+                </button>
+              </>
+            ) : (
+              <>
+                <Link 
+                  href="/login"
+                  onClick={() => setIsOpen(false)}
+                  className="w-full text-center border border-[#C9A66B]/30 text-[#F9F7F6] hover:bg-[#F4E7E7]/5 font-heading font-medium rounded-[16px] py-3 text-[15px] tracking-wide transition-all duration-300"
+                >
+                  Log In
+                </Link>
+                <Link 
+                  href="/signup"
+                  onClick={() => setIsOpen(false)}
+                  className="w-full text-center bg-[#C9A66B] text-[#1C1C1C] hover:bg-[#C9A66B]/90 font-heading font-medium rounded-[16px] py-3 text-[15px] tracking-wide transition-all duration-300"
+                >
+                  Sign Up
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

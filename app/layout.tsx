@@ -159,6 +159,55 @@ export default function RootLayout({
                     "@id": "https://cillah.dev/#organization"
                   },
                   "inLanguage": "en-US"
+                },
+                {
+                  "@type": "ItemList",
+                  "@id": "https://cillah.dev/#sitelinks",
+                  "name": "Cillah.dev Sitelinks",
+                  "itemListElement": [
+                    {
+                      "@type": "SiteNavigationElement",
+                      "position": 1,
+                      "name": "Log In",
+                      "description": "Log in to your Cillah.dev client or admin portal.",
+                      "url": "https://cillah.dev/login"
+                    },
+                    {
+                      "@type": "SiteNavigationElement",
+                      "position": 2,
+                      "name": "Sign Up",
+                      "description": "Create your Cillah.dev account to access autonomous AI inboxes and CRM automation.",
+                      "url": "https://cillah.dev/signup"
+                    },
+                    {
+                      "@type": "SiteNavigationElement",
+                      "position": 3,
+                      "name": "Our Services",
+                      "description": "Explore custom web applications, 24/7 AI messaging agents, and CRM automation pipelines.",
+                      "url": "https://cillah.dev/our-services"
+                    },
+                    {
+                      "@type": "SiteNavigationElement",
+                      "position": 4,
+                      "name": "Book Consultation",
+                      "description": "Schedule a one-on-one discovery consultation to map out your business automation.",
+                      "url": "https://cillah.dev/book-consultation"
+                    },
+                    {
+                      "@type": "SiteNavigationElement",
+                      "position": 5,
+                      "name": "Use Cases",
+                      "description": "See practical real estate automation workflows and live client results.",
+                      "url": "https://cillah.dev/use-cases"
+                    },
+                    {
+                      "@type": "SiteNavigationElement",
+                      "position": 6,
+                      "name": "Pricing",
+                      "description": "Explore investment tiers for custom software builds and monthly retainers.",
+                      "url": "https://cillah.dev/pricing"
+                    }
+                  ]
                 }
               ]
             }),

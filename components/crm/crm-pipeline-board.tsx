@@ -26,7 +26,11 @@ import {
   ShieldCheck,
   Building,
   Tag,
-  Eye
+  Eye,
+  Trash2,
+  Edit2,
+  RotateCcw,
+  History
 } from 'lucide-react'
 
 export interface SalesLead {
@@ -67,6 +71,14 @@ export interface StaffMember {
   full_name: string
   role: string
   status: string
+  org_id?: string
+}
+
+export interface Organization {
+  id: string
+  name: string
+  slug: string
+  website?: string
 }
 
 const STAGES = [
@@ -96,6 +108,7 @@ export default function CRMPipelineBoard({
   const supabase = createClient()
   const [leads, setLeads] = useState<SalesLead[]>([])
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([])
+  const [organizations, setOrganizations] = useState<Organization[]>([])
   const [loading, setLoading] = useState(true)
 
   const effectiveIsAdmin = isStaffAdmin && !forceUserOnly
@@ -133,7 +146,14 @@ export default function CRMPipelineBoard({
   const [editEmail, setEditEmail] = useState('')
   const [editPhone, setEditPhone] = useState('')
   const [editCompany, setEditCompany] = useState('')
+  const [editEstimatedValue, setEditEstimatedValue] = useState('')
+  const [editStage, setEditStage] = useState('')
+  const [editAssignedAgentEmail, setEditAssignedAgentEmail] = useState('')
   const [savingContact, setSavingContact] = useState(false)
+
+  // Recycle Bin (Trash) Modal State
+  const [showBinModal, setShowBinModal] = useState(false)
+  const [binSearchQuery, setBinSearchQuery] = useState('')
 
   // Lead Transfer State
   const [targetAgentEmail, setTargetAgentEmail] = useState('')
@@ -150,7 +170,55 @@ export default function CRMPipelineBoard({
   const [updatingFollowup, setUpdatingFollowup] = useState(false)
   const [actionSuccessMsg, setActionSuccessMsg] = useState('')
 
+  // Add Lead Modal State
+  const [showAddLeadModal, setShowAddLeadModal] = useState(false)
+  const [addFullName, setAddFullName] = useState('')
+  const [addEmail, setAddEmail] = useState('')
+  const [addPhone, setAddPhone] = useState('')
+  const [addCompany, setAddCompany] = useState('')
+  const [addSource, setAddSource] = useState('email_campaign')
+  const [addStage, setAddStage] = useState('new_lead')
+  const [addAssignedAgentEmail, setAddAssignedAgentEmail] = useState(currentUserEmail)
+  const [addEstimatedValue, setAddEstimatedValue] = useState('')
+  const [addInitialNote, setAddInitialNote] = useState('')
+  const [isSubmittingLead, setIsSubmittingLead] = useState(false)
+
   const isSuperAdmin = currentUserEmail.toLowerCase() === 'awuorcillah@gmail.com'
+
+  // Organization Resolution: Strictly restrict actions to current organization
+  const currentStaff = useMemo(() => {
+    return staffMembers.find((s) => s.email?.toLowerCase() === currentUserEmail.toLowerCase())
+  }, [staffMembers, currentUserEmail])
+
+  const currentOrgId = useMemo(() => {
+    if (currentStaff?.org_id) return currentStaff.org_id
+    if (selectedLead?.assigned_agent_email) {
+      const leadAgent = staffMembers.find(
+        (s) => s.email?.toLowerCase() === selectedLead.assigned_agent_email?.toLowerCase()
+      )
+      if (leadAgent?.org_id) return leadAgent.org_id
+    }
+    return 'a1b2c3d4-e5f6-7890-abcd-222222222222' // cillah.dev default organization
+  }, [currentStaff, selectedLead, staffMembers])
+
+  const currentOrg = useMemo(() => {
+    return (
+      organizations.find((o) => o.id === currentOrgId) || {
+        id: currentOrgId,
+        name: 'cillah.dev',
+        slug: 'cillah-dev'
+      }
+    )
+  }, [organizations, currentOrgId])
+
+  // Agents strictly within our organization
+  const orgStaffMembers = useMemo(() => {
+    return staffMembers.filter((s) => {
+      const inOrg = s.org_id === currentOrgId
+      const isSalesRole = s.role === 'sales' || s.role === 'ceo' || s.status === 'admin'
+      return inOrg && isSalesRole
+    })
+  }, [staffMembers, currentOrgId])
 
   // Populate edit fields & viewing date on lead selection
   useEffect(() => {
@@ -159,6 +227,9 @@ export default function CRMPipelineBoard({
       setEditEmail(selectedLead.email || '')
       setEditPhone(selectedLead.phone_number || '')
       setEditCompany(selectedLead.company_name || '')
+      setEditEstimatedValue(selectedLead.estimated_value ? String(selectedLead.estimated_value) : '0')
+      setEditStage(selectedLead.stage || 'new_lead')
+      setEditAssignedAgentEmail(selectedLead.assigned_agent_email || currentUserEmail)
       setTargetAgentEmail(selectedLead.assigned_agent_email || '')
       setIsEditingContact(false)
 
@@ -240,9 +311,13 @@ export default function CRMPipelineBoard({
     async function fetchData() {
       setLoading(true)
 
-      // Fetch Staff Members
-      const { data: staffData } = await supabase.from('staff_members').select('*')
+      // Fetch Staff Members & Organizations
+      const [{ data: staffData }, { data: orgData }] = await Promise.all([
+        supabase.from('staff_members').select('*'),
+        supabase.from('organizations').select('*')
+      ])
       if (staffData) setStaffMembers(staffData)
+      if (orgData) setOrganizations(orgData)
 
       // Fetch Sales Leads
       let query = supabase.from('sales_leads').select('*').order('created_at', { ascending: false })
@@ -412,9 +487,14 @@ export default function CRMPipelineBoard({
     fetchNotes()
   }, [selectedLead])
 
-  // Filtered Leads Calculation
+  // Filtered Leads Calculation (Excludes Recycle Bin leads)
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {
+      // Exclude leads moved to Recycle Bin (Trash)
+      if (lead.stage === 'trash') {
+        return false
+      }
+
       // Agent Filter
       if (effectiveIsAdmin && agentFilter !== 'all' && lead.assigned_agent_email !== agentFilter) {
         return false
@@ -451,20 +531,46 @@ export default function CRMPipelineBoard({
 
       return true
     })
-  }, [leads, agentFilter, isStaffAdmin, stageFilter, timeFilter, searchQuery])
+  }, [leads, agentFilter, effectiveIsAdmin, stageFilter, timeFilter, searchQuery, currentUserEmail])
 
-  // Metrics Counters
+  // Recycle Bin (Trash) Leads Calculation
+  const trashLeads = useMemo(() => {
+    return leads.filter((lead) => {
+      if (lead.stage !== 'trash') return false
+
+      if (!effectiveIsAdmin && lead.assigned_agent_email !== currentUserEmail) {
+        return false
+      }
+      if (effectiveIsAdmin && agentFilter !== 'all' && lead.assigned_agent_email !== agentFilter) {
+        return false
+      }
+
+      if (binSearchQuery.trim() !== '') {
+        const q = binSearchQuery.toLowerCase()
+        const matchName = lead.full_name?.toLowerCase().includes(q)
+        const matchEmail = lead.email?.toLowerCase().includes(q)
+        const matchPhone = lead.phone_number?.toLowerCase().includes(q)
+        const matchCompany = lead.company_name?.toLowerCase().includes(q)
+        if (!matchName && !matchEmail && !matchPhone && !matchCompany) return false
+      }
+
+      return true
+    })
+  }, [leads, effectiveIsAdmin, agentFilter, currentUserEmail, binSearchQuery])
+
+  // Metrics Counters (Active leads only)
   const metrics = useMemo(() => {
+    const activeLeads = leads.filter((l) => l.stage !== 'trash')
     const now = new Date()
     const past24h = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
-    const newToday = leads.filter((l) => new Date(l.created_at) >= past24h).length
-    const hotLeads = leads.filter((l) => l.stage === 'hot_lead').length
-    const upcomingAppointments = leads.filter(
+    const newToday = activeLeads.filter((l) => new Date(l.created_at) >= past24h).length
+    const hotLeads = activeLeads.filter((l) => l.stage === 'hot_lead').length
+    const upcomingAppointments = activeLeads.filter(
       (l) => l.next_followup_at && new Date(l.next_followup_at) > now
     ).length
-    const wonDealsCount = leads.filter((l) => l.stage === 'closed_won').length
-    const wonDealsValue = leads
+    const wonDealsCount = activeLeads.filter((l) => l.stage === 'closed_won').length
+    const wonDealsValue = activeLeads
       .filter((l) => l.stage === 'closed_won')
       .reduce((sum, l) => sum + (l.estimated_value || 0), 0)
 
@@ -496,19 +602,36 @@ export default function CRMPipelineBoard({
     }
   }
 
-  // Save Contact Details (Full Name, Email, Phone/WhatsApp, Company)
+  // Save Contact Details with Audit Trail Log
   const handleSaveContactDetails = async () => {
-    if (!selectedLead) return
+    if (!selectedLead || !editFullName.trim()) return
     setSavingContact(true)
     setActionSuccessMsg('')
 
-    const updatedFields = {
+    const targetStaff = staffMembers.find((s) => s.email?.toLowerCase() === editAssignedAgentEmail.toLowerCase())
+    const valNum = Number(editEstimatedValue) || 0
+
+    const updatedFields: any = {
       full_name: editFullName.trim(),
       email: editEmail.trim() || null,
       phone_number: editPhone.trim() || null,
       company_name: editCompany.trim() || null,
+      estimated_value: valNum,
+      stage: editStage || selectedLead.stage,
+      assigned_agent_email: editAssignedAgentEmail || selectedLead.assigned_agent_email,
+      assigned_agent_id: targetStaff?.id || selectedLead.assigned_agent_id,
       updated_at: new Date().toISOString()
     }
+
+    // Detect differences to build rich audit log
+    const changes: string[] = []
+    if (editFullName.trim() !== (selectedLead.full_name || '')) changes.push(`Name to "${editFullName.trim()}"`)
+    if ((editEmail.trim() || '') !== (selectedLead.email || '')) changes.push(`Email to "${editEmail.trim() || 'none'}"`)
+    if ((editPhone.trim() || '') !== (selectedLead.phone_number || '')) changes.push(`Phone to "${editPhone.trim() || 'none'}"`)
+    if ((editCompany.trim() || '') !== (selectedLead.company_name || '')) changes.push(`Company to "${editCompany.trim() || 'none'}"`)
+    if (valNum !== (selectedLead.estimated_value || 0)) changes.push(`Value to $${valNum.toLocaleString()}`)
+    if (editStage && editStage !== selectedLead.stage) changes.push(`Stage moved to "${STAGES.find((s) => s.id === editStage)?.name || editStage}"`)
+    if (editAssignedAgentEmail && editAssignedAgentEmail !== selectedLead.assigned_agent_email) changes.push(`Assigned to ${editAssignedAgentEmail.split('@')[0]}`)
 
     const { error } = await supabase
       .from('sales_leads')
@@ -521,17 +644,170 @@ export default function CRMPipelineBoard({
       setLeads((prev) => prev.map((l) => (l.id === selectedLead.id ? updatedLead : l)))
       setActionSuccessMsg('Contact details updated successfully!')
       setIsEditingContact(false)
+
+      if (changes.length > 0) {
+        const auditText = `Contact updated: ${changes.join(', ')}`
+        const { data: newNote } = await supabase
+          .from('lead_notes')
+          .insert({
+            lead_id: selectedLead.id,
+            author_email: currentUserEmail,
+            author_name: currentUserEmail.split('@')[0],
+            source: 'contact_edit',
+            note_text: auditText
+          })
+          .select()
+          .single()
+
+        if (newNote) {
+          setNotes((prev) => [newNote, ...prev])
+        }
+      }
+
+      toast.success('Contact details updated')
       setTimeout(() => setActionSuccessMsg(''), 4000)
     } else {
       console.error('Error saving contact details:', error)
+      toast.error('Failed to save contact details')
     }
     setSavingContact(false)
   }
 
-  // Lead Transfer Handler (Agent to Agent -> Source becomes transferring agent email)
+  // Soft Delete Lead -> Move to Recycle Bin (Trash)
+  const handleDeleteLead = async (leadId: string, leadName?: string) => {
+    const targetLead = leads.find((l) => l.id === leadId)
+    if (!targetLead) return
+
+    const prevStage = targetLead.stage
+    const updatedFields = {
+      stage: 'trash',
+      followup_status: `deleted_from:${prevStage}`,
+      last_interaction_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    // Optimistic UI update
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, ...updatedFields } : l)))
+    if (selectedLead?.id === leadId) setSelectedLead(null)
+
+    const { error } = await supabase.from('sales_leads').update(updatedFields).eq('id', leadId)
+    if (error) {
+      console.error('Error moving lead to bin:', error)
+      toast.error('Failed to move lead to Recycle Bin')
+      return
+    }
+
+    await supabase.from('lead_notes').insert({
+      lead_id: leadId,
+      author_email: currentUserEmail,
+      author_name: currentUserEmail.split('@')[0],
+      source: 'lead_deleted',
+      note_text: `Moved to Recycle Bin from stage "${STAGES.find((s) => s.id === prevStage)?.name || prevStage}" by ${currentUserEmail.split('@')[0]}`
+    })
+
+    toast.success(`"${targetLead.full_name}" moved to Recycle Bin`, {
+      action: {
+        label: 'Undo',
+        onClick: () => handleRestoreLead(leadId)
+      },
+      duration: 6000
+    })
+  }
+
+  // Restore Lead from Recycle Bin
+  const handleRestoreLead = async (leadId: string) => {
+    const targetLead = leads.find((l) => l.id === leadId)
+    if (!targetLead) return
+
+    let restoredStage = 'repeat_lead'
+    if (targetLead.followup_status && targetLead.followup_status.startsWith('deleted_from:')) {
+      restoredStage = targetLead.followup_status.replace('deleted_from:', '')
+    } else if (targetLead.followup_status && targetLead.followup_status.startsWith('deleted:')) {
+      restoredStage = targetLead.followup_status.replace('deleted:', '')
+    }
+
+    if (!STAGES.some((s) => s.id === restoredStage)) {
+      restoredStage = 'repeat_lead'
+    }
+
+    const updatedFields = {
+      stage: restoredStage,
+      followup_status: null,
+      last_interaction_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, ...updatedFields } : l)))
+
+    const { error } = await supabase.from('sales_leads').update(updatedFields).eq('id', leadId)
+    if (error) {
+      console.error('Error restoring lead:', error)
+      toast.error('Failed to restore lead')
+      return
+    }
+
+    await supabase.from('lead_notes').insert({
+      lead_id: leadId,
+      author_email: currentUserEmail,
+      author_name: currentUserEmail.split('@')[0],
+      source: 'lead_restored',
+      note_text: `Restored from Recycle Bin back to stage "${STAGES.find((s) => s.id === restoredStage)?.name || restoredStage}" by ${currentUserEmail.split('@')[0]}`
+    })
+
+    const stageName = STAGES.find((s) => s.id === restoredStage)?.name || restoredStage
+    toast.success(`"${targetLead.full_name}" restored to ${stageName}!`)
+  }
+
+  // Permanently Delete Lead from Database
+  const handlePermanentDelete = async (leadId: string) => {
+    const targetLead = leads.find((l) => l.id === leadId)
+    if (!confirm(`Are you sure you want to permanently delete "${targetLead?.full_name || 'this contact'}"? This action cannot be undone.`)) {
+      return
+    }
+
+    setLeads((prev) => prev.filter((l) => l.id !== leadId))
+
+    const { error } = await supabase.from('sales_leads').delete().eq('id', leadId)
+    if (error) {
+      console.error('Error permanently deleting lead:', error)
+      toast.error('Failed to permanently delete lead')
+      return
+    }
+
+    toast.success('Contact permanently removed.')
+  }
+
+  // Empty Recycle Bin
+  const handleEmptyBin = async () => {
+    if (trashLeads.length === 0) return
+    if (!confirm(`Are you sure you want to permanently delete all ${trashLeads.length} leads in the Recycle Bin? This action CANNOT be undone.`)) {
+      return
+    }
+
+    const ids = trashLeads.map((l) => l.id)
+    setLeads((prev) => prev.filter((l) => !ids.includes(l.id)))
+
+    const { error } = await supabase.from('sales_leads').delete().in('id', ids)
+    if (error) {
+      console.error('Error emptying bin:', error)
+      toast.error('Failed to empty bin')
+      return
+    }
+
+    toast.success(`Recycle bin emptied (${ids.length} contacts permanently deleted).`)
+  }
+
+  // Lead Transfer Handler (Agent to Agent strictly within organization)
   const handleTransferLead = async () => {
     if (!selectedLead || !targetAgentEmail) return
     if (targetAgentEmail === selectedLead.assigned_agent_email) return
+
+    // Strict organization check: Only transfer to members of our organization
+    const targetStaff = staffMembers.find((s) => s.email?.toLowerCase() === targetAgentEmail.toLowerCase())
+    if (targetStaff && targetStaff.org_id && targetStaff.org_id !== currentOrgId) {
+      toast.error(`You can only transfer leads to members within your organization (${currentOrg.name}).`)
+      return
+    }
 
     setTransferringLead(true)
     setActionSuccessMsg('')
@@ -539,6 +815,7 @@ export default function CRMPipelineBoard({
     const newSource = currentUserEmail
     const updatedFields = {
       assigned_agent_email: targetAgentEmail,
+      assigned_agent_id: targetStaff?.id || null,
       source: newSource,
       updated_at: new Date().toISOString()
     }
@@ -549,7 +826,7 @@ export default function CRMPipelineBoard({
       .eq('id', selectedLead.id)
 
     if (!error) {
-      const transferNoteText = `Lead transferred from ${selectedLead.assigned_agent_email || 'Unassigned'} to ${targetAgentEmail} by ${currentUserEmail}. Source updated to ${newSource}.`
+      const transferNoteText = `Lead transferred from ${selectedLead.assigned_agent_email || 'Unassigned'} to ${targetAgentEmail} (${targetStaff?.full_name || 'Agent'}) in ${currentOrg.name} by ${currentUserEmail}. Source updated to ${newSource}.`
       
       await supabase.from('lead_notes').insert({
         lead_id: selectedLead.id,
@@ -573,26 +850,187 @@ export default function CRMPipelineBoard({
         created_at: new Date().toISOString()
       }, ...prev])
 
-      setActionSuccessMsg(`Lead transferred to ${targetAgentEmail}. Source set to ${newSource}`)
+      setActionSuccessMsg(`Lead transferred to ${targetAgentEmail} (${currentOrg.name}). Source set to ${newSource}`)
+      toast.success(`Lead successfully transferred to ${targetAgentEmail}`)
       setTimeout(() => setActionSuccessMsg(''), 4000)
     } else {
       console.error('Error transferring lead:', error)
+      toast.error('Failed to transfer lead')
     }
 
     setTransferringLead(false)
   }
 
-  // Delete Lead Handler (Super Admin Only)
-  const handleDeleteLead = async () => {
-    if (!selectedLead || !isSuperAdmin) return
-    if (!window.confirm(`Are you sure you want to permanently delete lead '${selectedLead.full_name}'?`)) return
+  // Create New Lead Handler (Form Submission with Repeat Inquiry Rule)
+  const handleAddLead = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!addFullName.trim()) {
+      toast.error('Please enter the lead full name')
+      return
+    }
 
-    const { error } = await supabase.from('sales_leads').delete().eq('id', selectedLead.id)
-    if (!error) {
-      setLeads((prev) => prev.filter((l) => l.id !== selectedLead.id))
-      setSelectedLead(null)
+    setIsSubmittingLead(true)
+    try {
+      // 1. Check if lead already exists in sales_leads by email, phone, or name
+      let existingLead: SalesLead | null = null
+
+      if (addEmail.trim()) {
+        const { data: emailMatch } = await supabase
+          .from('sales_leads')
+          .select('*')
+          .ilike('email', addEmail.trim())
+          .order('created_at', { ascending: false })
+          .limit(1)
+        if (emailMatch && emailMatch.length > 0) existingLead = emailMatch[0]
+      }
+
+      if (!existingLead && addPhone.trim()) {
+        const clean = addPhone.replace(/[^0-9]/g, '')
+        if (clean.length >= 7) {
+          const { data: allPhoneLeads } = await supabase
+            .from('sales_leads')
+            .select('*')
+            .not('phone_number', 'is', null)
+          if (allPhoneLeads) {
+            existingLead = allPhoneLeads.find((l: any) => {
+              if (!l.phone_number) return false
+              const p = l.phone_number.replace(/[^0-9]/g, '')
+              return p.endsWith(clean.slice(-8)) || clean.endsWith(p.slice(-8))
+            }) || null
+          }
+        }
+      }
+
+      if (!existingLead && addFullName.trim()) {
+        const { data: nameMatch } = await supabase
+          .from('sales_leads')
+          .select('*')
+          .ilike('full_name', addFullName.trim())
+          .order('created_at', { ascending: false })
+          .limit(1)
+        if (nameMatch && nameMatch.length > 0) existingLead = nameMatch[0]
+      }
+
+      if (existingLead) {
+        // =====================================================================
+        // REPEAT INQUIRY RULE:
+        // Land in 'repeat_lead' (Repeat Inquiries) under previously assigned agent!
+        // =====================================================================
+        const assignedEmail = existingLead.assigned_agent_email || addAssignedAgentEmail || currentUserEmail
+        const assignedId = existingLead.assigned_agent_id || null
+
+        const updatePayload: any = {
+          stage: 'repeat_lead', // REPEAT INQUIRIES
+          assigned_agent_email: assignedEmail,
+          assigned_agent_id: assignedId,
+          last_interaction_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+
+        if (addPhone.trim() && (!existingLead.phone_number || existingLead.phone_number === 'N/A')) {
+          updatePayload.phone_number = addPhone.trim()
+        }
+        if (addEmail.trim() && !existingLead.email) {
+          updatePayload.email = addEmail.trim()
+        }
+        if (addCompany.trim() && !existingLead.company_name) {
+          updatePayload.company_name = addCompany.trim()
+        }
+
+        const { data: updatedLead, error: uErr } = await supabase
+          .from('sales_leads')
+          .update(updatePayload)
+          .eq('id', existingLead.id)
+          .select('*')
+          .single()
+
+        if (uErr) throw uErr
+
+        const repeatNote = `Repeat inquiry logged via Lead Form (${addSource}). Automatically landed in Repeat Inquiries under assigned agent: ${assignedEmail}.${addInitialNote ? ` Note: ${addInitialNote.trim()}` : ''}`
+
+        await supabase.from('lead_notes').insert({
+          lead_id: existingLead.id,
+          author_email: currentUserEmail,
+          author_name: currentUserEmail.split('@')[0],
+          source: addSource,
+          note_text: repeatNote
+        })
+
+        const mappedUpdatedLead = {
+          ...existingLead,
+          ...updatePayload,
+          full_name: updatedLead?.full_name || existingLead.full_name,
+          phone_number: updatedLead?.phone_number || existingLead.phone_number
+        }
+
+        setLeads((prev) => prev.map((l) => (l.id === existingLead.id ? mappedUpdatedLead : l)))
+        playVictorySound()
+        toast.success(`Existing lead recognized! Card placed in Repeat Inquiries under assigned agent (${assignedEmail}).`, { duration: 6000 })
+      } else {
+        // Brand new lead
+        const targetStaff = orgStaffMembers.find(
+          (s) => s.email?.toLowerCase() === addAssignedAgentEmail.toLowerCase()
+        )
+        const estVal = parseFloat(addEstimatedValue) || 0
+
+        const { data: newLead, error: iErr } = await supabase
+          .from('sales_leads')
+          .insert({
+            full_name: addFullName.trim(),
+            email: addEmail.trim() || null,
+            phone_number: addPhone.trim() || null,
+            company_name: addCompany.trim() || null,
+            source: addSource,
+            stage: addStage,
+            assigned_agent_email: addAssignedAgentEmail,
+            assigned_agent_id: targetStaff?.id || null,
+            estimated_value: estVal,
+            is_qualified: addStage === 'hot_lead' || addStage === 'warm_lead'
+          })
+          .select('*')
+          .single()
+
+        if (iErr) throw iErr
+
+        if (addInitialNote.trim()) {
+          await supabase.from('lead_notes').insert({
+            lead_id: newLead.id,
+            author_email: currentUserEmail,
+            author_name: currentUserEmail.split('@')[0],
+            source: addSource,
+            note_text: addInitialNote.trim()
+          })
+        }
+
+        const mappedNewLead: SalesLead = {
+          ...newLead,
+          full_name: newLead.full_name,
+          phone_number: newLead.phone_number
+        }
+
+        setLeads((prev) => [mappedNewLead, ...prev])
+        playVictorySound()
+        const stageName = STAGES.find((s) => s.id === addStage)?.name || addStage
+        toast.success(`Lead created successfully! Card placed in "${stageName}".`, { duration: 5000 })
+      }
+
+      // Reset form
+      setAddFullName('')
+      setAddEmail('')
+      setAddPhone('')
+      setAddCompany('')
+      setAddInitialNote('')
+      setAddEstimatedValue('')
+      setShowAddLeadModal(false)
+    } catch (err: any) {
+      console.error('Error in handleAddLead:', err)
+      toast.error(err.message || 'Failed to save lead')
+    } finally {
+      setIsSubmittingLead(false)
     }
   }
+
+
 
   // Add Note Handler
   const handleAddNote = async () => {
@@ -683,7 +1121,7 @@ export default function CRMPipelineBoard({
 
         {/* CONTROLS: AGENT FILTER & VIEW MODE */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          {/* Staff Admin Agent Switcher */}
+          {/* Staff Admin Agent Switcher (Strictly Organization Agents) */}
           {effectiveIsAdmin && (
             <div className="flex items-center gap-2 bg-slate-900 border border-slate-700/80 rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs">
               <UserCheck className="w-4 h-4 text-[#C9A66B]" />
@@ -693,23 +1131,52 @@ export default function CRMPipelineBoard({
                 onChange={(e) => setAgentFilter(e.target.value)}
                 className="bg-transparent text-white font-medium focus:outline-none cursor-pointer"
               >
-                <option value="all" className="bg-slate-900 text-white">All Sales Agents</option>
-                {staffMembers
-                  .filter((s) => s.role === 'sales' || s.role === 'ceo')
-                  .map((agent) => (
-                    <option key={agent.id} value={agent.email} className="bg-slate-900 text-white">
-                      {agent.full_name} ({agent.email})
-                    </option>
-                  ))}
+                <option value="all" className="bg-slate-900 text-white">All {currentOrg.name} Agents</option>
+                {orgStaffMembers.map((agent) => (
+                  <option key={agent.id} value={agent.email} className="bg-slate-900 text-white">
+                    {agent.full_name} ({agent.email})
+                  </option>
+                ))}
               </select>
             </div>
           )}
+
+          {/* Add Lead Quick Button */}
+          <button
+            onClick={() => {
+              setAddStage('new_lead')
+              setAddAssignedAgentEmail(currentUserEmail)
+              setShowAddLeadModal(true)
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-[#C9A66B] hover:bg-[#C9A66B]/90 text-slate-950 font-bold rounded-xl text-xs transition-all shadow-md shadow-[#C9A66B]/25 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Add Lead
+          </button>
+
+          {/* Recycle Bin (Trash) Button */}
+          <button
+            onClick={() => setShowBinModal(true)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+              trashLeads.length > 0
+                ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30'
+                : 'bg-slate-900 hover:bg-slate-800 text-slate-400 border-slate-700/80 hover:text-white'
+            }`}
+            title="Recycle Bin (Deleted Contacts)"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Bin</span>
+            {trashLeads.length > 0 && (
+              <span className="px-1.5 py-0.5 bg-rose-500 text-white rounded-full text-[10px] font-bold">
+                {trashLeads.length}
+              </span>
+            )}
+          </button>
 
           {/* View Mode Toggle */}
           <div className="flex items-center bg-slate-900 border border-slate-700/80 rounded-xl p-1">
             <button
               onClick={() => setViewMode('kanban')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                 viewMode === 'kanban' ? 'bg-[#C9A66B] text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -717,7 +1184,7 @@ export default function CRMPipelineBoard({
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                 viewMode === 'table' ? 'bg-[#C9A66B] text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -902,9 +1369,23 @@ export default function CRMPipelineBoard({
                 {/* Column Header */}
                 <div className={`p-3 rounded-xl border ${stage.color} mb-4 flex items-center justify-between`}>
                   <span className="font-bold text-xs uppercase tracking-wider">{stage.name}</span>
-                  <span className="text-xs font-black px-2 py-0.5 rounded-full bg-slate-950/80">
-                    {stageLeads.length}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black px-2 py-0.5 rounded-full bg-slate-950/80">
+                      {stageLeads.length}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setAddStage(stage.id)
+                        setAddAssignedAgentEmail(currentUserEmail)
+                        setShowAddLeadModal(true)
+                      }}
+                      title={`Add lead directly to ${stage.name}`}
+                      className="p-1 hover:bg-white/10 rounded-lg text-slate-300 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Cards Container */}
@@ -1021,6 +1502,33 @@ export default function CRMPipelineBoard({
                             </a>
                           )}
 
+                          {/* Quick Edit Contact Details */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedLead(lead)
+                              setIsEditingContact(true)
+                            }}
+                            title="Edit Contact"
+                            className="p-1.5 bg-slate-900 hover:bg-[#C9A66B]/20 text-slate-400 hover:text-[#C9A66B] border border-slate-800 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Move to Recycle Bin */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteLead(lead.id, lead.full_name)
+                            }}
+                            title="Move to Recycle Bin"
+                            className="p-1.5 bg-slate-900 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-800 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+
                           {/* Quick Stage Move Dropdown */}
                           <select
                             value={lead.stage}
@@ -1118,11 +1626,35 @@ export default function CRMPipelineBoard({
                         <a
                           href={`mailto:${lead.email}`}
                           onClick={(e) => e.stopPropagation()}
+                          title="Send Email"
                           className="p-1.5 bg-purple-500/10 text-purple-400 rounded-lg hover:bg-purple-500/20"
                         >
                           <Mail className="w-4 h-4" />
                         </a>
                       )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSelectedLead(lead)
+                          setIsEditingContact(true)
+                        }}
+                        title="Edit Contact"
+                        className="p-1.5 bg-slate-950 text-slate-400 hover:text-[#C9A66B] hover:bg-[#C9A66B]/15 border border-slate-800 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteLead(lead.id, lead.full_name)
+                        }}
+                        title="Move to Recycle Bin"
+                        className="p-1.5 bg-slate-950 text-slate-400 hover:text-rose-400 hover:bg-rose-500/15 border border-slate-800 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -1175,12 +1707,22 @@ export default function CRMPipelineBoard({
                     Source: <span className="text-[#C9A66B] font-semibold">{selectedLead.source}</span> | Created: {new Date(selectedLead.created_at).toLocaleDateString()}
                   </p>
                 </div>
-                <button
-                  onClick={() => setSelectedLead(null)}
-                  className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-900"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteLead(selectedLead.id, selectedLead.full_name)}
+                    title="Move this contact to Recycle Bin"
+                    className="p-2 text-slate-400 hover:text-rose-400 rounded-xl hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setSelectedLead(null)}
+                    className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-900 cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               {actionSuccessMsg && (
@@ -1233,15 +1775,15 @@ export default function CRMPipelineBoard({
                 )}
               </div>
 
-              {/* EDIT CONTACT DETAILS SECTION (NAME, EMAIL, PHONE, WHATSAPP, COMPANY) */}
+              {/* EDIT CONTACT DETAILS SECTION (NAME, EMAIL, PHONE, WHATSAPP, COMPANY, VALUE, STAGE, AGENT) */}
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 mb-6">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                    <UserCheck className="w-4 h-4 text-[#C9A66B]" /> Contact Info & Editing
+                    <UserCheck className="w-4 h-4 text-[#C9A66B]" /> Contact Info & Quick Edit
                   </h4>
                   <button
                     onClick={() => setIsEditingContact((p) => !p)}
-                    className="text-xs font-semibold text-[#C9A66B] hover:underline"
+                    className="text-xs font-semibold text-[#C9A66B] hover:underline cursor-pointer"
                   >
                     {isEditingContact ? 'Cancel' : '✏️ Edit Contact Info'}
                   </button>
@@ -1258,70 +1800,133 @@ export default function CRMPipelineBoard({
                         className="w-full bg-slate-900 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-[#C9A66B]"
                       />
                     </div>
-                    <div>
-                      <label className="text-slate-400 block mb-1">Email Address</label>
-                      <input
-                        type="email"
-                        placeholder="client@example.com"
-                        value={editEmail}
-                        onChange={(e) => setEditEmail(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-[#C9A66B]"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-slate-400 block mb-1">Email Address</label>
+                        <input
+                          type="email"
+                          placeholder="client@example.com"
+                          value={editEmail}
+                          onChange={(e) => setEditEmail(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-[#C9A66B]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-400 block mb-1">Phone / WhatsApp Number</label>
+                        <input
+                          type="tel"
+                          placeholder="+254 700 000 000"
+                          value={editPhone}
+                          onChange={(e) => setEditPhone(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-[#C9A66B]"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-slate-400 block mb-1">Phone / WhatsApp Number</label>
-                      <input
-                        type="tel"
-                        placeholder="+254 700 000 000"
-                        value={editPhone}
-                        onChange={(e) => setEditPhone(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-[#C9A66B]"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-slate-400 block mb-1">Company Name</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Rose Properties"
+                          value={editCompany}
+                          onChange={(e) => setEditCompany(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-[#C9A66B]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-400 block mb-1">Deal Value ($ / KES)</label>
+                        <input
+                          type="number"
+                          placeholder="e.g. 50000"
+                          value={editEstimatedValue}
+                          onChange={(e) => setEditEstimatedValue(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-[#C9A66B]"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-slate-400 block mb-1">Company Name</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Rose Properties"
-                        value={editCompany}
-                        onChange={(e) => setEditCompany(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-[#C9A66B]"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-slate-400 block mb-1">Pipeline Stage</label>
+                        <select
+                          value={editStage}
+                          onChange={(e) => setEditStage(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-[#C9A66B] cursor-pointer"
+                        >
+                          {STAGES.map((st) => (
+                            <option key={st.id} value={st.id}>
+                              {st.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-slate-400 block mb-1">Assigned Agent ({currentOrg.name})</label>
+                        <select
+                          value={editAssignedAgentEmail}
+                          onChange={(e) => setEditAssignedAgentEmail(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 text-white rounded-lg p-2 focus:outline-none focus:border-[#C9A66B] cursor-pointer"
+                        >
+                          {orgStaffMembers.map((agent) => (
+                            <option key={agent.id} value={agent.email}>
+                              {agent.full_name} ({agent.email})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
 
-                    <div className="flex items-center justify-end gap-2 pt-2">
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-900">
                       <button
-                        onClick={() => setIsEditingContact(false)}
-                        className="px-3 py-1.5 bg-slate-900 text-slate-400 font-bold rounded-lg hover:text-white"
+                        type="button"
+                        onClick={() => handleDeleteLead(selectedLead.id, selectedLead.full_name)}
+                        className="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1.5 py-1 px-2 rounded-lg hover:bg-rose-500/10 transition-colors cursor-pointer"
                       >
-                        Cancel
+                        <Trash2 className="w-3.5 h-3.5" /> Move to Bin
                       </button>
-                      <button
-                        onClick={handleSaveContactDetails}
-                        disabled={savingContact}
-                        className="px-4 py-1.5 bg-[#C9A66B] text-slate-950 font-bold rounded-lg hover:bg-[#C9A66B]/90 transition-all disabled:opacity-50"
-                      >
-                        {savingContact ? 'Saving...' : 'Save Contact Info'}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingContact(false)}
+                          className="px-3 py-1.5 bg-slate-900 text-slate-400 font-bold rounded-lg hover:text-white cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveContactDetails}
+                          disabled={savingContact}
+                          className="px-4 py-1.5 bg-[#C9A66B] text-slate-950 font-bold rounded-lg hover:bg-[#C9A66B]/90 transition-all disabled:opacity-50 cursor-pointer"
+                        >
+                          {savingContact ? 'Saving...' : 'Save Changes'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-3 text-xs bg-slate-950 p-3 rounded-xl border border-slate-900">
+                  <div className="grid grid-cols-2 gap-3 text-xs bg-slate-950 p-3.5 rounded-xl border border-slate-900">
                     <div>
                       <span className="text-slate-500 block text-[11px]">Email:</span>
-                      <span className="text-purple-300 font-semibold">{selectedLead.email || 'Not provided'}</span>
+                      <span className="text-purple-300 font-semibold truncate block">{selectedLead.email || 'Not provided'}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-[11px]">Phone / WhatsApp:</span>
-                      <span className="text-emerald-400 font-semibold">{selectedLead.phone_number || 'Not provided'}</span>
+                      <span className="text-emerald-400 font-semibold truncate block">{selectedLead.phone_number || 'Not provided'}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-[11px]">Company:</span>
-                      <span className="text-slate-300 font-semibold">{selectedLead.company_name || 'Not provided'}</span>
+                      <span className="text-slate-300 font-semibold truncate block">{selectedLead.company_name || 'Individual Client'}</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block text-[11px]">Lead Source:</span>
-                      <span className="text-[#C9A66B] font-semibold">{selectedLead.source}</span>
+                      <span className="text-slate-500 block text-[11px]">Deal Value:</span>
+                      <span className="text-emerald-400 font-bold block">${(selectedLead.estimated_value || 0).toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[11px]">Current Stage:</span>
+                      <span className="text-[#C9A66B] font-semibold block">{STAGES.find((s) => s.id === selectedLead.stage)?.name || selectedLead.stage}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[11px]">Assigned Agent:</span>
+                      <span className="text-slate-300 font-semibold truncate block">{selectedLead.assigned_agent_email?.split('@')[0] || 'Unassigned'}</span>
                     </div>
                   </div>
                 )}
@@ -1344,35 +1949,38 @@ export default function CRMPipelineBoard({
                   </select>
                 </div>
 
-                {/* LEAD TRANSFER FROM AGENT TO AGENT */}
+                {/* LEAD TRANSFER FROM AGENT TO AGENT (STRICTLY WITHIN OUR ORGANIZATION) */}
                 <div>
-                  <label className="text-slate-400 font-medium block mb-1">Transfer Lead To Agent</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-400 font-medium">Transfer Lead To Agent</label>
+                    <span className="text-[10px] font-bold text-[#C9A66B] bg-[#C9A66B]/15 px-2 py-0.5 rounded border border-[#C9A66B]/30">
+                      {currentOrg.name}
+                    </span>
+                  </div>
                   <div className="flex gap-2">
                     <select
                       value={targetAgentEmail}
                       onChange={(e) => setTargetAgentEmail(e.target.value)}
                       className="flex-1 bg-slate-950 border border-slate-700 text-white rounded-lg p-2 font-bold focus:outline-none cursor-pointer"
                     >
-                      {staffMembers
-                        .filter((s) => s.role === 'sales' || s.role === 'ceo')
-                        .map((agent) => (
-                          <option key={agent.id} value={agent.email}>
-                            {agent.full_name} ({agent.email})
-                          </option>
-                        ))}
+                      {orgStaffMembers.map((agent) => (
+                        <option key={agent.id} value={agent.email}>
+                          {agent.full_name} ({agent.email})
+                        </option>
+                      ))}
                     </select>
                     {targetAgentEmail !== selectedLead.assigned_agent_email && (
                       <button
                         onClick={handleTransferLead}
                         disabled={transferringLead}
-                        className="px-3 py-2 bg-[#C9A66B] text-slate-950 font-bold rounded-lg text-xs hover:bg-[#C9A66B]/90 transition-all disabled:opacity-50 flex-shrink-0"
+                        className="px-3 py-2 bg-[#C9A66B] text-slate-950 font-bold rounded-lg text-xs hover:bg-[#C9A66B]/90 transition-all disabled:opacity-50 flex-shrink-0 cursor-pointer shadow-md"
                       >
                         {transferringLead ? 'Transferring...' : 'Transfer'}
                       </button>
                     )}
                   </div>
                   <p className="text-[10px] text-slate-500 mt-1">
-                    Transferring sets Lead Source to <span className="text-[#C9A66B] font-semibold">{currentUserEmail}</span>.
+                    Restricted to members of <span className="text-slate-300 font-medium">{currentOrg.name}</span>. Transferring sets Lead Source to <span className="text-[#C9A66B] font-semibold">{currentUserEmail}</span>.
                   </p>
                 </div>
               </div>
@@ -1382,10 +1990,11 @@ export default function CRMPipelineBoard({
                 <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between">
                   <span className="text-xs text-red-400 font-medium">Super Admin Actions</span>
                   <button
-                    onClick={handleDeleteLead}
-                    className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold rounded-lg border border-red-500/30 transition-colors"
+                    type="button"
+                    onClick={() => selectedLead && handleDeleteLead(selectedLead.id, selectedLead.full_name)}
+                    className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold rounded-lg border border-red-500/30 transition-colors cursor-pointer"
                   >
-                    Delete Lead
+                    Move to Bin
                   </button>
                 </div>
               )}
@@ -1490,10 +2099,10 @@ export default function CRMPipelineBoard({
                 </button>
               </div>
 
-              {/* MULTI-SOURCE NOTES TIMELINE */}
+              {/* MULTI-SOURCE NOTES & EDIT HISTORY TIMELINE */}
               <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
                 <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                  <Tag className="w-4 h-4 text-[#C9A66B]" /> Interaction Notes History
+                  <History className="w-4 h-4 text-[#C9A66B]" /> Activity & Edit History
                 </h4>
 
                 {/* Add Note Box */}
@@ -1508,29 +2117,414 @@ export default function CRMPipelineBoard({
                   <button
                     onClick={handleAddNote}
                     disabled={addingNote || !newNoteText.trim()}
-                    className="px-4 py-2 bg-[#C9A66B] text-slate-950 text-xs font-bold rounded-xl hover:bg-[#C9A66B]/90 transition-all disabled:opacity-50"
+                    className="px-4 py-2 bg-[#C9A66B] text-slate-950 text-xs font-bold rounded-xl hover:bg-[#C9A66B]/90 transition-all disabled:opacity-50 cursor-pointer"
                   >
                     Add Note
                   </button>
                 </div>
 
-                {/* Notes List */}
+                {/* Notes & Activity List */}
                 <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                   {notes.length === 0 ? (
-                    <div className="text-xs text-slate-500 italic">No notes logged for this lead yet.</div>
+                    <div className="text-xs text-slate-500 italic">No notes or edits logged for this lead yet.</div>
                   ) : (
-                    notes.map((note) => (
-                      <div key={note.id} className="p-3 bg-slate-950 border border-slate-800/80 rounded-xl text-xs">
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-                          <span className="font-bold text-[#C9A66B]">{note.author_name || note.author_email}</span>
-                          <span>{new Date(note.created_at).toLocaleString()}</span>
+                    notes.map((note) => {
+                      const isEdit = note.source === 'contact_edit'
+                      const isDeleted = note.source === 'lead_deleted'
+                      const isRestored = note.source === 'lead_restored'
+                      const isTransfer = note.source === 'agent_transfer'
+                      const isConsultation = note.source === 'consultation_scheduled'
+                      const isRepeat = note.source === 'lead_deduplication'
+
+                      return (
+                        <div key={note.id} className="p-3 bg-slate-950 border border-slate-800/80 rounded-xl text-xs">
+                          <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-[#C9A66B]">{note.author_name || note.author_email}</span>
+                              {isEdit && (
+                                <span className="px-1.5 py-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded text-[9px] font-semibold flex items-center gap-1">
+                                  <Edit2 className="w-2.5 h-2.5" /> Edited
+                                </span>
+                              )}
+                              {isDeleted && (
+                                <span className="px-1.5 py-0.5 bg-rose-500/15 text-rose-400 border border-rose-500/30 rounded text-[9px] font-semibold flex items-center gap-1">
+                                  <Trash2 className="w-2.5 h-2.5" /> Moved to Bin
+                                </span>
+                              )}
+                              {isRestored && (
+                                <span className="px-1.5 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded text-[9px] font-semibold flex items-center gap-1">
+                                  <RotateCcw className="w-2.5 h-2.5" /> Restored
+                                </span>
+                              )}
+                              {isTransfer && (
+                                <span className="px-1.5 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded text-[9px] font-semibold">
+                                  Transferred
+                                </span>
+                              )}
+                              {isConsultation && (
+                                <span className="px-1.5 py-0.5 bg-purple-500/15 text-purple-400 border border-purple-500/30 rounded text-[9px] font-semibold">
+                                  Consultation
+                                </span>
+                              )}
+                              {isRepeat && (
+                                <span className="px-1.5 py-0.5 bg-violet-500/15 text-violet-400 border border-violet-500/30 rounded text-[9px] font-semibold">
+                                  Repeat Lead
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-500 shrink-0">{new Date(note.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                          <p className="text-slate-200 leading-relaxed">{note.note_text}</p>
                         </div>
-                        <p className="text-slate-200">{note.note_text}</p>
-                      </div>
-                    ))
+                      )
+                    })
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* ADD LEAD MODAL FORM */}
+      {/* ================================================================= */}
+      {showAddLeadModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-700/90 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-[#C9A66B]/15 text-[#C9A66B] rounded-xl border border-[#C9A66B]/30">
+                  <Plus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                    Add New Sales Lead
+                    <span className="text-[10px] font-semibold text-[#C9A66B] bg-[#C9A66B]/10 px-2 py-0.5 rounded border border-[#C9A66B]/30">
+                      {currentOrg.name}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Fill in lead details to place them in their respective column.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddLeadModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleAddLead} className="p-5 overflow-y-auto space-y-4 flex-1 scrollbar-thin">
+              {/* Full Name */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Full Name <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Mary Wanjiku or James Omondi"
+                  value={addFullName}
+                  onChange={(e) => setAddFullName(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]"
+                />
+              </div>
+
+              {/* Email & Phone Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="client@example.com"
+                    value={addEmail}
+                    onChange={(e) => setAddEmail(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Phone / WhatsApp Number
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="+254 7XX XXX XXX"
+                    value={addPhone}
+                    onChange={(e) => setAddPhone(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]"
+                  />
+                </div>
+              </div>
+
+              {/* Company & Estimated Value */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Company / Organization
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. RGN Group or Apex Realty"
+                    value={addCompany}
+                    onChange={(e) => setAddCompany(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Estimated Deal Value (USD / KES)
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 5000"
+                    value={addEstimatedValue}
+                    onChange={(e) => setAddEstimatedValue(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]"
+                  />
+                </div>
+              </div>
+
+              {/* Pipeline Column (Stage) & Lead Source */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Target Column (Stage)
+                  </label>
+                  <select
+                    value={addStage}
+                    onChange={(e) => setAddStage(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#C9A66B] cursor-pointer"
+                  >
+                    {STAGES.map((st) => (
+                      <option key={st.id} value={st.id}>
+                        {st.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Lead Source
+                  </label>
+                  <select
+                    value={addSource}
+                    onChange={(e) => setAddSource(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#C9A66B] cursor-pointer"
+                  >
+                    <option value="email_campaign">Email Campaign</option>
+                    <option value="website_enquiry">Website Enquiry</option>
+                    <option value="whatsapp">WhatsApp Inbound</option>
+                    <option value="instagram_dm">Instagram DM</option>
+                    <option value="facebook_ad">Facebook Ad</option>
+                    <option value="phone_call">Phone Call</option>
+                    <option value="referral">Referral</option>
+                    <option value="direct_outreach">Direct Outreach</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Assigned Agent (STRICTLY RESTRICTED TO CURRENT ORGANIZATION) */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Assign to Agent
+                  </label>
+                  <span className="text-[10px] text-slate-400">
+                    Organization: <span className="text-[#C9A66B] font-semibold">{currentOrg.name}</span>
+                  </span>
+                </div>
+                <select
+                  value={addAssignedAgentEmail}
+                  onChange={(e) => setAddAssignedAgentEmail(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white font-medium focus:outline-none focus:border-[#C9A66B] cursor-pointer"
+                >
+                  {orgStaffMembers.map((agent) => (
+                    <option key={agent.id} value={agent.email}>
+                      {agent.full_name} ({agent.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Initial Note */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Initial Note / Context (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Notes on client requirements, timeline, or inquiries..."
+                  value={addInitialNote}
+                  onChange={(e) => setAddInitialNote(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B] resize-none"
+                />
+              </div>
+
+              <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl text-[11px] text-slate-400 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-[#C9A66B] shrink-0 mt-0.5" />
+                <span>
+                  <strong>Repeat Inquiry Rule Active:</strong> If a lead with matching email, phone, or name already exists in the database, it will automatically land under their assigned agent in <strong className="text-violet-400">Repeat Inquiries</strong>.
+                </span>
+              </div>
+
+              {/* Form Actions */}
+              <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowAddLeadModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingLead}
+                  className="px-5 py-2.5 bg-[#C9A66B] hover:bg-[#C9A66B]/90 text-slate-950 font-bold rounded-xl text-xs transition-all shadow-md shadow-[#C9A66B]/25 disabled:opacity-50 cursor-pointer flex items-center gap-2"
+                >
+                  {isSubmittingLead ? 'Saving Lead...' : 'Add Lead Card'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* RECYCLE BIN (TRASH) MODAL */}
+      {/* ================================================================= */}
+      {showBinModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-700/90 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-rose-500/15 text-rose-400 rounded-xl border border-rose-500/30">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                    Recycle Bin (Trash)
+                    <span className="text-xs px-2 py-0.5 bg-rose-500/20 text-rose-300 rounded-full font-mono font-normal border border-rose-500/30">
+                      {trashLeads.length} {trashLeads.length === 1 ? 'contact' : 'contacts'}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Contacts here are hidden from the active pipeline. Restore them anytime or permanently delete them.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowBinModal(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Action / Search Bar */}
+            <div className="p-4 bg-slate-950/40 border-b border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search contacts in bin..."
+                  value={binSearchQuery}
+                  onChange={(e) => setBinSearchQuery(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]"
+                />
+              </div>
+              {trashLeads.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleEmptyBin}
+                  className="px-3 py-1.5 bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 font-semibold rounded-xl text-xs transition-colors flex items-center gap-1.5 cursor-pointer ml-auto"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Empty Recycle Bin
+                </button>
+              )}
+            </div>
+
+            {/* List of Deleted Contacts */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {trashLeads.length === 0 ? (
+                <div className="py-12 text-center text-slate-500">
+                  <Trash2 className="w-12 h-12 mx-auto mb-3 opacity-30 text-slate-400" />
+                  <p className="text-sm font-medium text-slate-300">Recycle Bin is empty</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Deleted contacts will appear here so you can undo deletions or permanently purge them.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {trashLeads.map((lead) => {
+                    let prevStageName = 'Pipeline'
+                    if (lead.followup_status && lead.followup_status.startsWith('deleted_from:')) {
+                      const sId = lead.followup_status.replace('deleted_from:', '')
+                      prevStageName = STAGES.find((s) => s.id === sId)?.name || sId
+                    }
+
+                    return (
+                      <div
+                        key={lead.id}
+                        className="p-3.5 bg-slate-950 border border-slate-800/80 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-700 transition-colors"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm text-white">{lead.full_name}</span>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">
+                              From: {prevStageName}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 mt-1">
+                            {lead.email && <span className="text-purple-300">{lead.email}</span>}
+                            {lead.phone_number && <span className="text-emerald-400">{lead.phone_number}</span>}
+                            {lead.company_name && <span>{lead.company_name}</span>}
+                            <span>Agent: {lead.assigned_agent_email?.split('@')[0] || 'Unassigned'}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleRestoreLead(lead.id)}
+                            className="px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                            title="Restore lead back to original stage"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" /> Restore
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handlePermanentDelete(lead.id)}
+                            className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                            title="Permanently remove from database"
+                          >
+                            <X className="w-3.5 h-3.5" /> Delete Forever
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-800 bg-slate-950/60 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setShowBinModal(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

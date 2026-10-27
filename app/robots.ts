@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next"
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = "https://www.cillah.dev"
+  const baseUrl = "https://cillah.dev"
 
   return {
     rules: [
@@ -19,8 +19,6 @@ export default function robots(): MetadataRoute.Robots {
           "/client/",
           "/user",
           "/user/",
-          "/login",
-          "/signup",
           "/unauthorized",
           "/client-portal",
         ],

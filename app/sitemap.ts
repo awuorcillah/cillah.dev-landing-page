@@ -30,7 +30,7 @@ function extractFrontmatter(raw: string, filename: string): { slug: string; date
 }
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://www.cillah.dev"
+  const baseUrl = "https://cillah.dev"
   const now = new Date()
 
   // 1. Static Core Pages (Priority-weighted)
@@ -70,6 +70,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/login`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/signup`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.8,
     },
     {
       url: `${baseUrl}/privacy-policy`,

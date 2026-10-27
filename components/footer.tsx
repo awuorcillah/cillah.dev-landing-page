@@ -28,9 +28,12 @@ export function Footer() {
     { name: "Home", href: "/" },
     { name: "Our Services", href: "/our-services" },
     { name: "Use Cases", href: "/use-cases" },
+    { name: "Pricing", href: "/pricing" },
+    { name: "Book Consultation", href: "/book-consultation" },
+    { name: "Log In", href: "/login" },
+    { name: "Sign Up", href: "/signup" },
     { name: "Articles", href: "/articles" },
     { name: "FAQs", href: "/#faq" },
-    { name: "Book Consultation", href: "/book-consultation" },
   ]
 
   return (
