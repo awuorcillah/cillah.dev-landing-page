@@ -142,9 +142,9 @@ export default function LoginPage() {
           <div className="mx-auto w-14 h-14 rounded-full overflow-hidden border border-[#C9A66B]/40 shadow-lg">
             <img src="/images/cillah-emblem.png" alt="cillah.dev" className="w-full h-full object-cover" />
           </div>
-          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-            Welcome Back
-          </CardTitle>
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+            Log In to Cillah.dev
+          </h1>
           <CardDescription className="text-slate-400">
             Log in to your cillah.dev client or admin portal
           </CardDescription>
