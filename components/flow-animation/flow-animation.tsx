@@ -126,13 +126,13 @@ export function FlowAnimation() {
     <div ref={rootRef} className="w-full">
       {/* Visually hidden summary for screen readers and search engines */}
       <p className="sr-only">
-        Customers message a real estate agency on WhatsApp, Instagram, Facebook, TikTok and LinkedIn. An AI assistant answers, collects their name and assigns each lead to a sales agent. All inquiries and website form submissions flow into one private backend, where each lead is assigned to a sales agent. Each lead then lands in the pipeline of its assigned sales agent, who receives notifications for new leads, follow-ups and upcoming viewings.
+        Customers message a real estate agency on WhatsApp, Instagram, Facebook and TikTok. An AI assistant answers, collects their name and assigns each lead to a sales agent. All inquiries and website form submissions flow into one private backend, where each lead is assigned to a sales agent. Each lead then lands in the pipeline of its assigned sales agent, who receives notifications for new leads, follow-ups and upcoming viewings.
       </p>
 
       {/* Fixed-height animated stage per breakpoint; all 3 scenes vertically centred inside */}
       <div
         aria-hidden="true"
-        className="w-full h-[820px] sm:h-[800px] lg:h-[620px] flex items-center justify-center overflow-hidden"
+        className="w-full h-[650px] sm:h-[670px] lg:h-[640px] flex items-center justify-center overflow-hidden"
       >
         {reducedMotion ? (
           <div className="w-full">

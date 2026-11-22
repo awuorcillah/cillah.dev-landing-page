@@ -47,7 +47,6 @@ const AGENTS: AgentPipeline[] = [
     newLeadNote: "New lead: Brian, 3-bed in Lavington",
     followupNote: "Follow-up due: Brian",
     leads: [
-      { name: "Njeri", initialStage: "new", progressedStage: "contacted", needsAttention: false },
       { name: "Brian", initialStage: "new", progressedStage: "new", needsAttention: true },
     ],
   },
@@ -72,6 +71,24 @@ const AGENTS: AgentPipeline[] = [
     ],
   },
 ]
+
+function ClockOutlineIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.9}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  )
+}
 
 function BellOutlineIcon({ className }: { className?: string }) {
   return (
@@ -305,11 +322,19 @@ export function Scene3Pipelines({
   }
 
   const renderNotificationToast = (note: string | null, agentId: string) => {
+    const isNewLead = notificationPhase === "new-lead"
+    const toastTone = isNewLead
+      ? "bg-emerald-500/20 border-emerald-400/90 text-emerald-50 shadow-[0_0_18px_rgba(16,185,129,0.4)]"
+      : "bg-amber-500/20 border-amber-400/90 text-amber-50 shadow-[0_0_18px_rgba(245,158,11,0.42)]"
+    const bellTone = isNewLead ? "text-emerald-300" : "text-amber-300"
+
     if (instantFinal) {
       return note ? (
-        <div className="inline-flex items-center gap-1.5 rounded-[10px] bg-[#07070B]/85 border border-[#C9A66B]/40 px-2.5 py-1 text-left max-w-full">
-          <BellOutlineIcon className="h-3.5 w-3.5 text-[#C9A66B] shrink-0" />
-          <span className="font-sans text-[12px] leading-[1.35] text-[#F9F7F6]/90 break-words">
+        <div
+          className={`inline-flex items-center gap-1.5 rounded-[10px] border px-2.5 py-1 text-left max-w-full ${toastTone}`}
+        >
+          <BellOutlineIcon className={`h-3.5 w-3.5 shrink-0 ${bellTone}`} />
+          <span className="font-sans text-[12px] font-medium leading-[1.35] break-words">
             {note}
           </span>
         </div>
@@ -321,14 +346,14 @@ export function Scene3Pipelines({
         {note && (
           <motion.div
             key={`${agentId}-${notificationPhase}-${playNonce}`}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.28, ease: "easeOut" }}
-            className="inline-flex items-center gap-1.5 rounded-[10px] bg-[#07070B]/85 border border-[#C9A66B]/40 px-2.5 py-1 text-left max-w-full"
+            initial={{ opacity: 0, y: 5, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.96 }}
+            transition={{ type: "spring", stiffness: 360, damping: 24 }}
+            className={`inline-flex items-center gap-1.5 rounded-[10px] border px-2.5 py-1 text-left max-w-full ${toastTone}`}
           >
-            <BellOutlineIcon className="h-3.5 w-3.5 text-[#C9A66B] shrink-0" />
-            <span className="font-sans text-[12px] leading-[1.35] text-[#F9F7F6]/90 break-words">
+            <BellOutlineIcon className={`h-3.5 w-3.5 shrink-0 ${bellTone}`} />
+            <span className="font-sans text-[12px] font-medium leading-[1.35] break-words">
               {note}
             </span>
           </motion.div>
@@ -348,24 +373,27 @@ export function Scene3Pipelines({
               <span className="block font-heading font-medium text-[12px] uppercase tracking-[0.14em] text-[#C9A66B]">
                 Backend: your private office
               </span>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#07070B] border border-[#C9A66B]/35 text-[12px] font-heading font-medium text-[#F9F7F6]">
-                <span className="text-[#F9F7F6]/70">New leads:</span>
-                <span className="text-[#C9A66B] font-semibold">6</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-400/75 text-[12px] font-heading font-semibold text-emerald-100 shadow-[0_0_14px_rgba(16,185,129,0.3)]">
+                <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                <span>New leads:</span>
+                <span className="text-emerald-300 font-bold">5</span>
               </div>
-              <div className="min-h-[28px]">
+              <div className="min-h-[30px]">
                 {showTwoDaysLater &&
                   (instantFinal ? (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-[#C9A66B]/15 border border-[#C9A66B]/45 text-[#C9A66B] font-heading font-medium text-[12px]">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/25 border border-sky-400 text-sky-100 font-heading font-semibold text-[12px] shadow-[0_0_18px_rgba(56,189,248,0.45)]">
+                      <ClockOutlineIcon className="h-3.5 w-3.5 text-sky-300 shrink-0" />
                       Two days later
                     </span>
                   ) : (
                     <motion.span
                       key={`two-days-desktop-${playNonce}`}
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, ease: "easeOut" }}
-                      className="inline-flex items-center px-2.5 py-1 rounded-full bg-[#C9A66B]/15 border border-[#C9A66B]/45 text-[#C9A66B] font-heading font-medium text-[12px]"
+                      initial={{ opacity: 0, y: 5, scale: 0.9 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ type: "spring", stiffness: 360, damping: 22 }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/25 border border-sky-400 text-sky-100 font-heading font-semibold text-[12px] shadow-[0_0_18px_rgba(56,189,248,0.45)]"
                     >
+                      <ClockOutlineIcon className="h-3.5 w-3.5 text-sky-300 shrink-0" />
                       Two days later
                     </motion.span>
                   ))}
@@ -525,20 +553,28 @@ export function Scene3Pipelines({
       {/* PHONE & TABLET VIEW (< 1024px): Compact stack fitting comfortably under 820px with all text >= 12px */}
       <div className="lg:hidden w-full max-w-xl mx-auto">
         {/* Top Backend Panel */}
-        <div className="rounded-[14px] bg-[#1C1C1C] border border-[#C9A66B]/30 px-3 py-2.5 text-left">
+        <div className="rounded-[12px] bg-[#1C1C1C] border border-[#C9A66B]/30 px-3 py-2 text-left">
           <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
             <span className="font-heading font-medium text-[12px] uppercase tracking-[0.1em] text-[#C9A66B]">
               Backend: your private office
             </span>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#07070B] border border-[#C9A66B]/35 text-[12px] font-heading font-medium text-[#F9F7F6]">
-                <span className="text-[#F9F7F6]/70">New leads:</span>
-                <span className="text-[#C9A66B] font-semibold">6</span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/75 text-[12px] font-heading font-semibold text-emerald-100 shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                <span>New leads:</span>
+                <span className="text-emerald-300 font-bold">5</span>
               </span>
               {showTwoDaysLater && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#C9A66B]/15 border border-[#C9A66B]/45 text-[#C9A66B] font-heading font-medium text-[12px]">
+                <motion.span
+                  key={`two-days-mobile-${playNonce}`}
+                  initial={instantFinal ? false : { opacity: 0, scale: 0.88 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: "spring", stiffness: 360, damping: 22 }}
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-500/25 border border-sky-400 text-sky-100 font-heading font-semibold text-[12px] shadow-[0_0_16px_rgba(56,189,248,0.45)]"
+                >
+                  <ClockOutlineIcon className="h-3 w-3 text-sky-300 shrink-0" />
                   Two days later
-                </span>
+                </motion.span>
               )}
             </div>
           </div>
@@ -590,7 +626,7 @@ export function Scene3Pipelines({
         </div>
 
         {/* Four Compact Stacked Agent Cards with Gold Scan Line Overlay */}
-        <div className="relative space-y-2 overflow-hidden rounded-[14px]">
+        <div className="relative space-y-1.5 overflow-hidden rounded-[14px]">
           {scanActive && !instantFinal && (
             <motion.div
               key={`scan-mobile-${playNonce}`}
@@ -609,10 +645,10 @@ export function Scene3Pipelines({
             return (
               <div
                 key={agent.id}
-                className="rounded-[14px] bg-[#1C1C1C] border border-white/10 px-3 py-2.5 text-left"
+                className="rounded-[12px] bg-[#1C1C1C] border border-white/10 px-3 py-2 text-left"
               >
                 {/* Header: Badge + Agent Name + Lead Chips */}
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="h-6 w-6 rounded-full bg-[#C9A66B]/15 border border-[#C9A66B]/50 text-[#C9A66B] font-heading font-semibold text-[12px] flex items-center justify-center shrink-0">
                       {agent.initial}
@@ -631,7 +667,7 @@ export function Scene3Pipelines({
                 </div>
 
                 {/* Short Labelled Stage Counters (all >= 12px, clean wrap at 360px, single line at 768px) */}
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] leading-[1.35] mb-1.5">
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12px] leading-[1.3] mb-1">
                   {STAGES.map((stage) => {
                     const count = counts[stage.id]
                     return (

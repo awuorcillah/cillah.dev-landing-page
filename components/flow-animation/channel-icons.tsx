@@ -5,7 +5,6 @@ export type SourceIconId = ChannelId | "website"
 
 export const CHANNEL_META: { id: ChannelId; name: string }[] = [
   { id: "whatsapp", name: "WhatsApp" },
-  { id: "linkedin", name: "LinkedIn" },
   { id: "instagram", name: "Instagram" },
   { id: "tiktok", name: "TikTok" },
   { id: "facebook", name: "Facebook" },

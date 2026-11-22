@@ -18,7 +18,6 @@ interface BackendLead {
 
 const CHANNEL_LEADS: BackendLead[] = [
   { id: "grace", name: "Grace", sourceIcon: "whatsapp", agent: "Tom" },
-  { id: "njeri", name: "Njeri", sourceIcon: "linkedin", agent: "Mary" },
   { id: "caroline", name: "Caroline", sourceIcon: "instagram", agent: "Jane" },
   { id: "peter", name: "Peter", sourceIcon: "tiktok", agent: "Tom" },
   { id: "kelvin", name: "Kelvin", sourceIcon: "facebook", agent: "Dan" },
@@ -63,8 +62,8 @@ export function Scene2Building({
   const [isDesktop, setIsDesktop] = useState(false)
 
   // Animation states
-  const [activeLinesCount, setActiveLinesCount] = useState<number>(instantFinal ? 5 : 0)
-  const [visibleLeadsCount, setVisibleLeadsCount] = useState<number>(instantFinal ? 6 : 0)
+  const [activeLinesCount, setActiveLinesCount] = useState<number>(instantFinal ? 4 : 0)
+  const [visibleLeadsCount, setVisibleLeadsCount] = useState<number>(instantFinal ? 5 : 0)
   const [filledFieldsCount, setFilledFieldsCount] = useState<number>(instantFinal ? 3 : 0)
   const [submitPulsing, setSubmitPulsing] = useState<boolean>(false)
   const [dotTraveling, setDotTraveling] = useState<boolean>(false)
@@ -96,8 +95,8 @@ export function Scene2Building({
     clearAllTimers()
 
     if (instantFinal) {
-      setActiveLinesCount(5)
-      setVisibleLeadsCount(6)
+      setActiveLinesCount(4)
+      setVisibleLeadsCount(5)
       setFilledFieldsCount(3)
       setSubmitPulsing(false)
       setDotTraveling(false)
@@ -129,38 +128,38 @@ export function Scene2Building({
       timersRef.current.push(id)
     }
 
-    // Step 1 & 2: 5 channel lines flow in and add Grace, Njeri, Caroline, Peter, Kelvin
-    for (let i = 0; i < 5; i++) {
-      const lineStart = 500 + i * 1100
-      const rowArrive = lineStart + 550
+    // Step 1 & 2: 4 channel lines flow in and add Grace, Caroline, Peter, Kelvin
+    for (let i = 0; i < 4; i++) {
+      const lineStart = 450 + i * 1100
+      const rowArrive = lineStart + 500
       schedule(() => setActiveLinesCount(i + 1), lineStart)
       schedule(() => setVisibleLeadsCount(i + 1), rowArrive)
     }
 
     // Step 3: Frontend website form fills one field at a time, Submit pulses, dot travels, Brian arrives
-    schedule(() => setFilledFieldsCount(1), 6600)
-    schedule(() => setFilledFieldsCount(2), 7750)
-    schedule(() => setFilledFieldsCount(3), 8900)
+    schedule(() => setFilledFieldsCount(1), 5350)
+    schedule(() => setFilledFieldsCount(2), 6450)
+    schedule(() => setFilledFieldsCount(3), 7550)
 
     schedule(() => {
       setSubmitPulsing(true)
       setFormSubmitted(true)
-    }, 10050)
+    }, 8650)
 
     schedule(() => {
       setSubmitPulsing(false)
       setDotTraveling(true)
-    }, 10650)
+    }, 9250)
 
     schedule(() => {
       setDotTraveling(false)
-      setVisibleLeadsCount(6)
-    }, 11550)
+      setVisibleLeadsCount(5)
+    }, 10150)
 
-    // Step 4: Rest on final frame (~12.8s total)
+    // Step 4: Rest on final frame (~11.6s total)
     schedule(() => {
       onCompleteRef.current()
-    }, 12800)
+    }, 11600)
 
     return () => {
       clearAllTimers()
@@ -170,23 +169,32 @@ export function Scene2Building({
   const allLeads: BackendLead[] = [...CHANNEL_LEADS, WEBSITE_LEAD]
   const visibleLeads = allLeads.slice(0, visibleLeadsCount)
 
-  const renderLeadRow = (lead: BackendLead, index: number) => {
+  const renderLeadRow = (lead: BackendLead, index: number, compact = false) => {
+    const isLatest = index === visibleLeadsCount - 1 && visibleLeadsCount > 0
     const rowContent = (
-      <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-x-2 gap-y-1 rounded-[12px] bg-[#07070B]/80 border border-white/10 px-3 py-2 text-left min-w-0">
-        <div className="flex items-center gap-2 min-w-0">
+      <div
+        className={`flex flex-nowrap items-center justify-between gap-2 rounded-[10px] border text-left min-w-0 transition-colors duration-300 ${
+          compact ? "px-2.5 py-1.5" : "px-3 py-2"
+        } ${
+          isLatest && !instantFinal
+            ? "bg-emerald-500/10 border-emerald-400/50"
+            : "bg-[#07070B]/80 border-white/10"
+        }`}
+      >
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           <span className="text-[#C9A66B] shrink-0">
-            <ChannelOutlineIcon id={lead.sourceIcon} className="h-4 w-4" />
+            <ChannelOutlineIcon id={lead.sourceIcon} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </span>
-          <span className="font-sans text-[13px] font-medium text-[#F9F7F6] truncate">
+          <span className="font-sans text-[12px] sm:text-[13px] font-medium text-[#F9F7F6] truncate">
             {lead.name}
           </span>
           {lead.sourceLabel && (
-            <span className="font-sans text-[12px] text-[#F9F7F6]/60 truncate">
+            <span className="font-sans text-[12px] text-emerald-300/90 truncate">
               &bull; {lead.sourceLabel}
             </span>
           )}
         </div>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#C9A66B]/10 border border-[#C9A66B]/40 text-[#C9A66B] font-heading font-medium text-[12px] whitespace-nowrap shrink-0">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#C9A66B]/12 border border-[#C9A66B]/45 text-[#C9A66B] font-heading font-medium text-[12px] whitespace-nowrap shrink-0">
           Assigned to {lead.agent}
         </span>
       </div>
@@ -199,7 +207,7 @@ export function Scene2Building({
     return (
       <motion.div
         key={`${lead.id}-${playNonce}-${index}`}
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: "easeOut" }}
       >
@@ -208,22 +216,53 @@ export function Scene2Building({
     )
   }
 
-  const renderFrontFace = () => (
-    <div className="w-full rounded-[16px] bg-[#1C1C1C] border border-[#C9A66B]/30 p-3.5 sm:p-5 text-left shadow-[0_18px_45px_rgba(0,0,0,0.5)]">
-      {/* Mini website header bar */}
-      <div className="flex items-center justify-between gap-2 pb-2.5 mb-2.5 sm:pb-3 sm:mb-3.5 border-b border-white/10">
-        <span className="font-heading font-medium text-[12px] uppercase tracking-[0.12em] sm:tracking-[0.14em] text-[#C9A66B]">
+  const renderLeadsBadge = () => {
+    const badgeInner = (
+      <span
+        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:py-1 rounded-full border text-[12px] font-heading font-semibold shrink-0 transition-all duration-300 ${
+          visibleLeadsCount > 0
+            ? "bg-emerald-500/20 border-emerald-400/85 text-emerald-100 shadow-[0_0_16px_rgba(16,185,129,0.4)]"
+            : "bg-[#07070B] border-white/15 text-[#F9F7F6]/70"
+        }`}
+      >
+        {visibleLeadsCount > 0 && (
+          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+        )}
+        <span>New leads</span>
+        <span className="text-emerald-300 font-bold tabular-nums">
+          {visibleLeadsCount}
+        </span>
+      </span>
+    )
+
+    if (instantFinal) return badgeInner
+
+    return (
+      <motion.div
+        key={`leads-badge-${visibleLeadsCount}-${playNonce}`}
+        initial={visibleLeadsCount > 0 ? { scale: 0.9, opacity: 0.8 } : false}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 360, damping: 20 }}
+      >
+        {badgeInner}
+      </motion.div>
+    )
+  }
+
+  const renderFrontFaceDesktop = () => (
+    <div className="w-full rounded-[16px] bg-[#1C1C1C] border border-[#C9A66B]/30 p-5 text-left shadow-[0_18px_45px_rgba(0,0,0,0.5)]">
+      <div className="flex items-center justify-between gap-2 pb-3 mb-3.5 border-b border-white/10">
+        <span className="font-heading font-medium text-[12px] uppercase tracking-[0.14em] text-[#C9A66B]">
           Frontend: what your customers see
         </span>
-        <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           <span className="h-2 w-2 rounded-full bg-white/15" />
           <span className="h-2 w-2 rounded-full bg-white/15" />
           <span className="h-2 w-2 rounded-full bg-[#C9A66B]/60" />
         </div>
       </div>
 
-      {/* Mini website form */}
-      <div className="space-y-2 sm:space-y-2.5">
+      <div className="space-y-2.5">
         {FORM_FIELDS.map((field, idx) => {
           const isFilled = filledFieldsCount > idx
           return (
@@ -232,7 +271,7 @@ export function Scene2Building({
                 {field.label}
               </span>
               <div
-                className={`w-full rounded-[10px] bg-[#07070B]/85 border px-3 py-1.5 sm:py-2 min-h-[34px] sm:min-h-[38px] flex items-center transition-colors duration-300 ${
+                className={`w-full rounded-[10px] bg-[#07070B]/85 border px-3 py-2 min-h-[38px] flex items-center transition-colors duration-300 ${
                   isFilled ? "border-[#C9A66B]/50" : "border-white/10"
                 }`}
               >
@@ -253,9 +292,7 @@ export function Scene2Building({
                     </motion.span>
                   )
                 ) : (
-                  <span className="font-sans text-[13px] text-[#F9F7F6]/25">
-                    &mdash;
-                  </span>
+                  <span className="font-sans text-[13px] text-[#F9F7F6]/25">&mdash;</span>
                 )}
               </div>
             </div>
@@ -285,41 +322,131 @@ export function Scene2Building({
     </div>
   )
 
-  const renderBackFace = () => (
-    <div className="w-full rounded-[16px] bg-[#1C1C1C] border border-white/10 p-3.5 sm:p-5 text-left">
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 sm:pb-3 sm:mb-3.5 border-b border-white/10">
-        <span className="font-heading font-medium text-[12px] uppercase tracking-[0.12em] sm:tracking-[0.14em] text-[#C9A66B]">
-          Backend: your private office
-        </span>
-        <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#07070B] border border-[#C9A66B]/35 text-[12px] font-heading font-medium text-[#F9F7F6] shrink-0">
-          <span className="text-[#F9F7F6]/70">New leads</span>
-          <span className="text-[#C9A66B] font-semibold tabular-nums">
-            {visibleLeadsCount}
-          </span>
+  // Compact mobile Front face (Name + Phone side by side so BOTH Frontend & Backend fit on one phone screen at a glance!)
+  const renderFrontFaceMobile = () => (
+    <div className="w-full rounded-[14px] bg-[#1C1C1C] border border-[#C9A66B]/30 p-3 text-left shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
+      <div className="flex items-center justify-between gap-2 pb-1.5 mb-2 border-b border-white/10">
+        <span className="font-heading font-medium text-[12px] uppercase tracking-[0.1em] text-[#C9A66B]">
+          Frontend: what your customers see
         </span>
       </div>
 
-      <div className="space-y-1.5 sm:space-y-2 min-h-[252px] sm:min-h-[268px]">
-        {visibleLeads.map((lead, idx) => renderLeadRow(lead, idx))}
+      <div className="space-y-1.5">
+        <div className="grid grid-cols-2 gap-2">
+          {FORM_FIELDS.slice(0, 2).map((field, idx) => {
+            const isFilled = filledFieldsCount > idx
+            return (
+              <div key={field.key} className="min-w-0">
+                <span className="block font-sans text-[12px] text-[#F9F7F6]/60 mb-0.5 leading-tight">
+                  {field.label}
+                </span>
+                <div
+                  className={`w-full rounded-[8px] bg-[#07070B]/85 border px-2 py-1 min-h-[30px] flex items-center transition-colors duration-300 ${
+                    isFilled ? "border-[#C9A66B]/50" : "border-white/10"
+                  }`}
+                >
+                  {isFilled ? (
+                    <span className="font-sans text-[12px] text-[#F9F7F6] truncate">
+                      {field.value}
+                    </span>
+                  ) : (
+                    <span className="font-sans text-[12px] text-[#F9F7F6]/25">&mdash;</span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Looking for + Submit in a compact bottom row */}
+        <div className="grid grid-cols-12 gap-2 items-end">
+          <div className="col-span-8 min-w-0">
+            <span className="block font-sans text-[12px] text-[#F9F7F6]/60 mb-0.5 leading-tight">
+              {FORM_FIELDS[2].label}
+            </span>
+            <div
+              className={`w-full rounded-[8px] bg-[#07070B]/85 border px-2.5 py-1 min-h-[32px] flex items-center transition-colors duration-300 ${
+                filledFieldsCount > 2 ? "border-[#C9A66B]/50" : "border-white/10"
+              }`}
+            >
+              {filledFieldsCount > 2 ? (
+                <span className="font-sans text-[12px] text-[#F9F7F6] truncate">
+                  {FORM_FIELDS[2].value}
+                </span>
+              ) : (
+                <span className="font-sans text-[12px] text-[#F9F7F6]/25">&mdash;</span>
+              )}
+            </div>
+          </div>
+
+          <div className="col-span-4">
+            <motion.div
+              animate={
+                submitPulsing && !instantFinal
+                  ? { scale: [1, 0.93, 1.05, 1] }
+                  : { scale: 1 }
+              }
+              transition={{ duration: 0.38, ease: "easeInOut" }}
+              className={`w-full rounded-[8px] bg-[#C9A66B] text-[#07070B] font-heading font-semibold text-[12px] py-1.5 min-h-[32px] flex items-center justify-center tracking-wide transition-shadow duration-300 ${
+                submitPulsing ? "shadow-[0_0_20px_rgba(201,166,107,0.7)]" : ""
+              }`}
+            >
+              Submit
+            </motion.div>
+          </div>
+        </div>
       </div>
     </div>
   )
 
-  // Desktop SVG paths from 5 evenly-spaced channel icon centres into the Back face on the right
+  const renderBackFace = (compact = false) => (
+    <div
+      className={`w-full rounded-[14px] lg:rounded-[16px] bg-[#1C1C1C] border border-white/10 text-left ${
+        compact ? "p-3" : "p-5"
+      }`}
+    >
+      <div
+        className={`flex flex-wrap items-center justify-between gap-2 border-b border-white/10 ${
+          compact ? "pb-2 mb-2" : "pb-3 mb-3.5"
+        }`}
+      >
+        <span className="font-heading font-medium text-[12px] uppercase tracking-[0.1em] sm:tracking-[0.14em] text-[#C9A66B]">
+          Backend: your private office
+        </span>
+        {renderLeadsBadge()}
+      </div>
+
+      <div
+        className={
+          compact
+            ? "space-y-1.5 min-h-[188px]"
+            : "space-y-2 min-h-[224px]"
+        }
+      >
+        {visibleLeads.map((lead, idx) => renderLeadRow(lead, idx, compact))}
+      </div>
+    </div>
+  )
+
+  // Desktop SVG paths from 4 evenly-spaced channel icon centres into the Back face on the right
   const desktopChannelPaths = [
-    "M 100 0 C 100 32, 540 16, 540 56",
-    "M 300 0 C 300 30, 610 18, 610 56",
-    "M 500 0 C 500 28, 680 20, 680 56",
-    "M 700 0 C 700 28, 750 24, 750 56",
-    "M 900 0 C 900 30, 820 22, 820 56",
+    "M 125 0 C 125 32, 540 16, 540 52",
+    "M 375 0 C 375 28, 630 18, 630 52",
+    "M 625 0 C 625 28, 720 20, 720 52",
+    "M 875 0 C 875 30, 810 22, 810 52",
   ]
 
   return (
     <div className="w-full">
-      {/* DESKTOP VIEW (>= 1024px): 5 icons across top, gold dotted lines into Back face, offset 2-face building */}
+      {/* Bold Section Heading for Scene 2 */}
+      <h3 className="font-heading font-bold text-[18px] sm:text-[20px] lg:text-[22px] tracking-tight text-[#F9F7F6] text-center mb-2 lg:mb-3">
+        Your Website
+      </h3>
+
+      {/* DESKTOP VIEW (>= 1024px): 4 icons across top, gold dotted lines into Back face, offset 2-face building */}
       <div className="hidden lg:block w-full max-w-5xl mx-auto">
-        {/* Five Channel Icons Row */}
-        <div className="grid grid-cols-5 gap-4">
+        {/* Four Channel Icons Row */}
+        <div className="grid grid-cols-4 gap-4">
           {CHANNEL_META.map((channel, idx) => {
             const isActive = activeLinesCount > idx
             return (
@@ -346,9 +473,9 @@ export function Scene2Building({
         </div>
 
         {/* Gold Dotted SVG Flow Lines Into Back Face */}
-        <div className="w-full h-14 relative">
+        <div className="w-full h-12 relative">
           <svg
-            viewBox="0 0 1000 56"
+            viewBox="0 0 1000 52"
             preserveAspectRatio="none"
             className="w-full h-full overflow-visible"
             aria-hidden="true"
@@ -383,7 +510,7 @@ export function Scene2Building({
                       ? { pathLength: 1, opacity: 1 }
                       : { pathLength: 0, opacity: 0 }
                   }
-                  transition={{ duration: 0.42, ease: "easeOut" }}
+                  transition={{ duration: 0.45, ease: "easeOut" }}
                 />
               )
             })}
@@ -392,9 +519,9 @@ export function Scene2Building({
 
         {/* Two-Face Building (Front face forward-left, Back face offset behind-right for depth) */}
         <div className="relative grid grid-cols-12 items-start">
-          {/* FRONT face — slightly forward & lower to create architectural depth */}
-          <div className="col-span-5 relative z-20 mt-6 -mr-4">
-            {renderFrontFace()}
+          {/* FRONT face */}
+          <div className="col-span-5 relative z-20 mt-4 -mr-4">
+            {renderFrontFaceDesktop()}
           </div>
 
           {/* Travelling gold bridge + dot from Front Submit button to Back face */}
@@ -406,34 +533,34 @@ export function Scene2Building({
                 initial={{ x: -24, opacity: 0.9, scale: 0.9 }}
                 animate={{ x: 24, opacity: 1, scale: 1.15 }}
                 transition={{ duration: 0.85, ease: "easeInOut" }}
-                className="absolute h-3 w-3 rounded-full bg-[#C9A66B] shadow-[0_0_12px_rgba(201,166,107,0.95)]"
+                className="absolute h-3 w-3 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(16,185,129,0.95)]"
               />
             )}
           </div>
 
-          {/* BACK face — offset upward/right behind Front face */}
+          {/* BACK face */}
           <div className="col-span-6 relative z-10 -ml-2">
-            {renderBackFace()}
+            {renderBackFace(false)}
           </div>
         </div>
       </div>
 
-      {/* PHONE & TABLET VIEW (< 1024px): 5 icons on top, short lines down, Front face then Back face */}
+      {/* PHONE & TABLET VIEW (< 1024px): Compact layout so Heading + 4 Channels + Frontend + Backend ALL fit at a glance */}
       <div className="lg:hidden w-full max-w-xl mx-auto">
-        {/* Compact 5-Icon Row */}
-        <div className="grid grid-cols-5 gap-1.5 sm:gap-3">
+        {/* Compact 4-Icon Row */}
+        <div className="grid grid-cols-4 gap-2 sm:gap-3">
           {CHANNEL_META.map((channel, idx) => {
             const isActive = activeLinesCount > idx
             return (
               <div
                 key={channel.id}
-                className={`flex flex-col items-center justify-center gap-1 rounded-[12px] border py-2 px-1 transition-colors duration-300 min-w-0 ${
+                className={`flex flex-col items-center justify-center gap-0.5 rounded-[10px] border py-1.5 px-1 transition-colors duration-300 min-w-0 ${
                   isActive
                     ? "bg-[#C9A66B]/15 border-[#C9A66B]/65 text-[#C9A66B]"
                     : "bg-[#1C1C1C] border-white/10 text-[#F9F7F6]/70"
                 }`}
               >
-                <ChannelOutlineIcon id={channel.id} className="h-5 w-5 shrink-0" />
+                <ChannelOutlineIcon id={channel.id} className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                 <span className="hidden sm:block font-heading text-[12px] font-medium truncate max-w-full">
                   {channel.name}
                 </span>
@@ -443,14 +570,14 @@ export function Scene2Building({
         </div>
 
         {/* Short Gold Dotted Lines Flowing Down */}
-        <div className="w-full h-5 sm:h-7">
+        <div className="w-full h-3.5 sm:h-5">
           <svg
-            viewBox="0 0 500 28"
+            viewBox="0 0 400 20"
             preserveAspectRatio="none"
             className="w-full h-full"
             aria-hidden="true"
           >
-            {[50, 150, 250, 350, 450].map((x, idx) => {
+            {[50, 150, 250, 350].map((x, idx) => {
               const isVisible = activeLinesCount > idx
               if (instantFinal) {
                 return (
@@ -459,7 +586,7 @@ export function Scene2Building({
                     x1={x}
                     y1={0}
                     x2={x}
-                    y2={28}
+                    y2={20}
                     stroke="#C9A66B"
                     strokeOpacity={0.65}
                     strokeWidth={1.6}
@@ -473,7 +600,7 @@ export function Scene2Building({
                   x1={x}
                   y1={0}
                   x2={x}
-                  y2={28}
+                  y2={20}
                   stroke="#C9A66B"
                   strokeOpacity={0.75}
                   strokeWidth={1.6}
@@ -491,25 +618,25 @@ export function Scene2Building({
           </svg>
         </div>
 
-        {/* Stacked Building: FRONT face first */}
-        {renderFrontFace()}
+        {/* Stacked Building: Compact FRONT face first */}
+        {renderFrontFaceMobile()}
 
-        {/* Vertical Gold Connector + Travelling Dot into BACK face */}
-        <div className="relative h-6 sm:h-8 flex items-center justify-center">
+        {/* Vertical Connector + Travelling Dot into BACK face */}
+        <div className="relative h-4 sm:h-6 flex items-center justify-center">
           <div className="h-full w-px border-l border-dashed border-[#C9A66B]/55" />
           {dotTraveling && !instantFinal && (
             <motion.span
               key={`mobile-dot-${playNonce}`}
-              initial={{ y: -12, opacity: 0.9, scale: 0.9 }}
-              animate={{ y: 12, opacity: 1, scale: 1.15 }}
+              initial={{ y: -8, opacity: 0.9, scale: 0.9 }}
+              animate={{ y: 8, opacity: 1, scale: 1.15 }}
               transition={{ duration: 0.85, ease: "easeInOut" }}
-              className="absolute h-3 w-3 rounded-full bg-[#C9A66B] shadow-[0_0_12px_rgba(201,166,107,0.95)]"
+              className="absolute h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.95)]"
             />
           )}
         </div>
 
-        {/* BACK face below */}
-        {renderBackFace()}
+        {/* Compact BACK face below */}
+        {renderBackFace(true)}
       </div>
     </div>
   )

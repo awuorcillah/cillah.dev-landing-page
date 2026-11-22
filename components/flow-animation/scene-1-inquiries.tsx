@@ -87,66 +87,6 @@ const CHANNELS: ChannelConversation[] = [
     ],
   },
   {
-    id: "linkedin",
-    name: "LinkedIn",
-    customerName: "Njeri",
-    customerInitial: "N",
-    agentName: "Mary",
-    assignedTag: "Assigned to Mary",
-    theme: {
-      shellBg: "bg-[#1B1F23]",
-      headerBg: "bg-[#242A30] border-b border-white/10",
-      headerAccent: "text-[#70B5F9]",
-      avatarBg: "bg-[#0A66C2]/25 border-[#0A66C2]/70 text-[#70B5F9]",
-      customerBubble:
-        "bg-[#2B3137] text-[#F3F6F8] border border-white/10 rounded-[12px] rounded-tl-[4px]",
-      aiBubble:
-        "bg-[#0A66C2]/25 text-[#F3F6F8] border border-[#0A66C2]/70 rounded-[12px] rounded-tr-[4px]",
-      aiLabel: "text-[#70B5F9]",
-      connectorColor: "bg-[#0A66C2]/65",
-      activeRing: "border-[#0A66C2]/80 bg-[#0A66C2]/15",
-      statusText: "InMail",
-    },
-    messages: [
-      {
-        sender: "customer",
-        label: "Njeri",
-        text: "Looking for office space in Westlands.",
-        time: "11:02",
-      },
-      {
-        sender: "ai",
-        label: "Cillah AI",
-        text: "Great. May I have your name so I can assign you to an agent?",
-        time: "11:02",
-      },
-      {
-        sender: "customer",
-        label: "Njeri",
-        text: "Njeri",
-        time: "11:03",
-      },
-      {
-        sender: "ai",
-        label: "Cillah AI",
-        text: "Thanks Njeri, what's the best phone number to reach you at?",
-        time: "11:03",
-      },
-      {
-        sender: "customer",
-        label: "Njeri",
-        text: "0700 000 012",
-        time: "11:04",
-      },
-      {
-        sender: "ai",
-        label: "Cillah AI",
-        text: "Thanks. Mary will reach out to you shortly on 0700 000 102.",
-        time: "11:04",
-      },
-    ],
-  },
-  {
     id: "instagram",
     name: "Instagram",
     customerName: "Caroline",
@@ -616,8 +556,8 @@ export function Scene1Inquiries({
 
   return (
     <div className="w-full">
-      {/* DESKTOP VIEW (>= 1024px): 5 columns across with real brand logos & native dark-mode chat interfaces */}
-      <div className="hidden lg:grid lg:grid-cols-5 lg:gap-3.5 xl:gap-4 items-stretch">
+      {/* DESKTOP VIEW (>= 1024px): 4 columns across with real brand logos & native dark-mode chat interfaces */}
+      <div className="hidden lg:grid lg:grid-cols-4 lg:gap-4 xl:gap-5 max-w-5xl mx-auto items-stretch">
         {CHANNELS.map((channel, colIdx) => {
           const step = desktopSteps[colIdx] ?? 0
           const isActive = step > 0
@@ -716,10 +656,10 @@ export function Scene1Inquiries({
         })}
       </div>
 
-      {/* PHONE & TABLET VIEW (< 1024px): 5 real platform logos on top + native-styled active chat panel */}
+      {/* PHONE & TABLET VIEW (< 1024px): 4 real platform logos on top + native-styled active chat panel */}
       <div className="lg:hidden w-full max-w-xl mx-auto">
-        {/* Five Real Brand Logos Row */}
-        <div className="grid grid-cols-5 gap-1.5 sm:gap-3 mb-4">
+        {/* Four Real Brand Logos Row */}
+        <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-3">
           {CHANNELS.map((channel, idx) => {
             const isActive = idx === mobileChannelIdx && (shouldPlay || instantFinal)
             const isInteractive = sequenceFinished || instantFinal
@@ -745,7 +685,7 @@ export function Scene1Inquiries({
 
         {/* Single Native-Styled Conversation Panel */}
         <div
-          className={`w-full rounded-[16px] ${activeMobileChannel.theme.shellBg} border border-white/10 overflow-hidden text-left h-[460px] sm:h-[470px] flex flex-col justify-between shadow-[0_12px_32px_rgba(0,0,0,0.35)]`}
+          className={`w-full rounded-[16px] ${activeMobileChannel.theme.shellBg} border border-white/10 overflow-hidden text-left h-[430px] sm:h-[450px] flex flex-col justify-between shadow-[0_12px_32px_rgba(0,0,0,0.35)]`}
         >
           <div className="flex flex-col flex-1 min-h-0">
             {/* Native Chat Header */}
