@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { absoluteUrl } from '@/lib/site-config'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hastygfosgyxrxzrzrur.supabase.co'
 const supabaseServiceKey =
@@ -221,7 +222,7 @@ export async function POST(request: Request) {
       `AI Summary for Advisor:\n${conversation_summary || 'Customer requested direct callback from advisor.'}`
 
     try {
-      await fetch('https://cillah.dev/api/whatsapp/send-notification', {
+      await fetch(absoluteUrl('/api/whatsapp/send-notification'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -5,27 +5,30 @@ import type { Metadata } from "next"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { ArrowRight, Sparkles } from "lucide-react"
+import { DEFAULT_OG_IMAGE, absoluteUrl } from "@/lib/site-config"
+
+const pageUrl = absoluteUrl("/use-cases")
 
 export const metadata: Metadata = {
   title: "Case Studies & Client Results | Cillah.dev",
   description:
     "Real-world case studies of agencies and businesses scaling with custom operating systems, WhatsApp automation, and unified lead pipelines.",
   alternates: {
-    canonical: "https://cillah.dev/use-cases",
+    canonical: pageUrl,
   },
   openGraph: {
     title: "Case Studies & Client Results | Cillah.dev",
     description:
       "Real-world case studies of agencies and businesses scaling with custom operating systems, WhatsApp automation, and unified lead pipelines.",
-    url: "https://cillah.dev/use-cases",
-    images: ["/images/cillah-emblem.png"],
+    url: pageUrl,
+    images: [DEFAULT_OG_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title: "Case Studies & Client Results | Cillah.dev",
     description:
       "Real-world case studies of agencies and businesses scaling with custom operating systems, WhatsApp automation, and unified lead pipelines.",
-    images: ["/images/cillah-emblem.png"],
+    images: [DEFAULT_OG_IMAGE],
   },
 }
 

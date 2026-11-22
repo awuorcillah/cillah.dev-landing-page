@@ -6,6 +6,7 @@ import { notFound } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react"
+import { SITE_URL, DEFAULT_OG_IMAGE, absoluteUrl } from "@/lib/site-config"
 
 interface UseCaseData {
   title: string
@@ -173,7 +174,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
   }
 
-  const canonicalUrl = `https://cillah.dev/use-cases/${slug}`
+  const canonicalUrl = absoluteUrl(`/use-cases/${slug}`)
+  const ogImage = useCase.featuredImage ? absoluteUrl(useCase.featuredImage) : DEFAULT_OG_IMAGE
 
   return {
     title: `${useCase.title} | Case Study | Cillah.dev`,
@@ -186,13 +188,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description: useCase.teaser,
       url: canonicalUrl,
       type: "article",
-      images: useCase.featuredImage ? [useCase.featuredImage] : ["/images/cillah-emblem.png"],
+      images: [ogImage],
     },
     twitter: {
       card: "summary_large_image",
       title: `${useCase.title} | Cillah.dev`,
       description: useCase.teaser,
-      images: useCase.featuredImage ? [useCase.featuredImage] : ["/images/cillah-emblem.png"],
+      images: [ogImage],
     },
   }
 }
@@ -295,21 +297,21 @@ export default async function UseCasePage({ params }: PageProps) {
               datePublished: useCase.publishedAt || "2026-09-01",
               mainEntityOfPage: {
                 "@type": "WebPage",
-                "@id": `https://cillah.dev/use-cases/${slug}`,
+                "@id": absoluteUrl(`/use-cases/${slug}`),
               },
               author: {
                 "@type": "Organization",
                 name: "Cillah AI Automation",
-                url: "https://cillah.dev",
+                url: SITE_URL,
               },
               publisher: {
                 "@type": "Organization",
                 name: "Cillah.dev",
                 legalName: "Cillah AI Automation",
-                url: "https://cillah.dev",
+                url: SITE_URL,
                 logo: {
                   "@type": "ImageObject",
-                  url: "https://cillah.dev/images/cillah-emblem.png",
+                  url: DEFAULT_OG_IMAGE,
                 },
               },
             }),

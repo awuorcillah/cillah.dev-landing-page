@@ -1,15 +1,32 @@
-import type { Metadata } from 'next'
+import type { Metadata } from "next"
+import { DEFAULT_OG_IMAGE, absoluteUrl } from "@/lib/site-config"
+
+const pageUrl = absoluteUrl("/login")
 
 export const metadata: Metadata = {
-  title: 'Log In | Cillah.dev Client & Admin Portal',
-  description: 'Log in to your Cillah.dev account to access your CRM pipeline, sales dashboard, AI agents, and client management system.',
+  title: "Log In | Cillah.dev Client & Admin Portal",
+  description:
+    "Log in to your Cillah.dev account to access your CRM pipeline, sales dashboard, AI agents, and client management system.",
+  robots: {
+    index: false,
+    follow: true,
+  },
   alternates: {
-    canonical: 'https://www.cillah.dev/login',
+    canonical: pageUrl,
   },
   openGraph: {
-    title: 'Log In | Cillah.dev Client & Admin Portal',
-    description: 'Log in to your Cillah.dev account to access your CRM pipeline, sales dashboard, AI agents, and client management system.',
-    url: 'https://www.cillah.dev/login',
+    title: "Log In | Cillah.dev Client & Admin Portal",
+    description:
+      "Log in to your Cillah.dev account to access your CRM pipeline, sales dashboard, AI agents, and client management system.",
+    url: pageUrl,
+    images: [DEFAULT_OG_IMAGE],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Log In | Cillah.dev Client & Admin Portal",
+    description:
+      "Log in to your Cillah.dev account to access your CRM pipeline, sales dashboard, AI agents, and client management system.",
+    images: [DEFAULT_OG_IMAGE],
   },
 }
 

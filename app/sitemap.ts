@@ -1,6 +1,20 @@
 import fs from "fs"
 import path from "path"
 import type { MetadataRoute } from "next"
+import { SITE_URL, absoluteUrl } from "@/lib/site-config"
+
+const FALLBACK_CONTENT_DATE = "2026-09-29"
+
+const STATIC_PAGE_DATES = {
+  home: "2026-10-27",
+  ourServices: "2026-10-27",
+  bookConsultation: "2026-10-16",
+  articles: "2026-10-18",
+  useCases: "2026-10-18",
+  pricing: "2026-10-03",
+  privacyPolicy: "2026-10-01",
+  terms: "2026-10-01",
+} as const
 
 function extractFrontmatter(raw: string, filename: string): { slug: string; date?: string } {
   let slug = filename.replace(/\.md$/, "")
@@ -20,8 +34,9 @@ function extractFrontmatter(raw: string, filename: string): { slug: string; date
           value = value.slice(1, -1)
         }
         if (key === "slug" && value) slug = value
-        if (key === "date" && value) date = value
-        if (key === "publishedAt" && value) date = value
+        if ((key === "updatedAt" || key === "date" || key === "publishedAt") && value) {
+          date = value
+        }
       }
     }
   }
@@ -29,75 +44,18 @@ function extractFrontmatter(raw: string, filename: string): { slug: string; date
   return { slug, date }
 }
 
+function toValidDate(value: string | undefined, fallback: string): Date {
+  if (value) {
+    const parsed = new Date(value)
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed
+    }
+  }
+  return new Date(fallback)
+}
+
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://cillah.dev"
-  const now = new Date()
-
-  // 1. Static Core Pages (Priority-weighted)
-  const staticRoutes: MetadataRoute.Sitemap = [
-    {
-      url: baseUrl,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 1.0,
-    },
-    {
-      url: `${baseUrl}/our-services`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/book-consultation`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/articles`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/use-cases`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/pricing`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/login`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/signup`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/privacy-policy`,
-      lastModified: now,
-      changeFrequency: "yearly",
-      priority: 0.3,
-    },
-    {
-      url: `${baseUrl}/terms`,
-      lastModified: now,
-      changeFrequency: "yearly",
-      priority: 0.3,
-    },
-  ]
-
-  // 2. Dynamic Articles (/articles/[slug])
+  // 1. Dynamic Articles (/articles/[slug]) — real dates from TinaCMS / frontmatter
   const articlesDir = path.join(process.cwd(), "content/articles")
   const articleRoutes: MetadataRoute.Sitemap = []
   if (fs.existsSync(articlesDir)) {
@@ -107,16 +65,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
       const { slug, date } = extractFrontmatter(raw, file)
       if (slug) {
         articleRoutes.push({
-          url: `${baseUrl}/articles/${slug}`,
-          lastModified: date ? new Date(date) : now,
-          changeFrequency: "monthly",
-          priority: 0.8,
+          url: absoluteUrl(`/articles/${slug}`),
+          lastModified: toValidDate(date, STATIC_PAGE_DATES.articles),
         })
       }
     }
   }
 
-  // 3. Dynamic Use Cases (/use-cases/[slug])
+  // 2. Dynamic Use Cases (/use-cases/[slug]) — real dates from TinaCMS / frontmatter
   const useCasesDir = path.join(process.cwd(), "content/use-cases")
   const useCaseRoutes: MetadataRoute.Sitemap = []
   if (fs.existsSync(useCasesDir)) {
@@ -126,14 +82,48 @@ export default function sitemap(): MetadataRoute.Sitemap {
       const { slug, date } = extractFrontmatter(raw, file)
       if (slug) {
         useCaseRoutes.push({
-          url: `${baseUrl}/use-cases/${slug}`,
-          lastModified: date ? new Date(date) : now,
-          changeFrequency: "monthly",
-          priority: 0.7,
+          url: absoluteUrl(`/use-cases/${slug}`),
+          lastModified: toValidDate(date, FALLBACK_CONTENT_DATE),
         })
       }
     }
   }
+
+  // 3. Static Indexable Core Pages (real last-modified dates; /login and /signup excluded)
+  const staticRoutes: MetadataRoute.Sitemap = [
+    {
+      url: SITE_URL,
+      lastModified: new Date(STATIC_PAGE_DATES.home),
+    },
+    {
+      url: absoluteUrl("/our-services"),
+      lastModified: new Date(STATIC_PAGE_DATES.ourServices),
+    },
+    {
+      url: absoluteUrl("/book-consultation"),
+      lastModified: new Date(STATIC_PAGE_DATES.bookConsultation),
+    },
+    {
+      url: absoluteUrl("/articles"),
+      lastModified: new Date(STATIC_PAGE_DATES.articles),
+    },
+    {
+      url: absoluteUrl("/use-cases"),
+      lastModified: new Date(STATIC_PAGE_DATES.useCases),
+    },
+    {
+      url: absoluteUrl("/pricing"),
+      lastModified: new Date(STATIC_PAGE_DATES.pricing),
+    },
+    {
+      url: absoluteUrl("/privacy-policy"),
+      lastModified: new Date(STATIC_PAGE_DATES.privacyPolicy),
+    },
+    {
+      url: absoluteUrl("/terms"),
+      lastModified: new Date(STATIC_PAGE_DATES.terms),
+    },
+  ]
 
   return [...staticRoutes, ...articleRoutes, ...useCaseRoutes]
 }

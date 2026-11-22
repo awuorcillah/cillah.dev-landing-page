@@ -4,6 +4,7 @@ import Script from "next/script"
 import { Analytics } from "@vercel/analytics/react"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Toaster } from "sonner"
+import { SITE_URL, DEFAULT_OG_IMAGE, absoluteUrl } from "@/lib/site-config"
 
 import "./globals.css"
 
@@ -20,10 +21,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://cillah.dev"),
-  alternates: {
-    canonical: "https://cillah.dev",
-  },
+  metadataBase: new URL(SITE_URL),
   title: "Cillah.dev | The Operating System Behind High-Performing Real Estate Agencies",
   description:
     "Cillah.dev is the luxury operating system behind high-performing real estate agencies. Streamline your operations, client services, and workflows with premium SaaS technology.",
@@ -41,12 +39,14 @@ export const metadata: Metadata = {
       "Cillah.dev is the luxury operating system behind high-performing real estate agencies. Streamline your operations, client services, and workflows.",
     type: "website",
     locale: "en_US",
+    images: [DEFAULT_OG_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title: "Cillah.dev | The Operating System Behind High-Performing Real Estate Agencies",
     description:
       "Cillah.dev is the luxury operating system behind high-performing real estate agencies. Streamline your operations, client services, and workflows.",
+    images: [DEFAULT_OG_IMAGE],
   },
   icons: {
     icon: "/images/cillah-emblem.png",
@@ -102,18 +102,18 @@ export default function RootLayout({
               "@graph": [
                 {
                   "@type": ["Organization", "ProfessionalService"],
-                  "@id": "https://cillah.dev/#organization",
+                  "@id": `${SITE_URL}/#organization`,
                   "name": "Cillah.dev",
                   "legalName": "Cillah AI Automation",
-                  "url": "https://cillah.dev",
+                  "url": SITE_URL,
                   "logo": {
                     "@type": "ImageObject",
-                    "@id": "https://cillah.dev/#logo",
-                    "url": "https://cillah.dev/images/cillah-emblem.png",
-                    "contentUrl": "https://cillah.dev/images/cillah-emblem.png",
+                    "@id": `${SITE_URL}/#logo`,
+                    "url": DEFAULT_OG_IMAGE,
+                    "contentUrl": DEFAULT_OG_IMAGE,
                     "caption": "Cillah.dev Logo"
                   },
-                  "image": "https://cillah.dev/images/cillah-emblem.png",
+                  "image": DEFAULT_OG_IMAGE,
                   "description": "Cillah.dev is a software solutions company and digital operating system builder. We build custom web applications, autonomous AI agents in messaging inboxes (WhatsApp, Instagram), unified CRM marketing automations, and direct-to-decision-maker B2B cold email outreach pipelines for businesses in Nairobi, Kenya and globally.",
                   "email": "atulah@cillah.dev",
                   "telephone": "+254759442265",
@@ -151,61 +151,54 @@ export default function RootLayout({
                 },
                 {
                   "@type": "WebSite",
-                  "@id": "https://cillah.dev/#website",
-                  "url": "https://cillah.dev",
+                  "@id": `${SITE_URL}/#website`,
+                  "url": SITE_URL,
                   "name": "Cillah.dev",
                   "description": "Modern Digital Operating Systems, Custom Web Applications & Autonomous AI Agents",
                   "publisher": {
-                    "@id": "https://cillah.dev/#organization"
+                    "@id": `${SITE_URL}/#organization`
                   },
                   "inLanguage": "en-US"
                 },
                 {
                   "@type": "ItemList",
-                  "@id": "https://cillah.dev/#sitelinks",
+                  "@id": `${SITE_URL}/#sitelinks`,
                   "name": "Cillah.dev Sitelinks",
                   "itemListElement": [
                     {
                       "@type": "SiteNavigationElement",
                       "position": 1,
-                      "name": "Log In",
-                      "description": "Log in to your Cillah.dev client or admin portal.",
-                      "url": "https://cillah.dev/login"
+                      "name": "Our Services",
+                      "description": "Explore custom web applications, 24/7 AI messaging agents, CRM automation pipelines, and B2B cold email outreach.",
+                      "url": absoluteUrl("/our-services")
                     },
                     {
                       "@type": "SiteNavigationElement",
                       "position": 2,
-                      "name": "Sign Up",
-                      "description": "Create your Cillah.dev account to access autonomous AI inboxes and CRM automation.",
-                      "url": "https://cillah.dev/signup"
+                      "name": "Use Cases",
+                      "description": "See practical real estate automation workflows and live client results.",
+                      "url": absoluteUrl("/use-cases")
                     },
                     {
                       "@type": "SiteNavigationElement",
                       "position": 3,
-                      "name": "Our Services",
-                      "description": "Explore custom web applications, 24/7 AI messaging agents, CRM automation pipelines, and B2B cold email outreach.",
-                      "url": "https://cillah.dev/our-services"
+                      "name": "Articles",
+                      "description": "Read strategic insights on custom web operating systems, autonomous AI agents, and CRM automation.",
+                      "url": absoluteUrl("/articles")
                     },
                     {
                       "@type": "SiteNavigationElement",
                       "position": 4,
-                      "name": "Book Consultation",
-                      "description": "Schedule a one-on-one discovery consultation to map out your business automation.",
-                      "url": "https://cillah.dev/book-consultation"
+                      "name": "Pricing",
+                      "description": "Explore investment tiers for custom software builds and monthly retainers.",
+                      "url": absoluteUrl("/pricing")
                     },
                     {
                       "@type": "SiteNavigationElement",
                       "position": 5,
-                      "name": "Use Cases",
-                      "description": "See practical real estate automation workflows and live client results.",
-                      "url": "https://cillah.dev/use-cases"
-                    },
-                    {
-                      "@type": "SiteNavigationElement",
-                      "position": 6,
-                      "name": "Pricing",
-                      "description": "Explore investment tiers for custom software builds and monthly retainers.",
-                      "url": "https://cillah.dev/pricing"
+                      "name": "Book Consultation",
+                      "description": "Schedule a one-on-one discovery consultation to map out your business automation.",
+                      "url": absoluteUrl("/book-consultation")
                     }
                   ]
                 }

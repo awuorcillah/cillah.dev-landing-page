@@ -5,21 +5,31 @@ import type { Metadata } from "next"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { ArrowRight, Sparkles, BookOpen, Clock, Calendar, ArrowLeft } from "lucide-react"
+import { SITE_URL, DEFAULT_OG_IMAGE, absoluteUrl } from "@/lib/site-config"
+
+const pageUrl = absoluteUrl("/articles")
 
 export const metadata: Metadata = {
   title: "Articles & Knowledge Hub | Cillah.dev",
   description:
     "Insights on custom web applications, autonomous AI agents in messaging inboxes, and marketing-to-operations CRM automation for high-performing businesses.",
   alternates: {
-    canonical: "https://cillah.dev/articles",
+    canonical: pageUrl,
   },
   openGraph: {
     title: "Articles & Knowledge Hub | Cillah.dev",
     description:
       "Insights on custom web applications, autonomous AI agents in messaging inboxes, and marketing-to-operations CRM automation for high-performing businesses.",
-    url: "https://cillah.dev/articles",
+    url: pageUrl,
     type: "website",
-    images: ["/images/cillah-emblem.png"],
+    images: [DEFAULT_OG_IMAGE],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Articles & Knowledge Hub | Cillah.dev",
+    description:
+      "Insights on custom web applications, autonomous AI agents in messaging inboxes, and marketing-to-operations CRM automation for high-performing businesses.",
+    images: [DEFAULT_OG_IMAGE],
   },
 }
 
@@ -199,13 +209,13 @@ export default function ArticlesPage() {
               name: "Articles & Knowledge Hub | Cillah.dev",
               description:
                 "Insights on custom web applications, autonomous AI agents in messaging inboxes, and marketing-to-operations CRM automation.",
-              url: "https://cillah.dev/articles",
+              url: pageUrl,
               publisher: {
                 "@type": "Organization",
                 name: "Cillah.dev",
                 legalName: "Cillah AI Automation",
-                url: "https://cillah.dev",
-                logo: "https://cillah.dev/images/cillah-emblem.png",
+                url: SITE_URL,
+                logo: DEFAULT_OG_IMAGE,
               },
             }),
           }}

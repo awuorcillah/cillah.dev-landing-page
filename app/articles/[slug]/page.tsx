@@ -6,6 +6,7 @@ import { notFound } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { ArrowLeft, ArrowRight, Clock, Calendar, Sparkles, Share2 } from "lucide-react"
+import { SITE_URL, DEFAULT_OG_IMAGE, absoluteUrl } from "@/lib/site-config"
 
 interface ArticleData {
   title: string
@@ -118,7 +119,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
   }
 
-  const canonicalUrl = `https://cillah.dev/articles/${slug}`
+  const canonicalUrl = absoluteUrl(`/articles/${slug}`)
 
   return {
     title: `${article.title} | Cillah.dev`,
@@ -133,13 +134,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       type: "article",
       publishedTime: article.date,
       authors: [article.author || "Cillah AI Automation"],
-      images: ["/images/cillah-emblem.png"],
+      images: [DEFAULT_OG_IMAGE],
     },
     twitter: {
       card: "summary_large_image",
       title: `${article.title} | Cillah.dev`,
       description: article.teaser,
-      images: ["/images/cillah-emblem.png"],
+      images: [DEFAULT_OG_IMAGE],
     },
   }
 }
@@ -237,7 +238,7 @@ export default async function ArticleDetailPage({ params }: PageProps) {
     notFound()
   }
 
-  const canonicalUrl = `https://cillah.dev/articles/${slug}`
+  const canonicalUrl = absoluteUrl(`/articles/${slug}`)
 
   return (
     <>
@@ -322,14 +323,20 @@ export default async function ArticleDetailPage({ params }: PageProps) {
               Book a one-on-one consultation with Cillah.dev to map out custom web applications, autonomous inbox agents, and revenue pipelines for your business.
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <a
+            <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-4">
+              <Link
                 href="/book-consultation"
                 className="w-full sm:w-auto inline-flex items-center justify-center bg-[#C9A66B] text-[#07070B] hover:bg-[#C9A66B]/90 font-heading font-semibold rounded-[16px] px-8 py-3.5 text-[14px] tracking-wide transition-all duration-300 hover:shadow-[0_0_20px_rgba(201,166,107,0.35)]"
               >
-                <span>Book Consultation</span>
+                <span>Book a 1-on-1 Automation Consultation</span>
                 <ArrowRight className="ml-2 h-4 w-4 shrink-0" />
-              </a>
+              </Link>
+              <Link
+                href="/our-services"
+                className="w-full sm:w-auto inline-flex items-center justify-center bg-white/5 text-[#F9F7F6] border border-white/10 hover:border-[#C9A66B]/40 font-heading font-medium rounded-[16px] px-6 py-3.5 text-[14px] tracking-wide transition-colors"
+              >
+                Explore Our AI &amp; Automation Services
+              </Link>
               <Link
                 href="/articles"
                 className="w-full sm:w-auto inline-flex items-center justify-center bg-white/5 text-[#F9F7F6] border border-white/10 hover:border-[#C9A66B]/40 font-heading font-medium rounded-[16px] px-6 py-3.5 text-[14px] tracking-wide transition-colors"
@@ -358,16 +365,16 @@ export default async function ArticleDetailPage({ params }: PageProps) {
               author: {
                 "@type": "Organization",
                 name: article.author || "Cillah AI Automation",
-                url: "https://cillah.dev",
+                url: SITE_URL,
               },
               publisher: {
                 "@type": "Organization",
                 name: "Cillah.dev",
                 legalName: "Cillah AI Automation",
-                url: "https://cillah.dev",
+                url: SITE_URL,
                 logo: {
                   "@type": "ImageObject",
-                  url: "https://cillah.dev/images/cillah-emblem.png",
+                  url: DEFAULT_OG_IMAGE,
                 },
               },
             }),
