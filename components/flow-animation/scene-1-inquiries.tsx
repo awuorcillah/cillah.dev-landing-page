@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { motion } from "framer-motion"
-
-type ChannelId = "whatsapp" | "linkedin" | "instagram" | "tiktok" | "facebook"
+import { ChannelOutlineIcon, type ChannelId } from "./channel-icons"
 
 interface ChatMessage {
   sender: "customer" | "ai"
@@ -148,62 +147,6 @@ const CHANNELS: ChannelConversation[] = [
   },
 ]
 
-function ChannelOutlineIcon({ id, className }: { id: ChannelId; className?: string }) {
-  const sharedProps = {
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.6,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    className,
-    "aria-hidden": true as const,
-  }
-
-  switch (id) {
-    case "whatsapp":
-      return (
-        <svg {...sharedProps}>
-          <path d="M20 11.5a8 8 0 0 1-11.7 7.1L4 20l1.4-4.1A8 8 0 1 1 20 11.5Z" />
-          <path d="M9.5 9.2c.2-.5.5-.5.8-.5h.5c.2 0 .4.1.5.4l.7 1.6c.1.2 0 .5-.1.6l-.5.6c-.1.1-.1.3 0 .5.4.8 1.2 1.5 2 1.9.2.1.4.1.5 0l.6-.5c.2-.1.4-.2.6-.1l1.5.7c.3.1.4.3.4.5v.5c0 .3-.1.6-.5.8-.6.3-1.7.4-3.3-.3-1.8-.8-3.3-2.3-4.1-4.1-.7-1.6-.6-2.7-.3-3.3Z" />
-        </svg>
-      )
-    case "linkedin":
-      return (
-        <svg {...sharedProps}>
-          <rect x="3" y="3" width="18" height="18" rx="4" />
-          <path d="M8 11v5" />
-          <circle cx="8" cy="8" r="0.7" fill="currentColor" stroke="none" />
-          <path d="M12 16v-5" />
-          <path d="M12 13a2.2 2.2 0 0 1 4.4 0v3" />
-        </svg>
-      )
-    case "instagram":
-      return (
-        <svg {...sharedProps}>
-          <rect x="3" y="3" width="18" height="18" rx="5" />
-          <circle cx="12" cy="12" r="4" />
-          <circle cx="17.2" cy="6.8" r="0.8" fill="currentColor" stroke="none" />
-        </svg>
-      )
-    case "tiktok":
-      return (
-        <svg {...sharedProps}>
-          <path d="M14 4v10.5a3.5 3.5 0 1 1-2.5-3.35" />
-          <path d="M14 4c.7 2.4 2.4 4 5 4.3" />
-        </svg>
-      )
-    case "facebook":
-      return (
-        <svg {...sharedProps}>
-          <rect x="3" y="3" width="18" height="18" rx="4" />
-          <path d="M14.8 8H13a2 2 0 0 0-2 2v11" />
-          <path d="M9 13h5.2" />
-        </svg>
-      )
-  }
-}
-
 interface ChatBubbleProps {
   message: ChatMessage
   reducedMotion: boolean
@@ -277,6 +220,7 @@ function AssignedTag({ label, reducedMotion }: { label: string; reducedMotion: b
 export interface Scene1InquiriesProps {
   shouldPlay: boolean
   reducedMotion: boolean
+  forceFinalFrame?: boolean
   playNonce: number
   onComplete: () => void
 }
@@ -288,6 +232,7 @@ const EMPTY_DESKTOP_STEPS = CHANNELS.map(() => 0)
 export function Scene1Inquiries({
   shouldPlay,
   reducedMotion,
+  forceFinalFrame = false,
   playNonce,
   onComplete,
 }: Scene1InquiriesProps) {
@@ -295,15 +240,17 @@ export function Scene1Inquiries({
   const onCompleteRef = useRef(onComplete)
   onCompleteRef.current = onComplete
 
+  const instantFinal = reducedMotion || forceFinalFrame
+
   const [isDesktop, setIsDesktop] = useState<boolean>(false)
   const [desktopSteps, setDesktopSteps] = useState<number[]>(() =>
-    reducedMotion ? FINAL_DESKTOP_STEPS : EMPTY_DESKTOP_STEPS
+    instantFinal ? FINAL_DESKTOP_STEPS : EMPTY_DESKTOP_STEPS
   )
   const [mobileChannelIdx, setMobileChannelIdx] = useState<number>(0)
   const [mobileStep, setMobileStep] = useState<number>(() =>
-    reducedMotion ? CHANNELS[0].messages.length + 1 : 0
+    instantFinal ? CHANNELS[0].messages.length + 1 : 0
   )
-  const [sequenceFinished, setSequenceFinished] = useState<boolean>(reducedMotion)
+  const [sequenceFinished, setSequenceFinished] = useState<boolean>(instantFinal)
 
   const clearAllTimers = () => {
     for (const id of timersRef.current) {
@@ -333,7 +280,7 @@ export function Scene1Inquiries({
   useEffect(() => {
     clearAllTimers()
 
-    if (reducedMotion) {
+    if (instantFinal) {
       setDesktopSteps(FINAL_DESKTOP_STEPS)
       setMobileChannelIdx(0)
       setMobileStep(CHANNELS[0].messages.length + 1)
@@ -358,7 +305,7 @@ export function Scene1Inquiries({
     }
 
     if (isDesktop) {
-      // Desktop (>= 1024px): staggered columns across all 5 channels
+      // Desktop (>= 1024px): staggered columns across all 5 channels (~6.1s total)
       setDesktopSteps(EMPTY_DESKTOP_STEPS)
 
       const channelStaggerMs = 950
@@ -387,13 +334,13 @@ export function Scene1Inquiries({
         onCompleteRef.current()
       }, maxTime + 450)
     } else {
-      // Phone & Tablet (< 1024px): single conversation panel playing each channel in turn
+      // Phone & Tablet (< 1024px): single conversation panel playing each channel in turn (~11.6s total)
       setMobileChannelIdx(0)
       setMobileStep(0)
 
-      let cursorMs = 180
-      const bubbleIntervalMs = 620
-      const channelHoldMs = 1150
+      let cursorMs = 150
+      const bubbleIntervalMs = 400
+      const channelHoldMs = 680
 
       CHANNELS.forEach((channel, idx) => {
         const totalSteps = channel.messages.length + 1
@@ -418,13 +365,13 @@ export function Scene1Inquiries({
       schedule(() => {
         setSequenceFinished(true)
         onCompleteRef.current()
-      }, cursorMs - channelHoldMs + 400)
+      }, cursorMs - channelHoldMs + 350)
     }
 
     return () => {
       clearAllTimers()
     }
-  }, [shouldPlay, reducedMotion, playNonce, isDesktop])
+  }, [shouldPlay, instantFinal, playNonce, isDesktop])
 
   const activeMobileChannel = CHANNELS[mobileChannelIdx]
   const visibleMobileMessages = activeMobileChannel.messages.slice(
@@ -434,7 +381,7 @@ export function Scene1Inquiries({
   const showMobileTag = mobileStep > activeMobileChannel.messages.length
 
   const handleSelectMobileChannel = (idx: number) => {
-    if (!sequenceFinished && !reducedMotion) return
+    if (!sequenceFinished && !instantFinal) return
     setMobileChannelIdx(idx)
     setMobileStep(CHANNELS[idx].messages.length + 1)
   }
@@ -488,7 +435,7 @@ export function Scene1Inquiries({
                     <ChatBubble
                       key={`${channel.id}-${playNonce}-${mIdx}`}
                       message={msg}
-                      reducedMotion={reducedMotion}
+                      reducedMotion={instantFinal}
                       compact
                     />
                   ))}
@@ -499,7 +446,7 @@ export function Scene1Inquiries({
                     <AssignedTag
                       key={`${channel.id}-tag-${playNonce}`}
                       label={channel.assignedTag}
-                      reducedMotion={reducedMotion}
+                      reducedMotion={instantFinal}
                     />
                   </div>
                 )}
@@ -514,8 +461,8 @@ export function Scene1Inquiries({
         {/* Five-Icon Row */}
         <div className="grid grid-cols-5 gap-1.5 sm:gap-3 mb-4">
           {CHANNELS.map((channel, idx) => {
-            const isActive = idx === mobileChannelIdx && (shouldPlay || reducedMotion)
-            const isInteractive = sequenceFinished || reducedMotion
+            const isActive = idx === mobileChannelIdx && (shouldPlay || instantFinal)
+            const isInteractive = sequenceFinished || instantFinal
 
             return (
               <div
@@ -564,7 +511,7 @@ export function Scene1Inquiries({
                 <ChatBubble
                   key={`${activeMobileChannel.id}-${playNonce}-${mIdx}`}
                   message={msg}
-                  reducedMotion={reducedMotion}
+                  reducedMotion={instantFinal}
                 />
               ))}
             </div>
@@ -575,7 +522,7 @@ export function Scene1Inquiries({
               <AssignedTag
                 key={`${activeMobileChannel.id}-tag-${playNonce}`}
                 label={activeMobileChannel.assignedTag}
-                reducedMotion={reducedMotion}
+                reducedMotion={instantFinal}
               />
             </div>
           )}
