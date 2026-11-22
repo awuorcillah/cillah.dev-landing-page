@@ -209,10 +209,10 @@ export function Scene2Building({
   }
 
   const renderFrontFace = () => (
-    <div className="w-full rounded-[16px] bg-[#1C1C1C] border border-[#C9A66B]/30 p-4 sm:p-5 text-left shadow-[0_18px_45px_rgba(0,0,0,0.5)]">
+    <div className="w-full rounded-[16px] bg-[#1C1C1C] border border-[#C9A66B]/30 p-3.5 sm:p-5 text-left shadow-[0_18px_45px_rgba(0,0,0,0.5)]">
       {/* Mini website header bar */}
-      <div className="flex items-center justify-between gap-2 pb-3 mb-3.5 border-b border-white/10">
-        <span className="font-heading font-medium text-[12px] uppercase tracking-[0.14em] text-[#C9A66B]">
+      <div className="flex items-center justify-between gap-2 pb-2.5 mb-2.5 sm:pb-3 sm:mb-3.5 border-b border-white/10">
+        <span className="font-heading font-medium text-[12px] uppercase tracking-[0.12em] sm:tracking-[0.14em] text-[#C9A66B]">
           Frontend: what your customers see
         </span>
         <div className="hidden sm:flex items-center gap-1.5 shrink-0">
@@ -223,7 +223,7 @@ export function Scene2Building({
       </div>
 
       {/* Mini website form */}
-      <div className="space-y-2.5">
+      <div className="space-y-2 sm:space-y-2.5">
         {FORM_FIELDS.map((field, idx) => {
           const isFilled = filledFieldsCount > idx
           return (
@@ -232,7 +232,7 @@ export function Scene2Building({
                 {field.label}
               </span>
               <div
-                className={`w-full rounded-[10px] bg-[#07070B]/85 border px-3 py-2 min-h-[38px] flex items-center transition-colors duration-300 ${
+                className={`w-full rounded-[10px] bg-[#07070B]/85 border px-3 py-1.5 sm:py-2 min-h-[34px] sm:min-h-[38px] flex items-center transition-colors duration-300 ${
                   isFilled ? "border-[#C9A66B]/50" : "border-white/10"
                 }`}
               >
@@ -286,9 +286,9 @@ export function Scene2Building({
   )
 
   const renderBackFace = () => (
-    <div className="w-full rounded-[16px] bg-[#1C1C1C] border border-white/10 p-4 sm:p-5 text-left">
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3.5 border-b border-white/10">
-        <span className="font-heading font-medium text-[12px] uppercase tracking-[0.14em] text-[#C9A66B]">
+    <div className="w-full rounded-[16px] bg-[#1C1C1C] border border-white/10 p-3.5 sm:p-5 text-left">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 sm:pb-3 sm:mb-3.5 border-b border-white/10">
+        <span className="font-heading font-medium text-[12px] uppercase tracking-[0.12em] sm:tracking-[0.14em] text-[#C9A66B]">
           Backend: your private office
         </span>
         <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#07070B] border border-[#C9A66B]/35 text-[12px] font-heading font-medium text-[#F9F7F6] shrink-0">
@@ -299,7 +299,7 @@ export function Scene2Building({
         </span>
       </div>
 
-      <div className="space-y-2 min-h-[268px]">
+      <div className="space-y-1.5 sm:space-y-2 min-h-[252px] sm:min-h-[268px]">
         {visibleLeads.map((lead, idx) => renderLeadRow(lead, idx))}
       </div>
     </div>
@@ -443,7 +443,7 @@ export function Scene2Building({
         </div>
 
         {/* Short Gold Dotted Lines Flowing Down */}
-        <div className="w-full h-7">
+        <div className="w-full h-5 sm:h-7">
           <svg
             viewBox="0 0 500 28"
             preserveAspectRatio="none"
@@ -495,7 +495,7 @@ export function Scene2Building({
         {renderFrontFace()}
 
         {/* Vertical Gold Connector + Travelling Dot into BACK face */}
-        <div className="relative h-8 flex items-center justify-center">
+        <div className="relative h-6 sm:h-8 flex items-center justify-center">
           <div className="h-full w-px border-l border-dashed border-[#C9A66B]/55" />
           {dotTraveling && !instantFinal && (
             <motion.span

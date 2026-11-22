@@ -1,59 +1,95 @@
 "use client"
 
-import { useEffect } from "react"
-import { motion } from "framer-motion"
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
+import { ArrowRight, LogIn, UserPlus } from "lucide-react"
 
-export default function ClientPortalRedirect() {
-  const portalUrl = "https://cillah.convocore.ai/"
+export default function ClientPortalPage() {
+  const router = useRouter()
+  const supabase = createClient()
+  const [checkingSession, setCheckingSession] = useState(true)
 
   useEffect(() => {
-    // Perform redirect after 1.5 seconds
-    const timer = setTimeout(() => {
-      window.location.href = portalUrl
-    }, 1500)
-    return () => clearTimeout(timer)
-  }, [])
+    async function checkSession() {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .maybeSingle()
+
+          const email = user.email?.toLowerCase() || ""
+          const isAdmin =
+            profile?.role === "admin" ||
+            email.includes("cillah") ||
+            email.includes("admin") ||
+            email === "awuorcillah@gmail.com"
+
+          router.replace(isAdmin ? "/admin/dashboard" : "/user/dashboard")
+          return
+        }
+      } finally {
+        setCheckingSession(false)
+      }
+    }
+    checkSession()
+  }, [router, supabase])
 
   return (
-    <main className="min-h-screen bg-[#1C1C1C] flex flex-col items-center justify-center text-[#F9F7F6] px-6">
-      <div className="text-center max-w-md">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6 }}
-          className="relative h-20 w-20 rounded-full overflow-hidden border border-[#C9A66B]/30 mx-auto mb-8"
-        >
-          <img 
-            src="/images/cillah-emblem.png" 
-            alt="Cillah.ai Logo"
+    <main className="min-h-screen bg-[#07070B] flex flex-col items-center justify-center text-[#F9F7F6] px-6 py-16">
+      <div className="w-full max-w-md rounded-[20px] bg-[#1C1C1C] border border-white/10 p-8 text-center shadow-2xl">
+        <div className="relative h-16 w-16 rounded-full overflow-hidden border border-[#C9A66B]/40 mx-auto mb-6">
+          <img
+            src="/images/cillah-emblem.png"
+            alt="Cillah Logo"
             className="object-cover h-full w-full"
           />
-        </motion.div>
+        </div>
 
-        <h1 className="font-heading font-light text-2xl mb-3 text-[#F9F7F6]">
-          Entering Client Portal
+        <span className="text-[11px] font-heading font-medium uppercase tracking-[0.22em] text-[#C9A66B] block mb-2">
+          Client Portal
+        </span>
+        <h1 className="font-heading font-light text-[26px] leading-snug text-[#F9F7F6] mb-3">
+          Access Your Cillah Workspace
         </h1>
-        
-        <p className="text-[15px] font-sans font-light text-[#F9F7F6]/50 mb-8">
-          You are being securely redirected to your agency dashboard.
+        <p className="text-[14px] font-sans font-light text-[#F9F7F6]/65 leading-relaxed mb-8">
+          {checkingSession
+            ? "Checking your active session..."
+            : "Log in to view your sales pipeline, leads, and automation dashboard, or create a new client account."}
         </p>
 
-        {/* Minimal loading bar */}
-        <div className="w-48 h-[2px] bg-[#F4E7E7]/10 rounded-full mx-auto overflow-hidden relative">
-          <motion.div
-            initial={{ left: "-100%" }}
-            animate={{ left: "100%" }}
-            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-            className="absolute top-0 bottom-0 w-1/2 bg-[#C9A66B] rounded-full"
-          />
+        <div className="flex flex-col gap-3">
+          <Link
+            href="/login"
+            className="w-full inline-flex items-center justify-center gap-2 bg-[#C9A66B] text-[#07070B] hover:bg-[#C9A66B]/90 font-heading font-semibold rounded-[14px] px-6 py-3.5 text-[14px] tracking-wide transition-all duration-300"
+          >
+            <LogIn className="h-4 w-4" />
+            <span>Log In</span>
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+
+          <Link
+            href="/signup"
+            className="w-full inline-flex items-center justify-center gap-2 bg-white/5 text-[#F9F7F6] border border-white/15 hover:border-[#C9A66B]/50 hover:text-[#C9A66B] font-heading font-medium rounded-[14px] px-6 py-3.5 text-[14px] tracking-wide transition-all duration-300"
+          >
+            <UserPlus className="h-4 w-4" />
+            <span>Sign Up</span>
+          </Link>
         </div>
-        
-        <a 
-          href={portalUrl}
-          className="text-xs text-[#C9A66B]/60 hover:text-[#C9A66B] transition-colors mt-12 block"
+
+        <Link
+          href="/"
+          className="inline-block text-[12px] text-[#F9F7F6]/50 hover:text-[#C9A66B] transition-colors mt-6"
         >
-          If you are not redirected automatically, click here.
-        </a>
+          Back to Home
+        </Link>
       </div>
     </main>
   )
