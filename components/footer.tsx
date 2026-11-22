@@ -27,7 +27,6 @@ export function Footer() {
   const quickLinks = [
     { name: "Book a Consultation", href: "/book-consultation" },
     { name: "Our Services", href: "/our-services" },
-    { name: "Pricing & Investment", href: "/pricing" },
     { name: "Use Cases", href: "/use-cases" },
     { name: "Articles", href: "/articles" },
     { name: "Client Portal", href: "/client-portal" },

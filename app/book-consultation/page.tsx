@@ -303,6 +303,9 @@ export default function BookConsultationPage() {
             <div className="inline-block px-3.5 py-1 rounded-full bg-white/[0.04] border border-[#C9A66B]/30 font-mono text-xs font-medium text-[#C9A66B]">
               KES 5,000 / $40 USD
             </div>
+            <p className="text-sm text-[#F9F7F6]/65 font-light mt-3 max-w-lg mx-auto leading-relaxed">
+              Project pricing depends on your scope, so it is quoted after the call. On the call, we ask a few questions about how your business runs today and where automation can fix it. Then you get a fixed price for your specific scope.
+            </p>
           </div>
 
           {/* Stepper Dots */}

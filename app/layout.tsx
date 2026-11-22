@@ -175,27 +175,20 @@ export default function RootLayout({
                     {
                       "@type": "SiteNavigationElement",
                       "position": 3,
-                      "name": "Pricing & Investment",
-                      "description": "Explore investment tiers for custom software builds and monthly retainers.",
-                      "url": absoluteUrl("/pricing")
-                    },
-                    {
-                      "@type": "SiteNavigationElement",
-                      "position": 4,
                       "name": "Use Cases",
                       "description": "See practical real estate automation workflows and live client results.",
                       "url": absoluteUrl("/use-cases")
                     },
                     {
                       "@type": "SiteNavigationElement",
-                      "position": 5,
+                      "position": 4,
                       "name": "Articles",
                       "description": "Read strategic insights on custom web operating systems, autonomous AI agents, and CRM automation.",
                       "url": absoluteUrl("/articles")
                     },
                     {
                       "@type": "SiteNavigationElement",
-                      "position": 6,
+                      "position": 5,
                       "name": "Client Portal",
                       "description": "Access your Cillah client workspace to log in or sign up for your sales dashboard.",
                       "url": absoluteUrl("/client-portal")

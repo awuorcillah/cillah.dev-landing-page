@@ -11,7 +11,6 @@ const STATIC_PAGE_DATES = {
   bookConsultation: "2026-11-22",
   articles: "2026-10-18",
   useCases: "2026-11-22",
-  pricing: "2026-11-22",
   clientPortal: "2026-11-22",
   privacyPolicy: "2026-10-01",
   terms: "2026-10-01",
@@ -103,10 +102,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       url: absoluteUrl("/our-services"),
       lastModified: new Date(STATIC_PAGE_DATES.ourServices),
-    },
-    {
-      url: absoluteUrl("/pricing"),
-      lastModified: new Date(STATIC_PAGE_DATES.pricing),
     },
     {
       url: absoluteUrl("/use-cases"),

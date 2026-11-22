@@ -905,10 +905,10 @@ export function HomePageClient() {
                 Read Automation &amp; AI Articles
               </Link>
               <Link
-                href="/pricing"
+                href="/book-consultation"
                 className="text-[#F9F7F6]/70 hover:text-[#C9A66B] transition-colors duration-300"
               >
-                See Deployment &amp; Pricing Options
+                Book a Consultation
               </Link>
             </nav>
           </div>

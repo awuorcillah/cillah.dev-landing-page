@@ -22,6 +22,11 @@ const nextConfig = {
         destination: "/use-cases",
         permanent: true,
       },
+      {
+        source: "/pricing",
+        destination: "/book-consultation",
+        permanent: true,
+      },
     ]
   },
 }

@@ -65,13 +65,6 @@ export function MobileNav({
           >
             How It Works
           </button>
-          
-          <button
-            onClick={() => navigate("/pricing")}
-            className="rounded-xl px-4 py-4 text-left text-lg font-bold text-white transition-colors hover:bg-white/5"
-          >
-            Pricing
-          </button>
 
           <div className="mt-8">
             <Button

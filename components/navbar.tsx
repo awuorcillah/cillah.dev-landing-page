@@ -69,7 +69,6 @@ export function Navbar() {
     { name: "Book Consultation", href: "/book-consultation", highlight: true },
     { name: "Use Cases", href: "/use-cases" },
     { name: "Articles", href: "/articles" },
-    { name: "Pricing", href: "/pricing" },
     { name: "FAQs", href: "/#faq" },
   ]
 
