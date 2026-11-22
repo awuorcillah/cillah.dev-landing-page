@@ -221,6 +221,7 @@ export function Navbar() {
                 >
                   <Link
                     href="/login"
+                    rel="nofollow"
                     role="menuitem"
                     onClick={() => setPortalMenuOpen(false)}
                     className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[13px] font-heading font-medium text-[#F9F7F6] hover:bg-[#C9A66B]/15 hover:text-[#C9A66B] transition-colors"
@@ -230,6 +231,7 @@ export function Navbar() {
                   </Link>
                   <Link
                     href="/signup"
+                    rel="nofollow"
                     role="menuitem"
                     onClick={() => setPortalMenuOpen(false)}
                     className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[13px] font-heading font-medium text-[#F9F7F6] hover:bg-[#C9A66B]/15 hover:text-[#C9A66B] transition-colors"
@@ -310,6 +312,7 @@ export function Navbar() {
               <div className="grid grid-cols-2 gap-3">
                 <Link
                   href="/login"
+                  rel="nofollow"
                   onClick={() => setIsOpen(false)}
                   className="w-full text-center border border-[#C9A66B]/35 text-[#F9F7F6] hover:border-[#C9A66B] hover:text-[#C9A66B] font-heading font-medium rounded-[14px] py-3 text-[14px] tracking-wide transition-all duration-300"
                 >
@@ -317,6 +320,7 @@ export function Navbar() {
                 </Link>
                 <Link
                   href="/signup"
+                  rel="nofollow"
                   onClick={() => setIsOpen(false)}
                   className="w-full text-center bg-white/5 border border-white/15 text-[#F9F7F6] hover:border-[#C9A66B] hover:text-[#C9A66B] font-heading font-medium rounded-[14px] py-3 text-[14px] tracking-wide transition-all duration-300"
                 >

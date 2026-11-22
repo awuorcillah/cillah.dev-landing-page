@@ -10,14 +10,14 @@ import { SITE_URL, DEFAULT_OG_IMAGE, absoluteUrl } from "@/lib/site-config"
 const pageUrl = absoluteUrl("/articles")
 
 export const metadata: Metadata = {
-  title: "Articles & Knowledge Hub | Cillah",
+  title: "Articles | Cillah",
   description:
     "Insights on custom web applications, autonomous AI agents in messaging inboxes, and marketing-to-operations CRM automation for high-performing businesses.",
   alternates: {
     canonical: pageUrl,
   },
   openGraph: {
-    title: "Articles & Knowledge Hub | Cillah",
+    title: "Articles | Cillah",
     description:
       "Insights on custom web applications, autonomous AI agents in messaging inboxes, and marketing-to-operations CRM automation for high-performing businesses.",
     url: pageUrl,
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Articles & Knowledge Hub | Cillah",
+    title: "Articles | Cillah",
     description:
       "Insights on custom web applications, autonomous AI agents in messaging inboxes, and marketing-to-operations CRM automation for high-performing businesses.",
     images: [DEFAULT_OG_IMAGE],

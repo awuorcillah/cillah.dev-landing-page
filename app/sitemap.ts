@@ -90,31 +90,31 @@ export default function sitemap(): MetadataRoute.Sitemap {
     }
   }
 
-  // 3. Static Indexable Core Pages (real last-modified dates; /login and /signup excluded)
+  // 3. Static Indexable Core Pages in priority order (/login and /signup excluded)
   const staticRoutes: MetadataRoute.Sitemap = [
     {
       url: SITE_URL,
       lastModified: new Date(STATIC_PAGE_DATES.home),
     },
     {
-      url: absoluteUrl("/our-services"),
-      lastModified: new Date(STATIC_PAGE_DATES.ourServices),
-    },
-    {
       url: absoluteUrl("/book-consultation"),
       lastModified: new Date(STATIC_PAGE_DATES.bookConsultation),
     },
     {
-      url: absoluteUrl("/articles"),
-      lastModified: new Date(STATIC_PAGE_DATES.articles),
+      url: absoluteUrl("/our-services"),
+      lastModified: new Date(STATIC_PAGE_DATES.ourServices),
+    },
+    {
+      url: absoluteUrl("/pricing"),
+      lastModified: new Date(STATIC_PAGE_DATES.pricing),
     },
     {
       url: absoluteUrl("/use-cases"),
       lastModified: new Date(STATIC_PAGE_DATES.useCases),
     },
     {
-      url: absoluteUrl("/pricing"),
-      lastModified: new Date(STATIC_PAGE_DATES.pricing),
+      url: absoluteUrl("/articles"),
+      lastModified: new Date(STATIC_PAGE_DATES.articles),
     },
     {
       url: absoluteUrl("/client-portal"),

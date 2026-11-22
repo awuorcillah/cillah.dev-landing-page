@@ -161,23 +161,23 @@ export default function RootLayout({
                     {
                       "@type": "SiteNavigationElement",
                       "position": 1,
-                      "name": "Home",
-                      "description": "AI & automation for real estate agencies in Kenya.",
-                      "url": SITE_URL
+                      "name": "Book a Consultation",
+                      "description": "Schedule a one-on-one discovery consultation to map out your business automation.",
+                      "url": absoluteUrl("/book-consultation")
                     },
                     {
                       "@type": "SiteNavigationElement",
                       "position": 2,
-                      "name": "Software Services",
+                      "name": "Our Services",
                       "description": "Software development services for business: custom web applications, 24/7 AI messaging agents, and CRM automation pipelines.",
                       "url": absoluteUrl("/our-services")
                     },
                     {
                       "@type": "SiteNavigationElement",
                       "position": 3,
-                      "name": "Book Consultation",
-                      "description": "Schedule a one-on-one discovery consultation to map out your business automation.",
-                      "url": absoluteUrl("/book-consultation")
+                      "name": "Pricing & Investment",
+                      "description": "Explore investment tiers for custom software builds and monthly retainers.",
+                      "url": absoluteUrl("/pricing")
                     },
                     {
                       "@type": "SiteNavigationElement",
@@ -196,15 +196,8 @@ export default function RootLayout({
                     {
                       "@type": "SiteNavigationElement",
                       "position": 6,
-                      "name": "Pricing",
-                      "description": "Explore investment tiers for custom software builds and monthly retainers.",
-                      "url": absoluteUrl("/pricing")
-                    },
-                    {
-                      "@type": "SiteNavigationElement",
-                      "position": 7,
                       "name": "Client Portal",
-                      "description": "Access your Cillah client workspace, sales pipeline, and leads dashboard.",
+                      "description": "Access your Cillah client workspace to log in or sign up for your sales dashboard.",
                       "url": absoluteUrl("/client-portal")
                     }
                   ]

@@ -70,6 +70,7 @@ export default function ClientPortalPage() {
         <div className="flex flex-col gap-3">
           <Link
             href="/login"
+            rel="nofollow"
             className="w-full inline-flex items-center justify-center gap-2 bg-[#C9A66B] text-[#07070B] hover:bg-[#C9A66B]/90 font-heading font-semibold rounded-[14px] px-6 py-3.5 text-[14px] tracking-wide transition-all duration-300"
           >
             <LogIn className="h-4 w-4" />
@@ -79,6 +80,7 @@ export default function ClientPortalPage() {
 
           <Link
             href="/signup"
+            rel="nofollow"
             className="w-full inline-flex items-center justify-center gap-2 bg-white/5 text-[#F9F7F6] border border-white/15 hover:border-[#C9A66B]/50 hover:text-[#C9A66B] font-heading font-medium rounded-[14px] px-6 py-3.5 text-[14px] tracking-wide transition-all duration-300"
           >
             <UserPlus className="h-4 w-4" />

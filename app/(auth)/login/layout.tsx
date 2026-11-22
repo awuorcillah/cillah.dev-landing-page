@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     "Log in to your Cillah account to access your CRM pipeline, sales dashboard, AI agents, and client management system.",
   robots: {
     index: false,
-    follow: true,
+    follow: false,
   },
   alternates: {
     canonical: pageUrl,

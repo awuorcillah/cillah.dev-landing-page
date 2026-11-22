@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     "Create your Cillah account to access autonomous AI inboxes, lead qualification workflows, and CRM pipeline automation.",
   robots: {
     index: false,
-    follow: true,
+    follow: false,
   },
   alternates: {
     canonical: pageUrl,
