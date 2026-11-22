@@ -34,9 +34,18 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  let user: any = null
+  try {
+    const authResult = await Promise.race([
+      supabase.auth.getUser(),
+      new Promise<{ data: { user: null } }>((resolve) =>
+        setTimeout(() => resolve({ data: { user: null } }), 5000)
+      ),
+    ])
+    user = authResult?.data?.user ?? null
+  } catch {
+    user = null
+  }
 
   const url = request.nextUrl.clone()
 
@@ -84,8 +93,16 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // Protect /client routes -> Any authenticated client, user or admin allowed
-  if (url.pathname.startsWith('/client')) {
+  // Protect /client routes (never /client-portal) -> Any authenticated client, user or admin allowed
+  if (url.pathname === '/client' || url.pathname.startsWith('/client/')) {
+    if (!user) {
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
+  }
+
+  // Protect /dashboard routes -> Any authenticated user
+  if (url.pathname === '/dashboard' || url.pathname.startsWith('/dashboard/')) {
     if (!user) {
       url.pathname = '/login'
       return NextResponse.redirect(url)

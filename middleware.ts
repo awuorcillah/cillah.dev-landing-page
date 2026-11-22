@@ -5,8 +5,14 @@ export async function middleware(request: NextRequest) {
   return await updateSession(request)
 }
 
+// Run auth middleware ONLY on protected private routes so public marketing pages
+// (/, /our-services, /use-cases, /articles, /pricing, /book-consultation, /client-portal)
+// serve directly from Vercel's edge cache without blocking on Supabase auth calls.
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/admin/:path*',
+    '/user/:path*',
+    '/client/:path*',
+    '/dashboard/:path*',
   ],
 }

@@ -17,26 +17,30 @@ export function Navbar() {
 
   useEffect(() => {
     async function fetchUser() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      setUser(user)
-      if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role, avatar_url")
-          .eq("id", user.id)
-          .single()
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        setUser(user)
+        if (user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role, avatar_url")
+            .eq("id", user.id)
+            .single()
 
-        const email = user.email?.toLowerCase() || ""
-        const isAdmin =
-          profile?.role === "admin" ||
-          email.includes("cillah") ||
-          email.includes("admin") ||
-          email === "awuorcillah@gmail.com"
+          const email = user.email?.toLowerCase() || ""
+          const isAdmin =
+            profile?.role === "admin" ||
+            email.includes("cillah") ||
+            email.includes("admin") ||
+            email === "awuorcillah@gmail.com"
 
-        if (isAdmin) setRole("admin")
-        else if (profile) setRole(profile.role)
+          if (isAdmin) setRole("admin")
+          else if (profile) setRole(profile.role)
+        }
+      } catch {
+        // Ignore transient network errors in public navbar
       }
     }
     fetchUser()

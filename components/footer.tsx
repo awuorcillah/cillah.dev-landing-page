@@ -26,14 +26,13 @@ export function Footer() {
 
   const quickLinks = [
     { name: "Home", href: "/" },
-    { name: "Our Automation Services", href: "/our-services" },
-    { name: "Client Use Cases", href: "/use-cases" },
-    { name: "Pricing & Deployment", href: "/pricing" },
+    { name: "Software Services", href: "/our-services" },
     { name: "Book Consultation", href: "/book-consultation" },
-    { name: "Log In", href: "/login" },
-    { name: "Sign Up", href: "/signup" },
-    { name: "Automation Articles", href: "/articles" },
+    { name: "Use Cases", href: "/use-cases" },
+    { name: "Articles", href: "/articles" },
+    { name: "Pricing", href: "/pricing" },
     { name: "FAQs", href: "/#faq" },
+    { name: "Client Portal", href: "/client-portal" },
   ]
 
   return (

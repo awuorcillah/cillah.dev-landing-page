@@ -161,37 +161,51 @@ export default function RootLayout({
                     {
                       "@type": "SiteNavigationElement",
                       "position": 1,
-                      "name": "Our Services",
-                      "description": "Explore custom web applications, 24/7 AI messaging agents, CRM automation pipelines, and B2B cold email outreach.",
-                      "url": absoluteUrl("/our-services")
+                      "name": "Home",
+                      "description": "AI & automation for real estate agencies in Kenya.",
+                      "url": SITE_URL
                     },
                     {
                       "@type": "SiteNavigationElement",
                       "position": 2,
+                      "name": "Software Services",
+                      "description": "Software development services for business: custom web applications, 24/7 AI messaging agents, and CRM automation pipelines.",
+                      "url": absoluteUrl("/our-services")
+                    },
+                    {
+                      "@type": "SiteNavigationElement",
+                      "position": 3,
+                      "name": "Book Consultation",
+                      "description": "Schedule a one-on-one discovery consultation to map out your business automation.",
+                      "url": absoluteUrl("/book-consultation")
+                    },
+                    {
+                      "@type": "SiteNavigationElement",
+                      "position": 4,
                       "name": "Use Cases",
                       "description": "See practical real estate automation workflows and live client results.",
                       "url": absoluteUrl("/use-cases")
                     },
                     {
                       "@type": "SiteNavigationElement",
-                      "position": 3,
+                      "position": 5,
                       "name": "Articles",
                       "description": "Read strategic insights on custom web operating systems, autonomous AI agents, and CRM automation.",
                       "url": absoluteUrl("/articles")
                     },
                     {
                       "@type": "SiteNavigationElement",
-                      "position": 4,
+                      "position": 6,
                       "name": "Pricing",
                       "description": "Explore investment tiers for custom software builds and monthly retainers.",
                       "url": absoluteUrl("/pricing")
                     },
                     {
                       "@type": "SiteNavigationElement",
-                      "position": 5,
-                      "name": "Book Consultation",
-                      "description": "Schedule a one-on-one discovery consultation to map out your business automation.",
-                      "url": absoluteUrl("/book-consultation")
+                      "position": 7,
+                      "name": "Client Portal",
+                      "description": "Access your Cillah client workspace, sales pipeline, and leads dashboard.",
+                      "url": absoluteUrl("/client-portal")
                     }
                   ]
                 }

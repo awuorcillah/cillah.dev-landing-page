@@ -6,12 +6,13 @@ import { SITE_URL, absoluteUrl } from "@/lib/site-config"
 const FALLBACK_CONTENT_DATE = "2026-09-29"
 
 const STATIC_PAGE_DATES = {
-  home: "2026-10-27",
-  ourServices: "2026-10-27",
-  bookConsultation: "2026-10-16",
+  home: "2026-11-22",
+  ourServices: "2026-11-22",
+  bookConsultation: "2026-11-22",
   articles: "2026-10-18",
-  useCases: "2026-10-18",
-  pricing: "2026-10-03",
+  useCases: "2026-11-22",
+  pricing: "2026-11-22",
+  clientPortal: "2026-11-22",
   privacyPolicy: "2026-10-01",
   terms: "2026-10-01",
 } as const
@@ -114,6 +115,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       url: absoluteUrl("/pricing"),
       lastModified: new Date(STATIC_PAGE_DATES.pricing),
+    },
+    {
+      url: absoluteUrl("/client-portal"),
+      lastModified: new Date(STATIC_PAGE_DATES.clientPortal),
     },
     {
       url: absoluteUrl("/privacy-policy"),

@@ -35,6 +35,8 @@ export default function ClientPortalPage() {
           router.replace(isAdmin ? "/admin/dashboard" : "/user/dashboard")
           return
         }
+      } catch {
+        // Ignore transient network errors when checking session
       } finally {
         setCheckingSession(false)
       }

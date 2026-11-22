@@ -4,14 +4,14 @@ import { DEFAULT_OG_IMAGE, absoluteUrl } from "@/lib/site-config"
 const pageUrl = absoluteUrl("/pricing")
 
 export const metadata: Metadata = {
-  title: "Investment & Pricing | Software Solutions & AI Automation | Cillah",
+  title: "Pricing | Software Solutions & AI Automation | Cillah",
   description:
     "Transparent investment tiers for custom web applications, autonomous inbox agents, and enterprise workflow ecosystems.",
   alternates: {
     canonical: pageUrl,
   },
   openGraph: {
-    title: "Investment & Pricing | Software Solutions & AI Automation | Cillah",
+    title: "Pricing | Software Solutions & AI Automation | Cillah",
     description:
       "Transparent investment tiers for custom web applications, autonomous inbox agents, and enterprise workflow ecosystems.",
     url: pageUrl,
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Investment & Pricing | Software Solutions & AI Automation | Cillah",
+    title: "Pricing | Software Solutions & AI Automation | Cillah",
     description:
       "Transparent investment tiers for custom web applications, autonomous inbox agents, and enterprise workflow ecosystems.",
     images: [DEFAULT_OG_IMAGE],
