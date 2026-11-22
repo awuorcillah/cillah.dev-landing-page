@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
+import { CONSULTATION_PRICE_KES } from "@/lib/consultation-price"
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { phone, email, amount = 5000 } = body
+    const { phone } = body
 
     if (!phone) {
       return NextResponse.json({ error: "Phone number is required" }, { status: 400 })
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
       Password: password,
       Timestamp: timestamp,
       TransactionType: "CustomerBuyGoodsOnline",
-      Amount: String(amount || 5000),
+      Amount: String(CONSULTATION_PRICE_KES),
       PartyA: formattedPhone,
       PartyB: tillNumber,
       PhoneNumber: formattedPhone,
@@ -109,7 +110,7 @@ export async function POST(request: Request) {
       TransactionDesc: "1-on-1 AI Strategy Call"
     }
 
-    console.log("[Mpesa STK] Sending STK Push request to Safaricom for KES", amount, "to", formattedPhone)
+    console.log("[Mpesa STK] Sending STK Push request to Safaricom for KES", CONSULTATION_PRICE_KES, "to", formattedPhone)
 
     const stkResponse = await fetch(
       "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest",

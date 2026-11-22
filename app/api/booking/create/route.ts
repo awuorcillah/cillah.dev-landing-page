@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createCalendarEvent } from '@/lib/google-calendar'
 import { sendWhatsAppTextMessage } from '@/lib/whatsapp'
+import { CONSULTATION_PRICE_DISPLAY, CONSULTATION_PRICE_KES } from '@/lib/consultation-price'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hastygfosgyxrxzrzrur.supabase.co'
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -20,8 +21,7 @@ export async function POST(request: Request) {
       bottlenecks = '',
       scheduledAt,
       paymentMethod = 'mpesa',
-      paymentStatus = 'paid',
-      amount = 5000
+      paymentStatus = 'paid'
     } = body
 
     if (!fullName || !email || !phone || !scheduledAt) {
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
 
     // 3. Ingest into sales_leads as HOT LEAD
     const notesContent = [
-      `Session: 1-on-1 AI Strategy & Architecture Call (KES 5,000 / $40 USD)`,
+      `Session: 1-on-1 AI Strategy & Architecture Call (${CONSULTATION_PRICE_DISPLAY})`,
       `Agency / Business: ${agencyName || 'N/A'}`,
       `Website / Social: ${websiteUrl || 'N/A'}`,
       `Primary Bottlenecks & Goals: ${bottlenecks || 'N/A'}`,
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
           assigned_agent_email: assignedAgentEmail,
           assigned_agent_id: assignedAgentId,
           is_qualified: true,
-          estimated_value: amount,
+          estimated_value: CONSULTATION_PRICE_KES,
           notes: notesContent,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -241,7 +241,7 @@ export async function POST(request: Request) {
       `🏢 *Agency / Company:* ${agencyName || 'N/A'}`,
       `🌐 *Website / Social:* ${websiteUrl || 'N/A'}`,
       `📅 *Date & Time:* ${formattedDate} EAT`,
-      `💰 *Payment:* ${paymentMethod.toUpperCase()} (${paymentStatus.toUpperCase()}) — KES 5,000 / $40 USD`,
+      `💰 *Payment:* ${paymentMethod.toUpperCase()} (${paymentStatus.toUpperCase()}) — ${CONSULTATION_PRICE_DISPLAY}`,
       `🎯 *Bottlenecks:* ${bottlenecks || 'N/A'}`,
       ``,
       `🔗 *Google Meet:* ${googleMeetUrl}`,

@@ -19,6 +19,12 @@ import {
   Smartphone
 } from "lucide-react"
 import { toast } from "sonner"
+import {
+  CONSULTATION_PRICE_DISPLAY,
+  CONSULTATION_PRICE_KES_FORMATTED,
+  CONSULTATION_PRICE_USD_DECIMAL,
+  CONSULTATION_PRICE_USD_FORMATTED,
+} from "@/lib/consultation-price"
 
 interface DaySlot {
   time: string
@@ -71,8 +77,6 @@ export default function BookConsultationPage() {
   const [calendarEventUrl, setCalendarEventUrl] = useState("")
 
   const BTC_ADDRESS = "13gvFh6UxVFkbfwxmrduVaR9ms6bipwJD4"
-  const PRICE_KES = 5000
-  const PRICE_USD = 40
 
   // 1. Fetch live slots from Google Calendar API (strictly Wed, Fri, Sun 8am-9pm EAT)
   useEffect(() => {
@@ -181,7 +185,6 @@ export default function BookConsultationPage() {
         body: JSON.stringify({
           phone: `${countryCode}${raw}`.replace("+", ""),
           email,
-          amount: PRICE_KES
         })
       })
 
@@ -251,7 +254,6 @@ export default function BookConsultationPage() {
         scheduledAt,
         paymentMethod,
         paymentStatus: paymentMethod === "mpesa" ? (stkSent ? "paid" : "pending") : "paid",
-        amount: PRICE_KES
       }
 
       const res = await fetch("/api/booking/create", {
@@ -301,7 +303,7 @@ export default function BookConsultationPage() {
               A private 60 minutes deep dive consultation
             </p>
             <div className="inline-block px-3.5 py-1 rounded-full bg-white/[0.04] border border-[#C9A66B]/30 font-mono text-xs font-medium text-[#C9A66B]">
-              KES 5,000 / $40 USD
+              {CONSULTATION_PRICE_DISPLAY}
             </div>
             <p className="text-sm text-[#F9F7F6]/65 font-light mt-3 max-w-lg mx-auto leading-relaxed">
               Project pricing depends on your scope, so it is quoted after the call. On the call, we ask a few questions about how your business runs today and where automation can fix it. Then you get a fixed price for your specific scope.
@@ -585,7 +587,7 @@ export default function BookConsultationPage() {
                 <div>
                   <span className="text-xs text-white/60">Pay for 60-min Strategy Session:</span>
                   <p className="text-sm font-semibold text-[#C9A66B] font-mono">
-                    {paymentMethod === "mpesa" ? "KES 5,000" : "$40.00 USD"}
+                    {paymentMethod === "mpesa" ? CONSULTATION_PRICE_KES_FORMATTED : CONSULTATION_PRICE_USD_DECIMAL}
                   </p>
                 </div>
                 <button
@@ -643,7 +645,7 @@ export default function BookConsultationPage() {
               {paymentMethod === "mpesa" && (
                 <div className="p-4 rounded-xl bg-white/[0.02] border border-emerald-500/30 space-y-3">
                   <p className="text-xs text-white/70">
-                    Enter your M-Pesa number. You will receive an instant PIN prompt on your phone for <strong>KES 5,000</strong>.
+                    Enter your M-Pesa number. You will receive an instant PIN prompt on your phone for <strong>{CONSULTATION_PRICE_KES_FORMATTED}</strong>.
                   </p>
                   <div className="flex gap-2">
                     <input
@@ -675,7 +677,7 @@ export default function BookConsultationPage() {
               {paymentMethod === "card" && (
                 <div className="p-4 rounded-xl bg-white/[0.02] border border-[#00B2FF]/30 space-y-3 text-xs">
                   <div className="flex items-center justify-between text-white/60">
-                    <span>Direct Card Checkout ($40.00 USD)</span>
+                    <span>Direct Card Checkout ({CONSULTATION_PRICE_USD_DECIMAL})</span>
                     <span className="flex items-center gap-1 text-[10px] text-emerald-400">
                       <Lock className="w-3 h-3" /> 256-Bit Encrypted
                     </span>
@@ -741,7 +743,7 @@ export default function BookConsultationPage() {
               {paymentMethod === "bitcoin" && (
                 <div className="p-4 rounded-xl bg-white/[0.02] border border-amber-500/30 space-y-3 text-xs">
                   <div className="flex items-center justify-between text-white/70">
-                    <span>Send $40 USD (~0.0006 BTC)</span>
+                    <span>Send {CONSULTATION_PRICE_USD_FORMATTED} in BTC</span>
                     <span className="text-amber-400 font-semibold font-mono">Bitcoin Network</span>
                   </div>
 
@@ -765,7 +767,7 @@ export default function BookConsultationPage() {
 
                   {/* Mobile Deep Link */}
                   <a
-                    href={`bitcoin:${BTC_ADDRESS}?amount=0.0006`}
+                    href={`bitcoin:${BTC_ADDRESS}`}
                     className="w-full py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] text-white text-xs border border-white/15 flex items-center justify-center gap-2 transition-all"
                   >
                     <Smartphone className="w-3.5 h-3.5 text-amber-400" />

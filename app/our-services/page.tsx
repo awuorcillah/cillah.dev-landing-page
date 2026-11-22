@@ -4,6 +4,7 @@ import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
+import { CONSULTATION_PRICE_DISPLAY } from "@/lib/consultation-price"
 import { 
   Check, 
   Sparkles, 
@@ -389,7 +390,7 @@ export default function ServicesPage() {
                 href="/book-consultation"
                 className="inline-flex items-center justify-center px-8 py-4 rounded-xl bg-[#C9A66B] text-[#07070B] font-heading font-semibold text-sm tracking-wide hover:bg-[#b59357] transition-all shadow-[0_0_25px_rgba(201,166,107,0.3)] hover:scale-[1.02] active:scale-[0.98]"
               >
-                <span>Book a 1-on-1 Strategy Call (KES 5,000 / $40 USD)</span>
+                <span>Book a 1-on-1 Strategy Call ({CONSULTATION_PRICE_DISPLAY})</span>
                 <ArrowRight className="w-4 h-4 ml-2" />
               </a>
             </div>

@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Calendar, Clock, Video, ShieldCheck, ArrowRight } from "lucide-react"
 import Link from "next/link"
+import { CONSULTATION_PRICE_DISPLAY } from "@/lib/consultation-price"
 
 interface BookingModalProps {
   open: boolean
@@ -48,7 +49,7 @@ export function BookingModal({ open, onOpenChange }: BookingModalProps) {
             </div>
             <div className="flex items-center justify-between text-white/80 pt-1 border-t border-white/5">
               <span className="flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-[#C9A66B]" /> Investment</span>
-              <span className="font-semibold text-white font-mono text-sm">KES 5,000 / $40 USD</span>
+              <span className="font-semibold text-white font-mono text-sm">{CONSULTATION_PRICE_DISPLAY}</span>
             </div>
           </div>
 
