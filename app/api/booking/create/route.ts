@@ -8,6 +8,17 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hastygfosgy
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export async function POST(request: Request) {
+  return NextResponse.json(
+    {
+      error:
+        "Direct booking without verified M-Pesa payment is disabled. Please complete M-Pesa payment on /book-consultation.",
+    },
+    { status: 403 }
+  )
+}
+
+/* Legacy unverified booking handler disabled to prevent payment bypass.
+async function legacyUnverifiedBookingPOST(request: Request) {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
@@ -294,3 +305,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 })
   }
 }
+*/

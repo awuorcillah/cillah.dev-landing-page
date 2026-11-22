@@ -6,7 +6,6 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const recordId = searchParams.get("recordId")
     const email = searchParams.get("email")
-    const simulatePaid = searchParams.get("simulatePaid") === "true"
 
     if (!recordId) {
       return NextResponse.json({ error: "Record ID is required" }, { status: 400 })
@@ -30,21 +29,6 @@ export async function GET(request: Request) {
     }
 
     const actualRecordId = record.id
-
-    // In development or simulation mode, let the client bypass by updating payment status
-    if (simulatePaid) {
-      console.log(`[Dev Simulation] Simulating successful payment callback for record: ${actualRecordId}`)
-      await updateConsultationRecord(actualRecordId, {
-        paymentStatus: "Paid",
-        mpesaReceipt: "MOCK" + Math.random().toString(36).substring(2, 10).toUpperCase()
-      })
-      
-      // Reload record to reflect simulation changes
-      const updatedRecord = await getConsultationRecord(actualRecordId)
-      if (updatedRecord) {
-        record = updatedRecord
-      }
-    }
 
     return NextResponse.json({
       success: true,
