@@ -29,7 +29,7 @@ Every manual step in your pipeline is a friction point where 20% to 40% of poten
 
 ## The Unified Automated Pipeline
 
-At Cillah.dev, we build connective digital ecosystems where marketing channels, customer communications, and backend databases function as a single continuous loop.
+At Cillah, we build connective digital ecosystems where marketing channels, customer communications, and backend databases function as a single continuous loop.
 
 Here is what an automated revenue pipeline looks like in practice:
 

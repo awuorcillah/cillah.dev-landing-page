@@ -71,12 +71,12 @@ export function Navbar() {
           <div className="relative h-12 w-12 rounded-full overflow-hidden border border-[#C9A66B]/30 group-hover:border-[#C9A66B] transition-colors duration-300">
             <img 
               src="/images/cillah-emblem.png" 
-              alt="Cillah.dev Logo"
+              alt="Cillah Logo"
               className="object-cover h-full w-full"
             />
           </div>
           <span className="font-heading font-semibold text-xl tracking-tight text-[#F9F7F6] group-hover:text-[#F4E7E7] transition-colors duration-300">
-            cillah.dev
+            Cillah
           </span>
         </Link>
 

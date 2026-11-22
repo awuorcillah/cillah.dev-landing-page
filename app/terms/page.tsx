@@ -33,7 +33,7 @@ export default function TermsOfService() {
           <div className="container mx-auto max-w-3xl px-6">
             <div className="prose prose-invert max-w-none space-y-12 font-sans font-light text-[17px] leading-relaxed text-[#F9F7F6]/70">
               <div>
-                <p>These terms govern the use of cillah.dev.</p>
+                <p>These terms govern the use of Cillah.</p>
               </div>
 
               <div>
@@ -41,7 +41,7 @@ export default function TermsOfService() {
                   1. Services
                 </h2>
                 <p>
-                  Cillah.dev provides AI automation services, including workflow automation,
+                  Cillah provides AI automation services, including workflow automation,
                   chatbot development, and email outreach campaigns.
                 </p>
               </div>
@@ -84,7 +84,7 @@ export default function TermsOfService() {
                 </h2>
                 <p>
                   Services are provided &apos;as is&apos; without warranties of any kind.
-                  Cillah.dev is not liable for indirect or consequential damages.
+                  Cillah is not liable for indirect or consequential damages.
                 </p>
               </div>
 

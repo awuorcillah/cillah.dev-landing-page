@@ -56,7 +56,7 @@ const ORGANIZATIONS: Organization[] = [
   },
   {
     id: 'a1b2c3d4-e5f6-7890-abcd-222222222222',
-    name: 'cillah.dev',
+    name: 'Cillah',
     slug: 'cillah-dev',
     industry: 'AI Automation Agency & SaaS',
     description: 'Autonomous marketing, custom AI agents, lead nurturing pipelines, and enterprise automation infrastructure.',

@@ -115,20 +115,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!article) {
     return {
-      title: "Article Not Found | Cillah.dev",
+      title: "Article Not Found | Cillah",
     }
   }
 
   const canonicalUrl = absoluteUrl(`/articles/${slug}`)
 
   return {
-    title: `${article.title} | Cillah.dev`,
+    title: `${article.title} | Cillah`,
     description: article.teaser,
     alternates: {
       canonical: canonicalUrl,
     },
     openGraph: {
-      title: `${article.title} | Cillah.dev`,
+      title: `${article.title} | Cillah`,
       description: article.teaser,
       url: canonicalUrl,
       type: "article",
@@ -138,7 +138,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     twitter: {
       card: "summary_large_image",
-      title: `${article.title} | Cillah.dev`,
+      title: `${article.title} | Cillah`,
       description: article.teaser,
       images: [DEFAULT_OG_IMAGE],
     },
@@ -320,7 +320,7 @@ export default async function ArticleDetailPage({ params }: PageProps) {
               Ready to Upgrade to a Digital Operating System?
             </h2>
             <p className="text-[15px] sm:text-[16px] text-[#F9F7F6]/70 leading-relaxed mb-8 max-w-xl mx-auto font-light">
-              Book a one-on-one consultation with Cillah.dev to map out custom web applications, autonomous inbox agents, and revenue pipelines for your business.
+              Book a one-on-one consultation with Cillah to map out custom web applications, autonomous inbox agents, and revenue pipelines for your business.
             </p>
 
             <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-4">
@@ -369,7 +369,7 @@ export default async function ArticleDetailPage({ params }: PageProps) {
               },
               publisher: {
                 "@type": "Organization",
-                name: "Cillah.dev",
+                name: "Cillah",
                 legalName: "Cillah AI Automation",
                 url: SITE_URL,
                 logo: {

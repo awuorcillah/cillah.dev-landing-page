@@ -205,10 +205,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {expanded && (
             <div className="overflow-hidden">
               <p className="text-sm font-bold text-slate-100 leading-none">
-                {isSuperAdmin ? 'Cillah AI Automation' : 'cillah.dev'}
+                {isSuperAdmin ? 'Cillah AI Automation' : 'Cillah'}
               </p>
               <p className="text-[10px] text-[#C9A66B] mt-0.5 font-semibold">
-                {isSuperAdmin ? 'SaaS Platform Owner' : 'Organization Admin (cillah.dev)'}
+                {isSuperAdmin ? 'SaaS Platform Owner' : 'Organization Admin (Cillah)'}
               </p>
             </div>
           )}
@@ -225,7 +225,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* CILLAH.DEV INTERNAL ORGANIZATION SECTION */}
           <div className="pt-2 space-y-1">
             <div className="px-3 flex items-center justify-between text-[11px] font-bold text-cyan-400 uppercase tracking-wider">
-              <span>cillah.dev Operations</span>
+              <span>Cillah Operations</span>
               <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-950/60 border border-cyan-800/40 text-cyan-300">Internal Org</span>
             </div>
 
@@ -505,7 +505,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       ? 'Stage Properties'
                       : pathname.includes('dendri-africa')
                       ? 'Dendri Africa'
-                      : 'cillah.dev'}
+                      : 'Cillah'}
                   </span>
                   <ChevronDown className="w-3 h-3 text-slate-400" />
                 </button>
@@ -566,7 +566,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         <div className="flex items-center gap-2.5">
                           <Cpu className="w-4 h-4 text-cyan-400" />
                           <div>
-                            <p className="font-semibold text-white">cillah.dev</p>
+                            <p className="font-semibold text-white">Cillah</p>
                             <p className="text-[10px] text-slate-400">AI Automation Agency</p>
                           </div>
                         </div>

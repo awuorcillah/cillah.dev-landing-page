@@ -66,7 +66,7 @@ export default function PricingPage() {
                 </h2>
 
                 <p className="text-xs sm:text-sm text-[#1E1E1E]/70 leading-relaxed font-light mb-6">
-                  We build, host, and maintain all code and AI workflows on our secure cloud servers. Your team logs in directly through <strong className="font-medium text-[#1E1E1E]">cillah.dev</strong> to access client details, leads, and operational workflows.
+                  We build, host, and maintain all code and AI workflows on our secure cloud servers. Your team logs in directly through <strong className="font-medium text-[#1E1E1E]">Cillah</strong> to access client details, leads, and operational workflows.
                 </p>
 
                 {/* Ownership & Control Pill */}
@@ -98,7 +98,7 @@ export default function PricingPage() {
                   {[
                     "Custom AI workflow & agent development",
                     "Full hosting on high-speed cloud infrastructure",
-                    "Direct portal login via cillah.dev",
+                    "Direct portal login via Cillah",
                     "Multi-tier control (Admin, Sales & Marketing roles)",
                     "Continuous automated server monitoring & backups",
                     "Bug fixes, security updates & workflow health checks"

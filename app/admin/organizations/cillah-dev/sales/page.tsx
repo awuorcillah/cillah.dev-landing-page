@@ -320,7 +320,7 @@ export default function SalesDepartmentPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-1">
-            <Building2 className="w-4 h-4" /> cillah.dev Organization & Department
+            <Building2 className="w-4 h-4" /> Cillah Organization & Department
           </div>
           <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
             📊 Sales Department & CRM Pipeline

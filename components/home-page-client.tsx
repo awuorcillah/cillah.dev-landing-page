@@ -6,45 +6,20 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { 
-  ArrowRight, 
   Sparkles, 
   Instagram, 
   Facebook, 
   Globe, 
-  Database, 
-  Calendar, 
-  Phone, 
   MessageCircle, 
-  Layers, 
   Bell,
-  CheckCircle,
-  TrendingUp,
-  Cpu,
-  ArrowUpRight,
   MapPin,
   ShieldCheck,
   ChevronDown,
-  HelpCircle,
-  Send
+  HelpCircle
 } from "lucide-react"
 import { FAQS_BY_SERVICE } from "@/lib/faqs-data"
 
 export function HomePageClient() {
-
-  const scrollToHowItWorks = () => {
-    document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })
-  }
-
-  const integrations = [
-    { name: "WhatsApp", icon: <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" /> },
-    { name: "Instagram", icon: <Instagram className="h-5 w-5 sm:h-6 sm:w-6" /> },
-    { name: "Facebook", icon: <Facebook className="h-5 w-5 sm:h-6 sm:w-6" /> },
-    { name: "TikTok", icon: <Layers className="h-5 w-5 sm:h-6 sm:w-6" /> },
-    { name: "Website", icon: <Globe className="h-5 w-5 sm:h-6 sm:w-6" /> },
-    { name: "CRM", icon: <Database className="h-5 w-5 sm:h-6 sm:w-6" /> },
-    { name: "Calendar", icon: <Calendar className="h-5 w-5 sm:h-6 sm:w-6" /> },
-    { name: "Phone Calls", icon: <Phone className="h-5 w-5 sm:h-6 sm:w-6" /> },
-  ]
 
   const problems = [
     {
@@ -64,8 +39,8 @@ export function HomePageClient() {
     },
     {
       num: "04",
-      title: "Unfollowed CRM Leads",
-      desc: "A lead that enters your CRM but receives no follow-up is a missed revenue opportunity. Cillah.dev keeps every lead active automatically with product updates, restock alerts, business insights, promotions, and personalized follow-up messages.",
+      title: "Unfollowed leads",
+      desc: "Over time, leads pile up in the CRM and no salesperson can chase them all. Cillah scans each agent's pipeline, flags who needs a follow-up, and reminds them of upcoming meetings, all in one place.",
     },
   ]
 
@@ -73,7 +48,7 @@ export function HomePageClient() {
     { label: "Response Time", val: "Under 30 sec", note: "Instead of hours", category: "Speed" },
     { label: "Lead Qualification", val: "Automatic", note: "Budget, location & intent", category: "AI" },
     { label: "Lead Distribution", val: "Automatic", note: "Assigned to the right sales agent", category: "Smart" },
-    { label: "Viewings", val: "more sales", note: "Without manual coordination", category: "Growth" }
+    { label: "Viewings", val: "More viewings, more sales", note: "Without manual coordination", category: "Growth" }
   ]
 
   const [activeFaqCategory, setActiveFaqCategory] = useState<string>("all")
@@ -114,7 +89,7 @@ export function HomePageClient() {
         <div className="absolute bottom-1/4 left-1/3 w-[500px] h-[500px] rounded-full bg-[#C9A66B]/3 blur-[120px] pointer-events-none -z-10" />
 
         {/* 1. HERO SECTION */}
-        <section className="relative pt-32 pb-24 md:pt-40 md:pb-32 flex flex-col items-center justify-center border-b border-white/5">
+        <section className="relative pt-32 pb-20 md:pt-40 md:pb-24 flex flex-col items-center justify-center border-b border-white/5">
           <div className="container mx-auto max-w-5xl px-6 md:px-12 relative z-10 text-center flex flex-col items-center">
             
             {/* Headline & Subtexts */}
@@ -122,12 +97,16 @@ export function HomePageClient() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, ease: "easeOut" }}
-              className="max-w-4xl mx-auto flex flex-col items-center text-center mb-16"
+              className="max-w-4xl mx-auto flex flex-col items-center text-center"
             >
+              <span className="text-[11px] font-heading font-medium uppercase tracking-[0.25em] text-[#C9A66B] mb-4 block">
+                AI &amp; AUTOMATION FOR REAL ESTATE AGENCIES
+              </span>
+
               {/* Luxury Headline */}
               <h1 className="font-heading font-light text-[34px] sm:text-[44px] md:text-[56px] leading-[1.12] text-[#F9F7F6] mb-8 text-balance">
-                The business owner who values <br className="hidden md:inline" />
-                <span className="text-[#C9A66B] font-normal italic">speed and control</span>.
+                Turn every message into a{" "}
+                <span className="text-[#C9A66B] font-normal italic">booked viewing</span>.
               </h1>
 
               {/* Luxury Subtexts */}
@@ -136,32 +115,35 @@ export function HomePageClient() {
                   While human agents are asleep, busy, or answering the same questions repeatedly, potential buyers are moving to competitors who respond first. Social media and the internet create more inquiries than any manual team can consistently handle.
                 </p>
                 <p className="text-[15px] md:text-[16px] leading-relaxed text-[#F9F7F6]/65 font-light">
-                  Cillah.dev gives your business a system that responds instantly, qualifies buyers automatically, follows up continuously, and keeps converting opportunities — even when your team is offline.
+                  Cillah gives your business a system that responds instantly, qualifies buyers automatically, follows up continuously, and keeps converting opportunities — even when your team is offline.
                 </p>
               </div>
             </motion.div>
 
-            {/* 3. Image Below Title */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
-              className="w-full max-w-4xl mx-auto relative"
-            >
-              {/* Glowing background */}
-              <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#C9A66B]/10 to-transparent rounded-[28px] blur-3xl pointer-events-none" />
-              
-              {/* Frame Container */}
-              <div className="w-full rounded-[20px] sm:rounded-[28px] overflow-hidden border border-[#C9A66B]/25 p-2 sm:p-3.5 bg-white/5 backdrop-blur-md shadow-[0_15px_50px_rgba(0,0,0,0.4)] hover:border-[#F2B6C1]/40 transition-colors duration-500">
-                <img
-                  src="/ChatGPT Image Aug 4, 2026, 01_06_29 PM.png"
-                  alt="Cillah Luxury AI Agent Interface"
-                  className="w-full h-auto rounded-[12px] sm:rounded-[20px] object-contain block"
-                  loading="eager"
-                />
-              </div>
-            </motion.div>
+          </div>
+        </section>
 
+        {/* CONNECTED SYSTEM / FLOW ANIMATION SECTION */}
+        <section className="relative py-20 md:py-28 border-b border-white/5">
+          <div className="container mx-auto max-w-5xl px-6 md:px-12 text-center">
+            <div className="max-w-3xl mx-auto mb-10">
+              <h2 className="font-heading font-light text-[28px] sm:text-[34px] md:text-[42px] leading-[1.18] text-[#F9F7F6] mb-4 text-balance">
+                Predictable growth starts with{" "}
+                <span className="text-[#C9A66B] font-normal italic">one connected system</span>
+              </h2>
+              <p className="text-[15px] md:text-[17px] leading-relaxed text-[#F9F7F6]/70 font-light">
+                Replace scattered tools and manual work with one connected system that keeps your business moving.
+              </p>
+            </div>
+
+            <div
+              id="cillah-flow-animation"
+              className="w-full min-h-[280px] sm:min-h-[340px] md:min-h-[400px]"
+            />
+
+            <p className="text-[13px] sm:text-[14px] leading-relaxed text-[#F9F7F6]/65 font-light mt-6 max-w-2xl mx-auto">
+              Connects WhatsApp, Instagram, Facebook, TikTok, your website, CRM, calendar and phone calls.
+            </p>
           </div>
         </section>
 
@@ -204,7 +186,7 @@ export function HomePageClient() {
 
               {/* Main headline */}
               <p className="font-heading font-semibold text-[22px] sm:text-[26px] md:text-[30px] leading-[1.35] text-[#2A1A1F] mb-6 text-balance">
-                Cillah.dev is a Software Solutions Company that builds modern digital operating systems for businesses.
+                Cillah is a Software Solutions Company that builds modern digital operating systems for businesses.
               </p>
 
               {/* Supporting paragraph */}
@@ -219,61 +201,6 @@ export function HomePageClient() {
                 <div className="w-1.5 h-1.5 rounded-full bg-[#C9A66B]" />
               </div>
             </motion.div>
-          </div>
-        </section>
-
-        {/* 2. SEAMLESS ECOSYSTEM INTEGRATIONS */}
-        <section className="py-24 md:py-32 border-b border-white/5 overflow-hidden">
-          <div className="container mx-auto max-w-7xl px-6 md:px-12">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-              {/* Left Column: Descriptive Text */}
-              <div className="max-w-xl">
-                <span className="text-[11px] font-heading font-medium uppercase tracking-[0.25em] text-[#C9A66B] mb-3 block">
-                  Seamless Ecosystem Integrations
-                </span>
-                <h2 className="font-heading font-light text-[30px] md:text-[38px] text-[#F9F7F6] mb-6 leading-tight">
-                  Unify your communication, calendars, and databases.
-                </h2>
-                <p className="text-[15px] md:text-[16px] leading-relaxed text-[#F9F7F6]/70 mb-8 font-light">
-                  We automatically synchronize inbound data from all key consumer channels directly into your CRM.
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  {integrations.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-[#F2B6C1]/20 transition-all">
-                      <span className="text-[#C9A66B]">{item.icon}</span>
-                      <span className="text-xs font-semibold text-[#F9F7F6]/80">{item.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Right Column: Sleek High-tech Video Player */}
-              <div className="relative w-full aspect-video lg:aspect-square max-w-lg mx-auto flex items-center justify-center">
-                {/* Glowing borders & backdrop rotating glow */}
-                <div className="absolute inset-0 -z-10 bg-gradient-to-tr from-[#C9A66B]/10 to-[#F2B6C1]/10 rounded-[24px] blur-3xl animate-[spin_40s_linear_infinite]" />
-                
-                {/* Frame Container */}
-                <div className="w-full h-full rounded-[24px] overflow-hidden border border-[#C9A66B]/20 p-3 bg-white/5 backdrop-blur-lg shadow-[0_0_50px_rgba(201,166,107,0.1)] hover:border-[#F2B6C1]/40 transition-colors duration-500 flex items-center justify-center">
-                  <div className="w-full h-full rounded-[16px] overflow-hidden relative bg-[#07070B]">
-                    <video
-                      src="/ecosystem-demo.mp4"
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      className="w-full h-full object-cover"
-                    />
-                    {/* Dark overlay to match luxury theme */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#07070B]/40 via-transparent to-[#07070B]/10 pointer-events-none" />
-                    {/* Sleek scanline or high-tech overlay badge */}
-                    <div className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#07070B]/70 border border-[#C9A66B]/30 backdrop-blur-md z-10">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#F2B6C1] animate-ping" />
-                      <span className="text-[10px] font-semibold text-[#F9F7F6]/80 uppercase tracking-widest font-mono">Ecosystem Sync</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -468,6 +395,9 @@ export function HomePageClient() {
               <p className="text-[15px] md:text-[16px] text-[#F9F7F6]/60 max-w-2xl mx-auto font-light">
                 See real-time leads captured from WhatsApp, Instagram, Facebook, and Website forms — auto-qualified with buyer preferences and instantly routed to your sales team.
               </p>
+              <p className="text-[12px] text-[#F9F7F6]/45 font-sans tracking-wide mt-4">
+                Sample dashboard, fictional data
+              </p>
             </div>
 
             {/* Dashboard Mockup - Customized for Rosy Realtors Nairobi */}
@@ -558,7 +488,7 @@ export function HomePageClient() {
                   <div>
                     <h5 className="text-[13px] font-semibold text-[#F9F7F6] mb-0.5">Live Lead Event &bull; Rosy Realtors Nairobi</h5>
                     <p className="text-[12px] text-[#F9F7F6]/70 font-sans font-light">
-                      &quot;New Lead: Mary Wanjiku (+254 794 357 912) &bull; Looking for 2-Bed Luxury Apt in Kilimani &bull; Buying Immediately &bull; Assigned to Sarah M.&quot;
+                      &quot;New Lead: Grace Wanjiku (+254 700 000 001) &bull; Looking for 2-Bed Luxury Apt in Kilimani &bull; Buying Immediately &bull; Assigned to Tom&quot;
                     </p>
                   </div>
                 </div>
@@ -602,13 +532,13 @@ export function HomePageClient() {
                       {/* Row 1 */}
                       <tr className="hover:bg-white/[0.02] transition-colors">
                         <td className="py-4 px-4 font-medium text-[#F9F7F6] whitespace-nowrap">
-                          Mary Wanjiku
+                          Grace Wanjiku
                         </td>
                         <td className="py-4 px-4 font-mono text-[#F9F7F6]/70 whitespace-nowrap">
-                          +254 794 357 912
+                          +254 700 000 001
                         </td>
                         <td className="py-4 px-4 font-medium text-[#F9F7F6]/90 whitespace-nowrap">
-                          Sarah M. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Senior Realtor)</span>
+                          Tom <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Senior Realtor)</span>
                         </td>
                         <td className="py-4 px-4 font-light text-[#F9F7F6]/90 whitespace-nowrap">
                           <span className="text-[#C9A66B] font-medium">Residential</span> &bull; 2-Bed Luxury Apt, Kilimani
@@ -631,10 +561,10 @@ export function HomePageClient() {
                           James Omondi
                         </td>
                         <td className="py-4 px-4 font-mono text-[#F9F7F6]/70 whitespace-nowrap">
-                          +254 712 684 201
+                          +254 700 000 002
                         </td>
                         <td className="py-4 px-4 font-medium text-[#F9F7F6]/90 whitespace-nowrap">
-                          David K. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Commercial Lead)</span>
+                          Mary <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Commercial Lead)</span>
                         </td>
                         <td className="py-4 px-4 font-light text-[#F9F7F6]/90 whitespace-nowrap">
                           <span className="text-[#F2B6C1] font-medium">Commercial</span> &bull; 250 sqft Office, Westlands
@@ -657,10 +587,10 @@ export function HomePageClient() {
                           Caroline Njuguna
                         </td>
                         <td className="py-4 px-4 font-mono text-[#F9F7F6]/70 whitespace-nowrap">
-                          +254 722 913 450
+                          +254 700 000 003
                         </td>
                         <td className="py-4 px-4 font-medium text-[#F9F7F6]/90 whitespace-nowrap">
-                          Alex O. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Luxury Estates)</span>
+                          Jane <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Luxury Estates)</span>
                         </td>
                         <td className="py-4 px-4 font-light text-[#F9F7F6]/90 whitespace-nowrap">
                           <span className="text-[#C9A66B] font-medium">Residential</span> &bull; 4-Bed Villa, Runda
@@ -683,10 +613,10 @@ export function HomePageClient() {
                           Kelvin Mutua
                         </td>
                         <td className="py-4 px-4 font-mono text-[#F9F7F6]/70 whitespace-nowrap">
-                          +254 733 820 194
+                          +254 700 000 004
                         </td>
                         <td className="py-4 px-4 font-medium text-[#F9F7F6]/90 whitespace-nowrap">
-                          Faith N. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Land Specialist)</span>
+                          Dan <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Land Specialist)</span>
                         </td>
                         <td className="py-4 px-4 font-light text-[#F9F7F6]/90 whitespace-nowrap">
                           <span className="text-[#C9A66B] font-medium">Residential</span> &bull; 0.5 Acre Plot, Karen
@@ -709,10 +639,10 @@ export function HomePageClient() {
                           Amina Hassan
                         </td>
                         <td className="py-4 px-4 font-mono text-[#F9F7F6]/70 whitespace-nowrap">
-                          +254 701 472 839
+                          +254 700 000 005
                         </td>
                         <td className="py-4 px-4 font-medium text-[#F9F7F6]/90 whitespace-nowrap">
-                          Brian K. <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Commercial Agent)</span>
+                          Mary <span className="text-[10px] text-[#F9F7F6]/40 font-normal">(Commercial Lead)</span>
                         </td>
                         <td className="py-4 px-4 font-light text-[#F9F7F6]/90 whitespace-nowrap">
                           <span className="text-[#F2B6C1] font-medium">Commercial</span> &bull; Retail Storefront, Lavington
@@ -941,7 +871,7 @@ export function HomePageClient() {
               </a>
             </div>
             <nav
-              aria-label="Explore Cillah.dev"
+              aria-label="Explore Cillah"
               className="mt-8 pt-6 border-t border-white/10 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-[13px] font-sans"
             >
               <Link

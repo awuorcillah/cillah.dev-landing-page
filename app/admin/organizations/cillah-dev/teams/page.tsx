@@ -107,7 +107,7 @@ export default function TeamsAndRolesPage() {
     }
 
     setTeams(prev => [...prev, newTeamObj])
-    toast.success(`New Team "${newTeamName.trim()}" created under cillah.dev`)
+    toast.success(`New Team "${newTeamName.trim()}" created under Cillah`)
     setNewTeamName('')
     setNewTeamDesc('')
     setIsAddTeamOpen(false)
@@ -160,7 +160,7 @@ export default function TeamsAndRolesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-1">
-            <Building2 className="w-4 h-4" /> cillah.dev Organization & Infrastructure
+            <Building2 className="w-4 h-4" /> Cillah Organization & Infrastructure
           </div>
           <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
             🛡️ Teams, Departments & Role Management
@@ -260,7 +260,7 @@ export default function TeamsAndRolesPage() {
 
         <div className="flex items-center justify-between text-xs text-slate-400 pt-1 border-t border-slate-800/60">
           <div>
-            Showing <strong className="text-cyan-400 font-bold">{filteredMembers.length}</strong> configured team assignments under <strong>cillah.dev</strong>
+            Showing <strong className="text-cyan-400 font-bold">{filteredMembers.length}</strong> configured team assignments under <strong>Cillah</strong>
           </div>
         </div>
       </div>
@@ -372,7 +372,7 @@ export default function TeamsAndRolesPage() {
                 <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
                   <Plus className="w-4 h-4 text-cyan-400" /> Create New Department
                 </h3>
-                <p className="text-xs text-slate-400">Add a new operational team under cillah.dev</p>
+                <p className="text-xs text-slate-400">Add a new operational team under Cillah</p>
               </div>
               <button onClick={() => setIsAddTeamOpen(false)} className="text-slate-400 text-sm font-bold">✕</button>
             </div>

@@ -170,7 +170,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!useCase) {
     return {
-      title: "Case Study Not Found | Cillah.dev",
+      title: "Case Study Not Found | Cillah",
     }
   }
 
@@ -178,13 +178,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const ogImage = useCase.featuredImage ? absoluteUrl(useCase.featuredImage) : DEFAULT_OG_IMAGE
 
   return {
-    title: `${useCase.title} | Case Study | Cillah.dev`,
+    title: `${useCase.title} | Case Study | Cillah`,
     description: useCase.teaser,
     alternates: {
       canonical: canonicalUrl,
     },
     openGraph: {
-      title: `${useCase.title} | Cillah.dev`,
+      title: `${useCase.title} | Cillah`,
       description: useCase.teaser,
       url: canonicalUrl,
       type: "article",
@@ -192,7 +192,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     twitter: {
       card: "summary_large_image",
-      title: `${useCase.title} | Cillah.dev`,
+      title: `${useCase.title} | Cillah`,
       description: useCase.teaser,
       images: [ogImage],
     },
@@ -306,7 +306,7 @@ export default async function UseCasePage({ params }: PageProps) {
               },
               publisher: {
                 "@type": "Organization",
-                name: "Cillah.dev",
+                name: "Cillah",
                 legalName: "Cillah AI Automation",
                 url: SITE_URL,
                 logo: {

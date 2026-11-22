@@ -10,14 +10,14 @@ import { DEFAULT_OG_IMAGE, absoluteUrl } from "@/lib/site-config"
 const pageUrl = absoluteUrl("/use-cases")
 
 export const metadata: Metadata = {
-  title: "Case Studies & Client Results | Cillah.dev",
+  title: "Case Studies & Client Results | Cillah",
   description:
     "Real-world case studies of agencies and businesses scaling with custom operating systems, WhatsApp automation, and unified lead pipelines.",
   alternates: {
     canonical: pageUrl,
   },
   openGraph: {
-    title: "Case Studies & Client Results | Cillah.dev",
+    title: "Case Studies & Client Results | Cillah",
     description:
       "Real-world case studies of agencies and businesses scaling with custom operating systems, WhatsApp automation, and unified lead pipelines.",
     url: pageUrl,
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Case Studies & Client Results | Cillah.dev",
+    title: "Case Studies & Client Results | Cillah",
     description:
       "Real-world case studies of agencies and businesses scaling with custom operating systems, WhatsApp automation, and unified lead pipelines.",
     images: [DEFAULT_OG_IMAGE],

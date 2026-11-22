@@ -10,14 +10,14 @@ import { SITE_URL, DEFAULT_OG_IMAGE, absoluteUrl } from "@/lib/site-config"
 const pageUrl = absoluteUrl("/articles")
 
 export const metadata: Metadata = {
-  title: "Articles & Knowledge Hub | Cillah.dev",
+  title: "Articles & Knowledge Hub | Cillah",
   description:
     "Insights on custom web applications, autonomous AI agents in messaging inboxes, and marketing-to-operations CRM automation for high-performing businesses.",
   alternates: {
     canonical: pageUrl,
   },
   openGraph: {
-    title: "Articles & Knowledge Hub | Cillah.dev",
+    title: "Articles & Knowledge Hub | Cillah",
     description:
       "Insights on custom web applications, autonomous AI agents in messaging inboxes, and marketing-to-operations CRM automation for high-performing businesses.",
     url: pageUrl,
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Articles & Knowledge Hub | Cillah.dev",
+    title: "Articles & Knowledge Hub | Cillah",
     description:
       "Insights on custom web applications, autonomous AI agents in messaging inboxes, and marketing-to-operations CRM automation for high-performing businesses.",
     images: [DEFAULT_OG_IMAGE],
@@ -206,13 +206,13 @@ export default function ArticlesPage() {
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "CollectionPage",
-              name: "Articles & Knowledge Hub | Cillah.dev",
+              name: "Articles & Knowledge Hub | Cillah",
               description:
                 "Insights on custom web applications, autonomous AI agents in messaging inboxes, and marketing-to-operations CRM automation.",
               url: pageUrl,
               publisher: {
                 "@type": "Organization",
-                name: "Cillah.dev",
+                name: "Cillah",
                 legalName: "Cillah AI Automation",
                 url: SITE_URL,
                 logo: DEFAULT_OG_IMAGE,

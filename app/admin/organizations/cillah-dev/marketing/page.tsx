@@ -101,7 +101,7 @@ export default function MarketingDepartmentPage() {
             platform: 'tiktok',
             sender_name: 'tech_founder_ke',
             sender_handle_phone: '@tech_founder_ke',
-            message_preview: 'TikTok Comment: Loved your demo! How fast can cillah.dev deploy an AI sales bot for incoming Instagram & WhatsApp DMs?',
+            message_preview: 'TikTok Comment: Loved your demo! How fast can Cillah deploy an AI sales bot for incoming Instagram & WhatsApp DMs?',
             lead_quality: 'General Enquiry',
             assigned_marketer: 'Brenda Cherono',
             created_at: new Date(Date.now() - 86400000).toISOString()
@@ -192,7 +192,7 @@ export default function MarketingDepartmentPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-purple-400 uppercase tracking-wider mb-1">
-            <Building2 className="w-4 h-4" /> cillah.dev Organization & Department
+            <Building2 className="w-4 h-4" /> Cillah Organization & Department
           </div>
           <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
             📢 Marketing Department & Omnichannel Hub

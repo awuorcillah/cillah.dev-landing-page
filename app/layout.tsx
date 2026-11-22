@@ -22,30 +22,23 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "Cillah.dev | The Operating System Behind High-Performing Real Estate Agencies",
+  title: "Cillah | AI & Automation for Real Estate Agencies in Kenya",
   description:
-    "Cillah.dev is the luxury operating system behind high-performing real estate agencies. Streamline your operations, client services, and workflows with premium SaaS technology.",
-  keywords: [
-    "real estate automation",
-    "real estate OS",
-    "Cillah.dev",
-    "agency operating system",
-    "premium real estate SaaS",
-  ],
-  authors: [{ name: "Cillah.dev" }],
+    "Cillah builds websites, AI assistants and automation for Kenyan real estate agencies, so no lead is lost to slow, manual follow-up.",
+  authors: [{ name: "Cillah" }],
   openGraph: {
-    title: "Cillah.dev | The Operating System Behind High-Performing Real Estate Agencies",
+    title: "Cillah | AI & Automation for Real Estate Agencies in Kenya",
     description:
-      "Cillah.dev is the luxury operating system behind high-performing real estate agencies. Streamline your operations, client services, and workflows.",
+      "Cillah builds websites, AI assistants and automation for Kenyan real estate agencies, so no lead is lost to slow, manual follow-up.",
     type: "website",
     locale: "en_US",
     images: [DEFAULT_OG_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Cillah.dev | The Operating System Behind High-Performing Real Estate Agencies",
+    title: "Cillah | AI & Automation for Real Estate Agencies in Kenya",
     description:
-      "Cillah.dev is the luxury operating system behind high-performing real estate agencies. Streamline your operations, client services, and workflows.",
+      "Cillah builds websites, AI assistants and automation for Kenyan real estate agencies, so no lead is lost to slow, manual follow-up.",
     images: [DEFAULT_OG_IMAGE],
   },
   icons: {
@@ -103,7 +96,7 @@ export default function RootLayout({
                 {
                   "@type": ["Organization", "ProfessionalService"],
                   "@id": `${SITE_URL}/#organization`,
-                  "name": "Cillah.dev",
+                  "name": "Cillah",
                   "legalName": "Cillah AI Automation",
                   "url": SITE_URL,
                   "logo": {
@@ -111,10 +104,10 @@ export default function RootLayout({
                     "@id": `${SITE_URL}/#logo`,
                     "url": DEFAULT_OG_IMAGE,
                     "contentUrl": DEFAULT_OG_IMAGE,
-                    "caption": "Cillah.dev Logo"
+                    "caption": "Cillah Logo"
                   },
                   "image": DEFAULT_OG_IMAGE,
-                  "description": "Cillah.dev is a software solutions company and digital operating system builder. We build custom web applications, autonomous AI agents in messaging inboxes (WhatsApp, Instagram), unified CRM marketing automations, and direct-to-decision-maker B2B cold email outreach pipelines for businesses in Nairobi, Kenya and globally.",
+                  "description": "Cillah builds websites, AI assistants and automation for real estate agencies in Kenya, so no lead is lost to slow, manual follow-up.",
                   "email": "atulah@cillah.dev",
                   "telephone": "+254759442265",
                   "address": {
@@ -153,7 +146,7 @@ export default function RootLayout({
                   "@type": "WebSite",
                   "@id": `${SITE_URL}/#website`,
                   "url": SITE_URL,
-                  "name": "Cillah.dev",
+                  "name": "Cillah",
                   "description": "Modern Digital Operating Systems, Custom Web Applications & Autonomous AI Agents",
                   "publisher": {
                     "@id": `${SITE_URL}/#organization`
@@ -163,7 +156,7 @@ export default function RootLayout({
                 {
                   "@type": "ItemList",
                   "@id": `${SITE_URL}/#sitelinks`,
-                  "name": "Cillah.dev Sitelinks",
+                  "name": "Cillah Sitelinks",
                   "itemListElement": [
                     {
                       "@type": "SiteNavigationElement",

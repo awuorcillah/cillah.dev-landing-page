@@ -29,7 +29,7 @@ Modern AI agents are completely different. Powered by large language models and 
 
 ## The Three Responsibilities of an Inbox AI Agent
 
-When Cillah.dev configures an autonomous AI agent inside a business's messaging channels, we program it around three core outcomes:
+When Cillah configures an autonomous AI agent inside a business's messaging channels, we program it around three core outcomes:
 
 ### 1. Instant Lead Qualification (Sub-30-Second Response)
 When a prospective buyer asks about a listing or service, the AI acknowledges their message in seconds. It answers their initial query with exact specifications from your database, then politely asks qualifying questions:

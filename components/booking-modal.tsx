@@ -28,7 +28,7 @@ export function BookingModal({ open, onOpenChange }: BookingModalProps) {
             1-on-1 AI Strategy & Architecture Call
           </DialogTitle>
           <DialogDescription className="text-center text-xs text-white/60">
-            Private 60-minute consultation with Cillah.dev to design custom AI agents, CRM routing, and automated workflows.
+            Private 60-minute consultation with Cillah to design custom AI agents, CRM routing, and automated workflows.
           </DialogDescription>
         </DialogHeader>
 

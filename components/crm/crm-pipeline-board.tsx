@@ -205,7 +205,7 @@ export default function CRMPipelineBoard({
     return (
       organizations.find((o) => o.id === currentOrgId) || {
         id: currentOrgId,
-        name: 'cillah.dev',
+        name: 'Cillah',
         slug: 'cillah-dev'
       }
     )

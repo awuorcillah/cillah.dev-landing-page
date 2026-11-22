@@ -13,7 +13,7 @@ function TikTokIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 export function Footer() {
-  const brandName = "Cillah.dev"
+  const brandName = "Cillah"
   const tagline = "The Operating System Behind High-Performing Real Estate Agencies"
   const currentYear = new Date().getFullYear()
 
@@ -46,12 +46,12 @@ export function Footer() {
               <div className="relative h-10 w-10 rounded-full overflow-hidden border border-[#C9A66B]/30">
                 <img 
                   src="/images/cillah-emblem.png" 
-                  alt="Cillah.dev Logo"
+                  alt="Cillah Logo"
                   className="object-cover h-full w-full"
                 />
               </div>
               <span className="font-heading font-semibold text-xl tracking-tight text-[#F9F7F6]">
-                cillah.dev
+                Cillah
               </span>
             </Link>
             <p className="max-w-md text-[#F9F7F6]/60 text-[16px] leading-relaxed mb-8 font-sans">
