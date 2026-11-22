@@ -2,9 +2,19 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import dynamic from "next/dynamic"
 import { motion, AnimatePresence } from "framer-motion"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
+
+const FlowAnimation = dynamic(
+  () => import("@/components/flow-animation/flow-animation").then((mod) => mod.FlowAnimation),
+  {
+    loading: () => (
+      <div className="w-full min-h-[280px] sm:min-h-[340px] md:min-h-[400px]" aria-hidden="true" />
+    ),
+  }
+)
 import { 
   Sparkles, 
   Instagram, 
@@ -125,7 +135,7 @@ export function HomePageClient() {
 
         {/* CONNECTED SYSTEM / FLOW ANIMATION SECTION */}
         <section className="relative py-20 md:py-28 border-b border-white/5">
-          <div className="container mx-auto max-w-5xl px-6 md:px-12 text-center">
+          <div className="container mx-auto max-w-7xl px-6 md:px-12 text-center">
             <div className="max-w-3xl mx-auto mb-10">
               <h2 className="font-heading font-light text-[28px] sm:text-[34px] md:text-[42px] leading-[1.18] text-[#F9F7F6] mb-4 text-balance">
                 Predictable growth starts with{" "}
@@ -139,7 +149,9 @@ export function HomePageClient() {
             <div
               id="cillah-flow-animation"
               className="w-full min-h-[280px] sm:min-h-[340px] md:min-h-[400px]"
-            />
+            >
+              <FlowAnimation />
+            </div>
 
             <p className="text-[13px] sm:text-[14px] leading-relaxed text-[#F9F7F6]/65 font-light mt-6 max-w-2xl mx-auto">
               Connects WhatsApp, Instagram, Facebook, TikTok, your website, CRM, calendar and phone calls.
