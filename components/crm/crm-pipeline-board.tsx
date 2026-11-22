@@ -116,9 +116,17 @@ export default function CRMPipelineBoard({
   // Filters & State
   const [agentFilter, setAgentFilter] = useState<string>(effectiveIsAdmin ? 'all' : currentUserEmail)
   const [timeFilter, setTimeFilter] = useState<'24h' | '7d' | '30d' | 'all'>('all')
-  const [stageFilter, setStageFilter] = useState<string>('all')
+  const [selectedStages, setSelectedStages] = useState<string[]>([])
+  const [stageMenuOpen, setStageMenuOpen] = useState(false)
+  const stageMenuRef = useRef<HTMLDivElement>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban')
+
+  const toggleStageFilter = (stageId: string) => {
+    setSelectedStages((prev) =>
+      prev.includes(stageId) ? prev.filter((id) => id !== stageId) : [...prev, stageId]
+    )
+  }
 
   // Profile Menu Dropdown State
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
@@ -128,6 +136,9 @@ export default function CRMPipelineBoard({
     function handleClickOutside(e: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setProfileMenuOpen(false)
+      }
+      if (stageMenuRef.current && !stageMenuRef.current.contains(e.target as Node)) {
+        setStageMenuOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -503,8 +514,8 @@ export default function CRMPipelineBoard({
         return false
       }
 
-      // Stage Filter
-      if (stageFilter !== 'all' && lead.stage !== stageFilter) {
+      // Multi-Stage Filter
+      if (selectedStages.length > 0 && !selectedStages.includes(lead.stage)) {
         return false
       }
 
@@ -531,7 +542,13 @@ export default function CRMPipelineBoard({
 
       return true
     })
-  }, [leads, agentFilter, effectiveIsAdmin, stageFilter, timeFilter, searchQuery, currentUserEmail])
+  }, [leads, agentFilter, effectiveIsAdmin, selectedStages, timeFilter, searchQuery, currentUserEmail])
+
+  const visibleKanbanStages = useMemo(() => {
+    return selectedStages.length > 0
+      ? STAGES.filter((st) => selectedStages.includes(st.id))
+      : STAGES
+  }, [selectedStages])
 
   // Recycle Bin (Trash) Leads Calculation
   const trashLeads = useMemo(() => {
@@ -1330,29 +1347,123 @@ export default function CRMPipelineBoard({
             ))}
           </div>
 
-          {/* Stage Filter Dropdown */}
-          <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 px-3 py-2 rounded-xl text-xs">
-            <Filter className="w-3.5 h-3.5 text-slate-400" />
-            <select
-              value={stageFilter}
-              onChange={(e) => setStageFilter(e.target.value)}
-              className="bg-transparent text-slate-200 focus:outline-none cursor-pointer"
+          {/* Multi-Select Stage Filter Dropdown */}
+          <div className="relative" ref={stageMenuRef}>
+            <button
+              type="button"
+              onClick={() => setStageMenuOpen((prev) => !prev)}
+              className={`flex items-center gap-2 bg-slate-950 border px-3 py-2 rounded-xl text-xs transition-colors cursor-pointer ${
+                selectedStages.length > 0
+                  ? 'border-[#C9A66B]/60 text-[#C9A66B] font-semibold'
+                  : 'border-slate-800 text-slate-200 hover:border-slate-700'
+              }`}
             >
-              <option value="all" className="bg-slate-900">All Stages</option>
-              {STAGES.map((st) => (
-                <option key={st.id} value={st.id} className="bg-slate-900">
-                  {st.name}
-                </option>
-              ))}
-            </select>
+              <Filter className="w-3.5 h-3.5" />
+              <span>
+                {selectedStages.length === 0
+                  ? 'All Stages'
+                  : selectedStages.length === 1
+                  ? STAGES.find((s) => s.id === selectedStages[0])?.name || '1 Stage'
+                  : `${selectedStages.length} Stages Selected`}
+              </span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${stageMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {stageMenuOpen && (
+              <div className="absolute right-0 top-full mt-2 w-64 bg-slate-900 border border-slate-700/90 rounded-xl shadow-2xl z-50 overflow-hidden p-2 space-y-1">
+                <div className="flex items-center justify-between px-2 py-1.5 border-b border-slate-800 mb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Show Columns
+                  </span>
+                  {selectedStages.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStages([])}
+                      className="text-[11px] text-[#C9A66B] hover:underline font-medium cursor-pointer"
+                    >
+                      Show All
+                    </button>
+                  )}
+                </div>
+
+                {STAGES.map((st) => {
+                  const isChecked = selectedStages.includes(st.id)
+                  const stageCount = leads.filter((l) => {
+                    if (l.stage !== st.id) return false
+                    if (!effectiveIsAdmin && l.assigned_agent_email !== currentUserEmail) return false
+                    if (effectiveIsAdmin && agentFilter !== 'all' && l.assigned_agent_email !== agentFilter) return false
+                    return true
+                  }).length
+
+                  return (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => toggleStageFilter(st.id)}
+                      className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-xs transition-colors cursor-pointer ${
+                        isChecked
+                          ? 'bg-[#C9A66B]/15 text-white font-semibold'
+                          : 'text-slate-300 hover:bg-slate-800/80'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] shrink-0 ${
+                            isChecked
+                              ? 'bg-[#C9A66B] border-[#C9A66B] text-slate-950 font-bold'
+                              : 'border-slate-600 bg-slate-950'
+                          }`}
+                        >
+                          {isChecked ? '✓' : ''}
+                        </span>
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${st.badge}`} />
+                        <span className="truncate">{st.name}</span>
+                      </div>
+                      <span className="text-[11px] font-mono text-slate-400 shrink-0">
+                        {stageCount}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
+      {/* Selected Stage Filter Chips */}
+      {selectedStages.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 -mt-4 mb-6">
+          <span className="text-[11px] text-slate-400">Showing columns:</span>
+          {selectedStages.map((stageId) => {
+            const st = STAGES.find((s) => s.id === stageId)
+            if (!st) return null
+            return (
+              <button
+                key={stageId}
+                type="button"
+                onClick={() => toggleStageFilter(stageId)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#C9A66B]/15 border border-[#C9A66B]/40 text-[#C9A66B] text-xs font-medium hover:bg-[#C9A66B]/25 transition-colors cursor-pointer"
+              >
+                <span>{st.name}</span>
+                <X className="w-3 h-3" />
+              </button>
+            )
+          })}
+          <button
+            type="button"
+            onClick={() => setSelectedStages([])}
+            className="text-xs text-slate-400 hover:text-white underline ml-1 cursor-pointer"
+          >
+            Reset to All Stages
+          </button>
+        </div>
+      )}
+
       {/* KANBAN BOARD VIEW */}
       {viewMode === 'kanban' && (
         <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-8 -mx-3 px-3 sm:mx-0 sm:px-0 items-start snap-x snap-mandatory scrollbar-thin">
-          {STAGES.map((stage) => {
+          {visibleKanbanStages.map((stage) => {
             const stageLeads = filteredLeads.filter((l) => l.stage === stage.id)
 
             return (

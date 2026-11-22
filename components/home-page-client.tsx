@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
 import { motion, AnimatePresence } from "framer-motion"
@@ -30,6 +30,14 @@ import {
 import { FAQS_BY_SERVICE } from "@/lib/faqs-data"
 
 export function HomePageClient() {
+  // If Supabase OAuth ever lands on /?code=... instead of /auth/callback, forward immediately
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const params = new URLSearchParams(window.location.search)
+    if (params.has("code")) {
+      window.location.replace(`/auth/callback${window.location.search}`)
+    }
+  }, [])
 
   const problems = [
     {

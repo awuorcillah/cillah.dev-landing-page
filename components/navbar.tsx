@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { isAdminAccount } from "@/lib/auth-roles"
 import { ChevronDown, LogIn, Menu, UserPlus, X } from "lucide-react"
 
 export function Navbar() {
@@ -30,11 +31,7 @@ export function Navbar() {
             .single()
 
           const email = user.email?.toLowerCase() || ""
-          const isAdmin =
-            profile?.role === "admin" ||
-            email.includes("cillah") ||
-            email.includes("admin") ||
-            email === "awuorcillah@gmail.com"
+          const isAdmin = isAdminAccount(email, profile?.role)
 
           if (isAdmin) setRole("admin")
           else if (profile) setRole(profile.role)

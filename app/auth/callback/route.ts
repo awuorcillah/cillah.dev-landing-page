@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { isAdminAccount, isSuperAdminEmail } from '@/lib/auth-roles'
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
@@ -74,21 +75,7 @@ export async function GET(request: Request) {
       const lastName = nameParts.slice(1).join(' ') || ''
       const avatarUrl: string = user.user_metadata?.avatar_url || user.user_metadata?.picture || ''
 
-      const isEmailAdmin =
-        email === 'awuorcillah@gmail.com' ||
-        email === 'cherrylatulah2000@gmail.com' ||
-        email === 'awuorc207@gmail.com' ||
-        email.includes('cillah') ||
-        email.includes('admin') ||
-        email.includes('atula') ||
-        email.includes('latulah') ||
-        email.includes('cheryl') ||
-        email.includes('cherry') ||
-        email.includes('awuor') ||
-        email.includes('2000') ||
-        email.includes('207')
-
-      let role = isEmailAdmin ? 'admin' : 'user'
+      let role = isSuperAdminEmail(email) ? 'admin' : 'user'
 
       try {
         const { data: profile } = await supabase
@@ -118,12 +105,9 @@ export async function GET(request: Request) {
         console.error('Profile sync error in auth callback:', err)
       }
 
-      const isUserAdmin = role === 'admin' || isEmailAdmin
-
-      let redirectPath = next || (isUserAdmin ? '/admin/dashboard' : '/user/dashboard')
-      if (isUserAdmin && !next) {
-        redirectPath = '/admin/dashboard'
-      }
+      const isUserAdmin = isAdminAccount(email, role)
+      const safeNext = next && next.startsWith('/') && next !== '/' ? next : ''
+      const redirectPath = safeNext || (isUserAdmin ? '/admin/dashboard' : '/user/dashboard')
 
       return NextResponse.redirect(`${origin}${redirectPath}`)
     }

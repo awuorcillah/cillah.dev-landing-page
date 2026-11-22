@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { isAdminAccount, isSuperAdminEmail as checkSuperAdminEmail } from '@/lib/auth-roles'
 import {
   LayoutDashboard,
   ChevronRight,
@@ -140,14 +141,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }
 
       const email = (user.email || '').toLowerCase().trim()
-      const isSuper = isSuperAdminEmail(email)
+      const isSuper = checkSuperAdminEmail(email)
 
-      // Role check:
-      // awuorcillah@gmail.com = Super Admin (sees everything)
-      // Sales Admin (sees Dashboard & Sales Department only)
-      // cherrylatulah2000@gmail.com = Sales Agent -> Redirect to /user/dashboard
-      if (email === 'cherrylatulah2000@gmail.com') {
-        router.push('/user/dashboard')
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, full_name')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (!isAdminAccount(email, profile?.role)) {
+        router.replace('/user/dashboard')
         return
       }
 
@@ -156,7 +159,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         email: user.email,
         isSuperAdmin: isSuper,
         isSalesAdmin: !isSuper,
-        full_name: isSuper ? 'Cillah Awuor (CEO)' : (user.user_metadata?.full_name || email.split('@')[0] || 'Sales Admin')
+        full_name: isSuper ? 'Cillah Awuor (CEO)' : (profile?.full_name || user.user_metadata?.full_name || email.split('@')[0] || 'Admin')
       })
     }
 

@@ -211,7 +211,7 @@ export async function POST(request: Request) {
         `Scheduled For: ${new Date(scheduledAt).toLocaleString("en-US", { timeZone: "Africa/Nairobi" })} EAT`,
       ].join(" | ")
 
-      const { data: lead } = await supabase
+      const { data: lead, error: leadErr } = await supabase
         .from("sales_leads")
         .insert({
           full_name: fullName,
@@ -219,30 +219,52 @@ export async function POST(request: Request) {
           phone_number: cleanPhone,
           company_name: agencyName || null,
           source: "website_appointment",
-          stage: "hot_lead",
+          stage: "viewing", // Booked Consultations column
           assigned_agent_email: assignedAgentEmail,
           assigned_agent_id: assignedAgentId,
           is_qualified: true,
           estimated_value: claimedRow.amount_kes,
-          notes: notesContent,
+          initial_note: notesContent,
+          followup_status: "active",
+          next_followup_at: scheduledAt,
+          followup_title: "1-on-1 AI Strategy Call",
           created_at: paidAtIso,
           updated_at: paidAtIso,
         })
         .select("id")
         .single()
 
+      if (leadErr) {
+        console.error("[Mpesa Callback] sales_leads insert error:", leadErr)
+      }
+
       if (lead?.id) {
         leadId = lead.id
-        await supabase.from("appointments").insert({
+
+        const { error: noteErr } = await supabase.from("lead_notes").insert({
+          lead_id: leadId,
+          author_email: assignedAgentEmail,
+          author_name: "Cillah Booking System",
+          source: "website_appointment",
+          note_text: notesContent,
+        })
+        if (noteErr) {
+          console.error("[Mpesa Callback] lead_notes insert error:", noteErr)
+        }
+
+        const { error: aptErr } = await supabase.from("appointments").insert({
           lead_id: leadId,
           assigned_agent_email: assignedAgentEmail,
           title: `1-on-1 AI Strategy Call: ${fullName}`,
-          description: `Agency: ${agencyName} | Receipt: ${mpesaReceipt} | Focus: ${bottlenecks}`,
+          description: `Agency: ${agencyName || "N/A"} | Receipt: ${mpesaReceipt} | Focus: ${bottlenecks || "N/A"}`,
           scheduled_at: scheduledAt,
           duration_minutes: 60,
           meeting_link: googleMeetUrl,
           status: "upcoming",
         })
+        if (aptErr) {
+          console.error("[Mpesa Callback] appointments insert error:", aptErr)
+        }
       }
 
       const { data: existingProfiles } = await supabase
@@ -252,13 +274,18 @@ export async function POST(request: Request) {
         .limit(1)
       const userId = existingProfiles?.[0]?.id || null
 
-      await supabase.from("bookings").insert({
+      const { error: bookingErr } = await supabase.from("bookings").insert({
+        slug: `consultation-${String(claimedRow.id).slice(0, 8)}`,
         user_id: userId,
         scheduled_at: scheduledAt,
         status: "confirmed",
         payment_status: "paid",
-        notes: notesContent,
+        mpesa_checkout_request_id: claimedRow.checkout_request_id || null,
+        mpesa_receipt_number: mpesaReceipt || null,
       })
+      if (bookingErr) {
+        console.warn("[Mpesa Callback] bookings insert notice:", bookingErr.message)
+      }
     } catch (crmErr: any) {
       console.error("[Mpesa Callback] CRM record notice:", crmErr.message)
     }

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { isAdminAccount } from '@/lib/auth-roles'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -46,8 +47,7 @@ export default function LoginPage() {
           .maybeSingle()
 
         const userEmail = user.email?.toLowerCase() || ''
-        const isSuperAdmin = userEmail === 'awuorcillah@gmail.com'
-        const isAdmin = isSuperAdmin || profile?.role === 'admin' || userEmail.includes('cillah') || userEmail.includes('admin') || userEmail.includes('atula')
+        const isAdmin = isAdminAccount(userEmail, profile?.role)
 
         if (isAdmin) {
           window.location.href = '/admin/dashboard'
@@ -108,7 +108,7 @@ export default function LoginPage() {
           .maybeSingle()
 
         const userEmail = (data.user.email || email).toLowerCase()
-        const isAdmin = profile?.role === 'admin' || userEmail.includes('cillah') || userEmail.includes('admin') || userEmail.includes('atula') || userEmail.includes('cheryl') || userEmail === 'awuorcillah@gmail.com'
+        const isAdmin = isAdminAccount(userEmail, profile?.role)
         const userRole = isAdmin ? 'admin' : (profile?.role || 'user')
         const userName = profile?.full_name || email
 

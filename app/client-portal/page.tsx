@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { isAdminAccount } from "@/lib/auth-roles"
 import { ArrowRight, LogIn, UserPlus } from "lucide-react"
 
 export default function ClientPortalPage() {
@@ -26,11 +27,7 @@ export default function ClientPortalPage() {
             .maybeSingle()
 
           const email = user.email?.toLowerCase() || ""
-          const isAdmin =
-            profile?.role === "admin" ||
-            email.includes("cillah") ||
-            email.includes("admin") ||
-            email === "awuorcillah@gmail.com"
+          const isAdmin = isAdminAccount(email, profile?.role)
 
           router.replace(isAdmin ? "/admin/dashboard" : "/user/dashboard")
           return

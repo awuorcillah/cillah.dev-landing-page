@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { isAdminAccount } from '@/lib/auth-roles'
 import { Sparkles } from 'lucide-react'
 
 export default function UnifiedDashboardRedirect() {
@@ -26,7 +27,7 @@ export default function UnifiedDashboardRedirect() {
 
       const email = user.email?.toLowerCase() || ''
       const role = profile?.role || 'user'
-      const isAdmin = role === 'admin' || email.includes('cillah') || email.includes('admin') || email === 'awuorcillah@gmail.com'
+      const isAdmin = isAdminAccount(email, role)
 
       if (isAdmin) {
         window.location.href = '/admin/dashboard'

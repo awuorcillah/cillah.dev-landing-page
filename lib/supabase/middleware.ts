@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isAdminAccount } from '@/lib/auth-roles'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -49,29 +50,9 @@ export async function updateSession(request: NextRequest) {
 
   const url = request.nextUrl.clone()
 
-  // Helper to check if authenticated user is admin
+  // Helper to check if authenticated user is admin (strictly DB role or Super Admin)
   const isUserAdmin = (userObj: any, profileObj: any) => {
-    if (profileObj?.role === 'admin') return true
-    const email = (userObj?.email || profileObj?.email || '').toLowerCase()
-    if (!email) return false
-    if (
-      email === 'awuorcillah@gmail.com' ||
-      email === 'atulah@cillah.dev' ||
-      email === 'atulavernesa@gmail.com' ||
-      email === 'cherrylatulah2000@gmail.com' ||
-      email === 'awuorc207@gmail.com' ||
-      email.includes('cillah') ||
-      email.includes('admin') ||
-      email.includes('atula') ||
-      email.includes('vernesa') ||
-      email.includes('latulah') ||
-      email.includes('cheryl') ||
-      email.includes('cherry') ||
-      email.includes('awuor') ||
-      email.includes('2000') ||
-      email.includes('207')
-    ) return true
-    return false
+    return isAdminAccount(userObj?.email || profileObj?.email, profileObj?.role)
   }
 
   // Protect /admin routes -> Only 'admin' role or admin email allowed
@@ -88,7 +69,7 @@ export async function updateSession(request: NextRequest) {
       .maybeSingle()
 
     if (!isUserAdmin(user, profile)) {
-      url.pathname = '/unauthorized'
+      url.pathname = '/user/dashboard'
       return NextResponse.redirect(url)
     }
   }
