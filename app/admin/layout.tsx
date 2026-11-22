@@ -184,9 +184,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    toast.success('Logged out successfully')
-    router.push('/login')
+    try {
+      await Promise.race([
+        supabase.auth.signOut({ scope: 'local' }),
+        new Promise((resolve) => setTimeout(resolve, 1200)),
+      ])
+    } catch {
+      // Proceed even if network signOut fails
+    } finally {
+      window.location.replace('/login')
+    }
   }
 
   const markAllRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))

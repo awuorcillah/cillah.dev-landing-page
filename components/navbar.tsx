@@ -170,8 +170,13 @@ export function Navbar() {
                     <button
                       onClick={async () => {
                         setProfileMenuOpen(false)
-                        await supabase.auth.signOut()
-                        window.location.href = "/login"
+                        try {
+                          await Promise.race([
+                            supabase.auth.signOut({ scope: 'local' }),
+                            new Promise((resolve) => setTimeout(resolve, 1200)),
+                          ])
+                        } catch {}
+                        window.location.replace("/login")
                       }}
                       className="w-full text-left flex items-center gap-2 px-4 py-2 text-xs text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
                     >
@@ -296,8 +301,13 @@ export function Navbar() {
                 <button
                   onClick={async () => {
                     setIsOpen(false)
-                    await supabase.auth.signOut()
-                    window.location.href = "/login"
+                    try {
+                      await Promise.race([
+                        supabase.auth.signOut({ scope: 'local' }),
+                        new Promise((resolve) => setTimeout(resolve, 1200)),
+                      ])
+                    } catch {}
+                    window.location.replace("/login")
                   }}
                   className="w-full text-center border border-red-500/30 text-red-400 font-heading font-medium rounded-[14px] py-2.5 text-sm"
                 >

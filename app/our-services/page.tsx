@@ -159,13 +159,13 @@ export default function ServicesPage() {
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-[#C9A66B]/30 backdrop-blur-md">
                 <Sparkles className="h-3.5 w-3.5 text-[#C9A66B]" />
                 <span className="text-[11px] font-medium tracking-[0.2em] uppercase text-[#C9A66B]">
-                  Built for Real Business Outcomes
+                  Building Software Systems for Business
                 </span>
               </div>
 
               <h1 className="font-heading font-light text-[32px] sm:text-[44px] md:text-[52px] leading-[1.15] text-[#F9F7F6] text-balance">
                 Everything your business needs to <br className="hidden sm:inline" />
-                <span className="text-[#C9A66B] font-normal italic">attract clients, close sales</span>, and run automatically.
+                <span className="text-[#C9A66B] font-normal italic">capture leads, qualify buyers, close deals,</span> and run automatically.
               </h1>
 
               <p className="text-[15px] sm:text-[17px] leading-relaxed text-[#F9F7F6]/70 max-w-2xl mx-auto font-light pt-2">

@@ -71,8 +71,16 @@ export default function UserDashboardPage() {
   }, [supabase])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    window.location.href = '/login'
+    try {
+      await Promise.race([
+        supabase.auth.signOut({ scope: 'local' }),
+        new Promise((resolve) => setTimeout(resolve, 1200)),
+      ])
+    } catch {
+      // Proceed even if network signOut fails
+    } finally {
+      window.location.replace('/login')
+    }
   }
 
   if (loading) {

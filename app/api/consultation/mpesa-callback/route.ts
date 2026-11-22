@@ -208,8 +208,16 @@ export async function POST(request: Request) {
         `Website / Social: ${websiteUrl}`,
         `Primary Bottlenecks & Goals: ${bottlenecks || "N/A"}`,
         `Payment Method: MPESA (PAID — Receipt: ${mpesaReceipt || "N/A"})`,
-        `Scheduled For: ${new Date(scheduledAt).toLocaleString("en-US", { timeZone: "Africa/Nairobi" })} EAT`,
-      ].join(" | ")
+        `Scheduled For: ${new Date(scheduledAt).toLocaleString("en-US", {
+          weekday: "long",
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: "Africa/Nairobi",
+        })} EAT`,
+      ].join("\n")
 
       const { data: lead, error: leadErr } = await supabase
         .from("sales_leads")
@@ -225,9 +233,10 @@ export async function POST(request: Request) {
           is_qualified: true,
           estimated_value: claimedRow.amount_kes,
           initial_note: notesContent,
+          viewing_date: scheduledAt,
           followup_status: "active",
           next_followup_at: scheduledAt,
-          followup_title: "1-on-1 AI Strategy Call",
+          followup_title: "Booked Consultation Reminder",
           created_at: paidAtIso,
           updated_at: paidAtIso,
         })

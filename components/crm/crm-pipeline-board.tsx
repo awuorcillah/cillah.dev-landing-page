@@ -244,13 +244,20 @@ export default function CRMPipelineBoard({
       setTargetAgentEmail(selectedLead.assigned_agent_email || '')
       setIsEditingContact(false)
 
-      if (selectedLead.viewing_date) {
-        const dt = new Date(selectedLead.viewing_date)
+      const chosenDate = selectedLead.viewing_date || selectedLead.next_followup_at
+      if (chosenDate) {
+        const dt = new Date(chosenDate)
         const tzOffset = dt.getTimezoneOffset() * 60000
-        const localISOTime = (new Date(dt.getTime() - tzOffset)).toISOString().slice(0, 16)
+        const localISOTime = new Date(dt.getTime() - tzOffset).toISOString().slice(0, 16)
         setViewingDateInput(localISOTime)
+        setCustomDate(localISOTime)
+        setCustomTitle(selectedLead.followup_title || 'Booked Consultation Reminder')
+        setFollowupChoice('custom')
       } else {
         setViewingDateInput('')
+        setCustomDate('')
+        setCustomTitle('')
+        setFollowupChoice('1_month')
       }
     }
   }, [selectedLead])
@@ -263,6 +270,9 @@ export default function CRMPipelineBoard({
     const isoViewing = new Date(viewingDateInput).toISOString()
     const updatedFields = {
       viewing_date: isoViewing,
+      next_followup_at: isoViewing,
+      followup_status: 'active',
+      followup_title: 'Booked Consultation Reminder',
       stage: 'viewing',
       updated_at: new Date().toISOString()
     }
@@ -1104,11 +1114,67 @@ export default function CRMPipelineBoard({
     }
   }
 
-  // WhatsApp Link Builder
-  const getWhatsAppLink = (phone: string | null) => {
+  // WhatsApp Link Builder (opens WhatsApp with client's phone & ready-to-send greeting)
+  const getWhatsAppLink = (phone: string | null, lead?: SalesLead | null) => {
     if (!phone) return '#'
-    const cleanPhone = phone.replace(/[^0-9]/g, '')
-    return `https://wa.me/${cleanPhone}`
+    let cleanPhone = phone.replace(/[^0-9]/g, '')
+    if (cleanPhone.startsWith('0') && cleanPhone.length === 10) {
+      cleanPhone = '254' + cleanPhone.slice(1)
+    }
+    const firstName = lead?.full_name?.trim().split(' ')[0] || 'there'
+    const agentName = currentUserEmail ? currentUserEmail.split('@')[0] : 'Cillah'
+    const consultDate = lead?.viewing_date || lead?.next_followup_at
+    const dateLine = consultDate
+      ? ` regarding your booked consultation on ${new Date(consultDate).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+      : ''
+    const starterText = `Hi ${firstName}, this is ${agentName} from Cillah reaching out${dateLine}.`
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(starterText)}`
+  }
+
+  // Gmail Compose Link Builder (opens logged-in agent's Gmail e.g. atulah@cillah.dev with To, Subject & Body pre-filled)
+  const getEmailComposeLink = (lead?: SalesLead | null) => {
+    if (!lead?.email) return '#'
+    const firstName = lead.full_name?.trim().split(' ')[0] || 'there'
+    const consultDate = lead.viewing_date || lead.next_followup_at
+    const subject = consultDate
+      ? `Your 1-on-1 AI Strategy Call with Cillah — ${lead.full_name}`
+      : `Following up — Cillah`
+    const bodyLines = [
+      `Hi ${firstName},`,
+      '',
+      consultDate
+        ? `Looking forward to our 1-on-1 AI Strategy & Architecture Call scheduled for ${new Date(consultDate).toLocaleString([], { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}.`
+        : `Thank you for reaching out to Cillah.`,
+      '',
+      'Best regards,',
+      currentUserEmail || 'Cillah Team',
+    ]
+    const params = new URLSearchParams({
+      view: 'cm',
+      fs: '1',
+      to: lead.email,
+      su: subject,
+      body: bodyLines.join('\n'),
+    })
+    if (currentUserEmail) {
+      params.set('authuser', currentUserEmail)
+    }
+    return `https://mail.google.com/mail/?${params.toString()}`
+  }
+
+  // Bulletproof instant sign-out handler
+  const handleQuickLogout = async () => {
+    setProfileMenuOpen(false)
+    try {
+      await Promise.race([
+        supabase.auth.signOut({ scope: 'local' }),
+        new Promise((resolve) => setTimeout(resolve, 1200)),
+      ])
+    } catch {
+      // Proceed to redirect even if network signOut errors
+    } finally {
+      window.location.replace('/login')
+    }
   }
 
   // Overdue check
@@ -1209,63 +1275,62 @@ export default function CRMPipelineBoard({
             </button>
           </div>
 
-          {/* User Profile Avatar Dropdown Menu */}
-          <div className="relative" ref={profileRef}>
-            <button
-              onClick={() => setProfileMenuOpen((prev) => !prev)}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-[#C9A66B]/60 transition-all text-xs shadow-md"
-            >
-              <div className="w-6 h-6 rounded-full bg-[#C9A66B]/20 border border-[#C9A66B]/50 flex items-center justify-center font-bold text-[#C9A66B] text-[11px] uppercase">
-                {currentUserEmail[0]?.toUpperCase() || 'U'}
-              </div>
-              <span className="text-slate-200 font-semibold hidden sm:inline">{currentUserEmail.split('@')[0]}</span>
-              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${profileMenuOpen ? 'rotate-180 text-[#C9A66B]' : ''}`} />
-            </button>
+          {/* User Profile Avatar Dropdown Menu (hidden in forceUserOnly since /user/dashboard has its own header) */}
+          {!forceUserOnly && (
+            <div className="relative" ref={profileRef}>
+              <button
+                onClick={() => setProfileMenuOpen((prev) => !prev)}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-[#C9A66B]/60 transition-all text-xs shadow-md"
+              >
+                <div className="w-6 h-6 rounded-full bg-[#C9A66B]/20 border border-[#C9A66B]/50 flex items-center justify-center font-bold text-[#C9A66B] text-[11px] uppercase">
+                  {currentUserEmail[0]?.toUpperCase() || 'U'}
+                </div>
+                <span className="text-slate-200 font-semibold hidden sm:inline">{currentUserEmail.split('@')[0]}</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${profileMenuOpen ? 'rotate-180 text-[#C9A66B]' : ''}`} />
+              </button>
 
-            {profileMenuOpen && (
-              <div className="absolute right-0 top-12 w-52 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl z-50 overflow-hidden text-xs divide-y divide-slate-800">
-                <div className="px-4 py-3 bg-slate-950/60">
-                  <p className="font-semibold text-white truncate">{currentUserEmail.split('@')[0]}</p>
-                  <p className="text-[10px] text-slate-400 truncate">{currentUserEmail}</p>
+              {profileMenuOpen && (
+                <div className="absolute right-0 top-12 w-52 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl z-50 overflow-hidden text-xs divide-y divide-slate-800">
+                  <div className="px-4 py-3 bg-slate-950/60">
+                    <p className="font-semibold text-white truncate">{currentUserEmail.split('@')[0]}</p>
+                    <p className="text-[10px] text-slate-400 truncate">{currentUserEmail}</p>
+                  </div>
+                  <div className="py-1.5">
+                    <Link
+                      href="/user/profile"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+                    >
+                      Profile
+                    </Link>
+                    <Link
+                      href={effectiveIsAdmin ? '/admin/dashboard' : '/user/dashboard'}
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+                    >
+                      Dashboard
+                    </Link>
+                    <Link
+                      href={effectiveIsAdmin ? '/admin/pipeline' : '/user/dashboard'}
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-[#C9A66B] font-bold hover:bg-slate-800 transition-colors"
+                    >
+                      Sales Pipeline
+                    </Link>
+                  </div>
+                  <div className="py-1.5">
+                    <button
+                      type="button"
+                      onClick={handleQuickLogout}
+                      className="w-full text-left flex items-center gap-2 px-4 py-2.5 text-red-400 hover:bg-red-500/10 font-medium transition-colors cursor-pointer"
+                    >
+                      Log Out
+                    </button>
+                  </div>
                 </div>
-                <div className="py-1.5">
-                  <Link
-                    href="/user/profile"
-                    onClick={() => setProfileMenuOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2.5 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
-                  >
-                    Profile
-                  </Link>
-                  <Link
-                    href="/admin/dashboard"
-                    onClick={() => setProfileMenuOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2.5 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
-                  >
-                    Dashboard
-                  </Link>
-                  <Link
-                    href="/admin/pipeline"
-                    onClick={() => setProfileMenuOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2.5 text-[#C9A66B] font-bold hover:bg-slate-800 transition-colors"
-                  >
-                    Sales Pipeline
-                  </Link>
-                </div>
-                <div className="py-1.5">
-                  <button
-                    onClick={async () => {
-                      setProfileMenuOpen(false)
-                      await supabase.auth.signOut()
-                      window.location.href = '/login'
-                    }}
-                    className="w-full text-left flex items-center gap-2 px-4 py-2.5 text-red-400 hover:bg-red-500/10 font-medium transition-colors"
-                  >
-                    Log Out
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1580,7 +1645,7 @@ export default function CRMPipelineBoard({
                         <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-900">
                           {lead.phone_number && (
                             <a
-                              href={getWhatsAppLink(lead.phone_number)}
+                              href={getWhatsAppLink(lead.phone_number, lead)}
                               target="_blank"
                               rel="noreferrer"
                               onClick={(e) => e.stopPropagation()}
@@ -1604,9 +1669,11 @@ export default function CRMPipelineBoard({
 
                           {lead.email && (
                             <a
-                              href={`mailto:${lead.email}`}
+                              href={getEmailComposeLink(lead)}
+                              target="_blank"
+                              rel="noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              title="Send Email"
+                              title="Compose Email in Gmail"
                               className="p-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-lg transition-colors"
                             >
                               <Mail className="w-3.5 h-3.5" />
@@ -1715,7 +1782,7 @@ export default function CRMPipelineBoard({
                     <div className="flex items-center gap-2">
                       {lead.phone_number && (
                         <a
-                          href={getWhatsAppLink(lead.phone_number)}
+                          href={getWhatsAppLink(lead.phone_number, lead)}
                           target="_blank"
                           rel="noreferrer"
                           onClick={(e) => e.stopPropagation()}
@@ -1735,9 +1802,11 @@ export default function CRMPipelineBoard({
                       )}
                       {lead.email && (
                         <a
-                          href={`mailto:${lead.email}`}
+                          href={getEmailComposeLink(lead)}
+                          target="_blank"
+                          rel="noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          title="Send Email"
+                          title="Compose Email in Gmail"
                           className="p-1.5 bg-purple-500/10 text-purple-400 rounded-lg hover:bg-purple-500/20"
                         >
                           <Mail className="w-4 h-4" />
@@ -1791,7 +1860,9 @@ export default function CRMPipelineBoard({
                   <div className="flex flex-wrap items-center gap-2 text-xs mt-2">
                     {selectedLead.email ? (
                       <a
-                        href={`mailto:${selectedLead.email}`}
+                        href={getEmailComposeLink(selectedLead)}
+                        target="_blank"
+                        rel="noreferrer"
                         className="flex items-center gap-1.5 text-purple-300 bg-purple-500/15 border border-purple-500/30 px-2.5 py-1 rounded-lg hover:bg-purple-500/25 transition-colors"
                       >
                         <Mail className="w-3.5 h-3.5 text-purple-400" /> {selectedLead.email}
@@ -1846,7 +1917,7 @@ export default function CRMPipelineBoard({
               <div className="grid grid-cols-3 gap-3 mb-6">
                 {selectedLead.phone_number ? (
                   <a
-                    href={getWhatsAppLink(selectedLead.phone_number)}
+                    href={getWhatsAppLink(selectedLead.phone_number, selectedLead)}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center justify-center gap-2 py-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 rounded-xl text-xs font-bold transition-all"
@@ -1874,7 +1945,9 @@ export default function CRMPipelineBoard({
 
                 {selectedLead.email ? (
                   <a
-                    href={`mailto:${selectedLead.email}`}
+                    href={getEmailComposeLink(selectedLead)}
+                    target="_blank"
+                    rel="noreferrer"
                     className="flex items-center justify-center gap-2 py-2.5 bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-400 rounded-xl text-xs font-bold transition-all"
                   >
                     <Mail className="w-4 h-4" /> Send Email
@@ -2113,10 +2186,30 @@ export default function CRMPipelineBoard({
               {/* SCHEDULE BOOKED CONSULTATION & STRATEGY CALL SECTION */}
               <div className="bg-slate-900/80 border border-purple-500/25 rounded-2xl p-5 mb-6">
                 <h4 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-purple-400" /> Booked Consultations & Strategy Call Scheduler
+                  <Calendar className="w-4 h-4 text-purple-400" /> Booked Consultations &amp; Strategy Call Scheduler
                 </h4>
+                {(selectedLead.viewing_date || selectedLead.next_followup_at) && (
+                  <div className="mb-3 px-3 py-2 rounded-xl bg-purple-500/15 border border-purple-500/35 text-xs text-purple-200 flex items-center justify-between gap-2">
+                    <span>
+                      Scheduled:{' '}
+                      <strong className="text-white">
+                        {new Date(selectedLead.viewing_date || selectedLead.next_followup_at!).toLocaleString([], {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </strong>
+                    </span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+                      Reminder Active
+                    </span>
+                  </div>
+                )}
                 <p className="text-[11px] text-slate-400 mb-3">
-                  Schedule a booked consultation, discovery call, or strategy meeting date for this lead.
+                  Schedule or update the booked consultation date and follow-up reminder for this lead.
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-2">
@@ -2285,7 +2378,9 @@ export default function CRMPipelineBoard({
                             </div>
                             <span className="text-[10px] text-slate-500 shrink-0">{new Date(note.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
-                          <p className="text-slate-200 leading-relaxed">{note.note_text}</p>
+                          <p className="text-slate-200 leading-relaxed whitespace-pre-line">
+                            {note.note_text.replace(/\s\|\s/g, '\n')}
+                          </p>
                         </div>
                       )
                     })
