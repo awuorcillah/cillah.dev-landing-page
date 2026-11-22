@@ -199,35 +199,35 @@ export function Scene3Pipelines({
     }
 
     // Step 2: 4 gold branch lines draw out
-    schedule(() => setBranchesDrawn(true), 350)
+    schedule(() => setBranchesDrawn(true), 550)
 
     // Step 3: Lead chips travel along branches into each agent's "New" stage
-    schedule(() => setChipsTraveling(true), 1000)
-    schedule(() => setAgentsLoadedCount(2), 1450)
+    schedule(() => setChipsTraveling(true), 1550)
+    schedule(() => setAgentsLoadedCount(2), 2250)
     schedule(() => {
       setAgentsLoadedCount(4)
       setChipsTraveling(false)
-    }, 1900)
+    }, 2950)
 
-    // Step 4: New-lead notifications pop in each card
-    schedule(() => setNotificationPhase("new-lead"), 2400)
+    // Step 4: New-lead notifications pop in each card (hold ~3.2s for easy reading)
+    schedule(() => setNotificationPhase("new-lead"), 3700)
 
     // Step 5: "Two days later" — new-lead toasts fade out, chips advance
-    schedule(() => setNotificationPhase("none"), 4200)
-    schedule(() => setShowTwoDaysLater(true), 4400)
-    schedule(() => setProgressed(true), 4900)
+    schedule(() => setNotificationPhase("none"), 6900)
+    schedule(() => setShowTwoDaysLater(true), 7300)
+    schedule(() => setProgressed(true), 8200)
 
     // Step 6: Gold scan line sweeps across all 4 pipelines -> attention pulse + follow-up toasts
-    schedule(() => setScanActive(true), 6300)
+    schedule(() => setScanActive(true), 10300)
     schedule(() => {
       setAttentionActive(true)
       setNotificationPhase("followup")
-    }, 7400)
-    schedule(() => setScanActive(false), 7600)
+    }, 11900)
+    schedule(() => setScanActive(false), 12200)
 
-    // Step 7: Closing line appears and Scene 3 rests on final frame (9.6s total)
-    schedule(() => setShowClosingLine(true), 8600)
-    schedule(() => onCompleteRef.current(), 9600)
+    // Step 7: Closing line appears and Scene 3 rests on final frame (15.8s total)
+    schedule(() => setShowClosingLine(true), 13700)
+    schedule(() => onCompleteRef.current(), 15800)
 
     return () => {
       clearAllTimers()
@@ -436,7 +436,7 @@ export function Scene3Pipelines({
                 key={`scan-desktop-${playNonce}`}
                 initial={{ left: "0%", opacity: 0 }}
                 animate={{ left: "100%", opacity: [0, 0.95, 0.95, 0] }}
-                transition={{ duration: 1.2, ease: "easeInOut" }}
+                transition={{ duration: 1.6, ease: "easeInOut" }}
                 className="pointer-events-none absolute top-0 bottom-0 w-[2px] z-30 bg-[#C9A66B] shadow-[0_0_18px_3px_rgba(201,166,107,0.7)]"
               />
             )}
@@ -596,7 +596,7 @@ export function Scene3Pipelines({
               key={`scan-mobile-${playNonce}`}
               initial={{ left: "0%", opacity: 0 }}
               animate={{ left: "100%", opacity: [0, 0.95, 0.95, 0] }}
-              transition={{ duration: 1.2, ease: "easeInOut" }}
+              transition={{ duration: 1.6, ease: "easeInOut" }}
               className="pointer-events-none absolute top-0 bottom-0 w-[2px] z-30 bg-[#C9A66B] shadow-[0_0_16px_3px_rgba(201,166,107,0.7)]"
             />
           )}

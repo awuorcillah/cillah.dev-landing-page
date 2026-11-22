@@ -82,7 +82,7 @@ export function FlowAnimation() {
     transitionTimerRef.current = window.setTimeout(() => {
       transitionTimerRef.current = null
       setCurrentScene(2)
-    }, 900)
+    }, 1600)
   }, [reducedMotion, isInView, clearTransitionTimer])
 
   const handleScene2Complete = useCallback(() => {
@@ -91,18 +91,18 @@ export function FlowAnimation() {
     transitionTimerRef.current = window.setTimeout(() => {
       transitionTimerRef.current = null
       setCurrentScene(3)
-    }, 900)
+    }, 1600)
   }, [reducedMotion, isInView, clearTransitionTimer])
 
   const handleScene3Complete = useCallback(() => {
     if (reducedMotion || !isInView) return
     clearTransitionTimer()
-    // Hold briefly on the completed closing frame, then automatically loop back to Scene 1
+    // Hold comfortably on the completed closing frame, then automatically loop back to Scene 1
     transitionTimerRef.current = window.setTimeout(() => {
       transitionTimerRef.current = null
       setCurrentScene(1)
       setPlayNonce((prev) => prev + 1)
-    }, 2200)
+    }, 3500)
   }, [reducedMotion, isInView, clearTransitionTimer])
 
   const handleSelectSceneDot = (scene: FlowScene) => {
@@ -172,7 +172,7 @@ export function FlowAnimation() {
                 initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 1.04 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
+                transition={{ duration: 0.45, ease: "easeInOut" }}
                 className="w-full"
               >
                 <Scene1Inquiries
@@ -190,7 +190,7 @@ export function FlowAnimation() {
                 initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 1.04 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
+                transition={{ duration: 0.45, ease: "easeInOut" }}
                 className="w-full"
               >
                 <Scene2Building
@@ -208,7 +208,7 @@ export function FlowAnimation() {
                 initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 1.04 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
+                transition={{ duration: 0.45, ease: "easeInOut" }}
                 className="w-full"
               >
                 <Scene3Pipelines

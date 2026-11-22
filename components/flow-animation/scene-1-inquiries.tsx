@@ -510,15 +510,15 @@ export function Scene1Inquiries({
     }
 
     if (isDesktop) {
-      // Desktop (>= 1024px): staggered columns across all 5 channels (~6.4s total)
+      // Desktop (>= 1024px): staggered columns across all 5 channels (~11.6s total, relaxed reading pace)
       setDesktopSteps(EMPTY_DESKTOP_STEPS)
 
-      const channelStaggerMs = 750
-      const bubbleIntervalMs = 460
+      const channelStaggerMs = 1100
+      const bubbleIntervalMs = 950
       let maxTime = 0
 
       CHANNELS.forEach((channel, colIdx) => {
-        const channelStart = 150 + colIdx * channelStaggerMs
+        const channelStart = 200 + colIdx * channelStaggerMs
         const totalSteps = channel.messages.length + 1
 
         for (let step = 1; step <= totalSteps; step++) {
@@ -537,15 +537,15 @@ export function Scene1Inquiries({
       schedule(() => {
         setSequenceFinished(true)
         onCompleteRef.current()
-      }, maxTime + 450)
+      }, maxTime + 1300)
     } else {
-      // Phone & Tablet (< 1024px): single conversation panel playing each channel in turn (~11.7s total)
+      // Phone & Tablet (< 1024px): single conversation panel playing each channel in turn (~24.5s total, comfortable reading pace)
       setMobileChannelIdx(0)
       setMobileStep(0)
 
-      let cursorMs = 150
-      const bubbleIntervalMs = 280
-      const channelHoldMs = 500
+      let cursorMs = 250
+      const bubbleIntervalMs = 620
+      const channelHoldMs = 900
 
       CHANNELS.forEach((channel, idx) => {
         const totalSteps = channel.messages.length + 1
@@ -570,7 +570,7 @@ export function Scene1Inquiries({
       schedule(() => {
         setSequenceFinished(true)
         onCompleteRef.current()
-      }, cursorMs - channelHoldMs + 350)
+      }, cursorMs - channelHoldMs + 900)
     }
 
     return () => {

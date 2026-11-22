@@ -131,36 +131,36 @@ export function Scene2Building({
 
     // Step 1 & 2: 5 channel lines flow in and add Grace, Njeri, Caroline, Peter, Kelvin
     for (let i = 0; i < 5; i++) {
-      const lineStart = 350 + i * 700
-      const rowArrive = lineStart + 350
+      const lineStart = 500 + i * 1100
+      const rowArrive = lineStart + 550
       schedule(() => setActiveLinesCount(i + 1), lineStart)
       schedule(() => setVisibleLeadsCount(i + 1), rowArrive)
     }
 
     // Step 3: Frontend website form fills one field at a time, Submit pulses, dot travels, Brian arrives
-    schedule(() => setFilledFieldsCount(1), 4100)
-    schedule(() => setFilledFieldsCount(2), 4850)
-    schedule(() => setFilledFieldsCount(3), 5600)
+    schedule(() => setFilledFieldsCount(1), 6600)
+    schedule(() => setFilledFieldsCount(2), 7750)
+    schedule(() => setFilledFieldsCount(3), 8900)
 
     schedule(() => {
       setSubmitPulsing(true)
       setFormSubmitted(true)
-    }, 6350)
+    }, 10050)
 
     schedule(() => {
       setSubmitPulsing(false)
       setDotTraveling(true)
-    }, 6750)
+    }, 10650)
 
     schedule(() => {
       setDotTraveling(false)
       setVisibleLeadsCount(6)
-    }, 7400)
+    }, 11550)
 
-    // Step 4: Rest on final frame (~7.9s total)
+    // Step 4: Rest on final frame (~12.8s total)
     schedule(() => {
       onCompleteRef.current()
-    }, 7900)
+    }, 12800)
 
     return () => {
       clearAllTimers()
@@ -405,7 +405,7 @@ export function Scene2Building({
                 key={`desktop-dot-${playNonce}`}
                 initial={{ x: -24, opacity: 0.9, scale: 0.9 }}
                 animate={{ x: 24, opacity: 1, scale: 1.15 }}
-                transition={{ duration: 0.6, ease: "easeInOut" }}
+                transition={{ duration: 0.85, ease: "easeInOut" }}
                 className="absolute h-3 w-3 rounded-full bg-[#C9A66B] shadow-[0_0_12px_rgba(201,166,107,0.95)]"
               />
             )}
@@ -502,7 +502,7 @@ export function Scene2Building({
               key={`mobile-dot-${playNonce}`}
               initial={{ y: -12, opacity: 0.9, scale: 0.9 }}
               animate={{ y: 12, opacity: 1, scale: 1.15 }}
-              transition={{ duration: 0.6, ease: "easeInOut" }}
+              transition={{ duration: 0.85, ease: "easeInOut" }}
               className="absolute h-3 w-3 rounded-full bg-[#C9A66B] shadow-[0_0_12px_rgba(201,166,107,0.95)]"
             />
           )}
