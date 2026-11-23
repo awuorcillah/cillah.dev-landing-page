@@ -70,14 +70,17 @@ export function HomePageClient() {
   ]
 
   const [activeFaqCategory, setActiveFaqCategory] = useState<string>("all")
-  const [openFaq, setOpenFaq] = useState<string | null>("ai-1")
+  const [openFaq, setOpenFaq] = useState<string | null>("web-1")
+
+  const countFaqs = (cat: string) =>
+    FAQS_BY_SERVICE.filter((item) => item.category === cat).length
 
   const faqCategories = [
-    { id: "all", label: "All Questions (20)" },
-    { id: "ai-agents", label: "AI Inboxes (5)" },
-    { id: "outreach", label: "Cold Outreach (5)" },
-    { id: "web-apps", label: "Web & Backend (5)" },
-    { id: "automation", label: "Workflow Automation (5)" },
+    { id: "all", label: `All Questions (${FAQS_BY_SERVICE.length})` },
+    { id: "web-apps", label: `Web & Backend (${countFaqs("web-apps")})` },
+    { id: "ai-agents", label: `AI Inboxes (${countFaqs("ai-agents")})` },
+    { id: "automation", label: `Workflow Automation (${countFaqs("automation")})` },
+    { id: "outreach", label: `Cold Outreach (${countFaqs("outreach")})` },
   ]
 
   const filteredFaqs = activeFaqCategory === "all"

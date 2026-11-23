@@ -23,12 +23,15 @@ export default function ServicesPage() {
   const [activeCategory, setActiveCategory] = useState<string>("all")
   const [openFaq, setOpenFaq] = useState<string | null>("web-1")
 
+  const countByCategory = (cat: string) =>
+    FAQS_BY_SERVICE.filter((item) => item.category === cat).length
+
   const categories = [
-    { id: "all", label: "All Questions (20)" },
-    { id: "web-apps", label: "Web & Backend (5)" },
-    { id: "ai-agents", label: "AI Inboxes (5)" },
-    { id: "automation", label: "Workflow Automation (5)" },
-    { id: "outreach", label: "Cold Outreach (5)" },
+    { id: "all", label: `All Questions (${FAQS_BY_SERVICE.length})` },
+    { id: "web-apps", label: `Web & Backend (${countByCategory("web-apps")})` },
+    { id: "ai-agents", label: `AI Inboxes (${countByCategory("ai-agents")})` },
+    { id: "automation", label: `Workflow Automation (${countByCategory("automation")})` },
+    { id: "outreach", label: `Cold Outreach (${countByCategory("outreach")})` },
   ]
 
   const filteredFaqs = activeCategory === "all" 
