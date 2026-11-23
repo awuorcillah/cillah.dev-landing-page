@@ -264,61 +264,138 @@ export const FAQS_BY_SERVICE: FAQItem[] = [
   },
 
   // -------------------------------------------------------------
-  // SERVICE 4: LinkedIn & Cold Email Outreach
+  // SERVICE 4: B2B Cold Email Outreach
   // -------------------------------------------------------------
   {
     id: "outreach-1",
-    serviceTag: "LinkedIn & Cold Email Outreach",
+    serviceTag: "B2B Cold Email Outreach",
     category: "outreach",
-    categoryLabel: "Cold Outreach",
-    question: "Will cold emailing damage our primary company email address or get our main domain blacklisted?",
+    categoryLabel: "B2B Cold Email Outreach",
+    question: "Is B2B cold email dead — do busy CEOs and founders actually reply anymore?",
     shortAnswer:
-      "Absolutely not. We enforce strict domain isolation by purchasing and setting up dedicated secondary outreach domains that mirror your brand.",
+      "No — generic mass spam is dead, but researched, niche-targeted cold email still starts real conversations with CEOs and Managing Directors every week.",
     valueAnswer:
-      "We configure full technical authentication—SPF, DKIM, DMARC, and custom tracking domains—and run a 21-day gradual warm-up protocol before sending a single email. Your primary corporate email (yourname@yourcompany.com) remains 100% protected and untouched by outreach volume.",
+      "Busy decision-makers ignore vague pitches, but they read short emails that speak directly to a daily operational problem in their exact industry. Every campaign starts with real market research into your niche so the message speaks their language. In our own real estate campaign across Kenya, Dubai, and Singapore, verifying 468 decision-maker emails produced 10 real human replies — including 5 positive executive conversations and 3 active warm sales pipelines.",
   },
   {
     id: "outreach-2",
-    serviceTag: "LinkedIn & Cold Email Outreach",
+    serviceTag: "B2B Cold Email Outreach",
     category: "outreach",
-    categoryLabel: "Cold Outreach",
-    question: "How do you identify and verify the decision-makers on LinkedIn to ensure they match our target market?",
+    categoryLabel: "B2B Cold Email Outreach",
+    question: "I've tried cold email (or paid an agency) before and got zero meetings — why would this be different?",
     shortAnswer:
-      "We build your custom Ideal Customer Profile (ICP) using multi-point filtering across LinkedIn's verified corporate databases, targeting exact job titles, company headcount, industry, and geography.",
+      "Most failed campaigns blast generic templates to unverified lists with zero research and stop after one email. We combine niche research, verified decision-maker targeting, personalized messaging, and consistent multi-step follow-ups.",
     valueAnswer:
-      "We don't buy stale, outdated email lists. Every prospective decision-maker (CEO, Head of Marketing, VP of Operations) is verified in real time for employment status and corporate email deliverability, guaranteeing bounce rates below 2%.",
+      "Outbound isn't about blasting strangers — it's about identifying your exact ideal buyers, verifying their direct corporate contacts, opening with relevant context, and following up politely with empathy and curiosity. In our own real-world campaigns, half of our executive replies came on Follow-Up #2 rather than the first email — proving that structured, patient follow-up is where real relationships begin.",
   },
   {
     id: "outreach-3",
-    serviceTag: "LinkedIn & Cold Email Outreach",
+    serviceTag: "B2B Cold Email Outreach",
     category: "outreach",
-    categoryLabel: "Cold Outreach",
-    question: "Do we have to write the emails, build lead lists, or manage the technical software ourselves?",
+    categoryLabel: "B2B Cold Email Outreach",
+    question: "What realistic reply rates and results should I expect — and how do you report them?",
     shortAnswer:
-      "No. This is a 100% Done-For-You customer acquisition engine.",
+      "We don't sell fake '100 guaranteed meetings' hype. Based on real B2B benchmarks and our own live campaigns, expect roughly 2–5 real human replies and 1–2 warm executive conversations per 100 verified emails sent.",
     valueAnswer:
-      "We handle targeting calibration, list building, inbox deliverability infrastructure, persuasive copywriting, A/B testing, and automated follow-ups. Your internal sales team has only one job: open their calendar, join the scheduled call, and pitch their offer.",
+      "For every 100 verified decision-maker emails, typically 14–15 return automatic responses (out-of-office or unavailable), 2+ generate real human replies, and 1+ turn into genuine sales conversations — and those numbers compound across a 4-step sequence (Pitch + 3 Follow-Ups). Everything is tracked transparently in a live sheet and dashboard showing verified contacts, delivered emails, bounces, automatic replies, real human replies, and positive leads.",
   },
   {
     id: "outreach-4",
-    serviceTag: "LinkedIn & Cold Email Outreach",
+    serviceTag: "B2B Cold Email Outreach",
     category: "outreach",
-    categoryLabel: "Cold Outreach",
-    question: "How many qualified meetings or sales conversations can a typical B2B business expect per month?",
+    categoryLabel: "B2B Cold Email Outreach",
+    question: "Will running cold email outreach ruin my main company domain or break our regular business emails?",
     shortAnswer:
-      "Most B2B clients with a validated offer and clear target market generate 10 to 25+ pre-qualified sales meetings per month.",
+      "No — we never send cold outreach from your main company domain. We isolate everything on dedicated secondary domains with strict authentication and gradual warm-up.",
     valueAnswer:
-      "Cold outreach shifts client acquisition from 'hoping someone refers us' to a predictable mathematical formula. You know exactly how many prospects are contacted, how many positive responses are received, and the predictable cost per booked sales call.",
+      "Your primary @yourcompany.com email stays 100% untouched. We configure dedicated outreach domains with full DNS authentication (SPF, DKIM, and DMARC), warm each inbox for at least 2 weeks, and cap daily sending at 10–30 emails per inbox so your brand's main email reputation is never put at risk.",
   },
   {
     id: "outreach-5",
-    serviceTag: "LinkedIn & Cold Email Outreach",
+    serviceTag: "B2B Cold Email Outreach",
     category: "outreach",
-    categoryLabel: "Cold Outreach",
-    question: "How is this different from generic lead gen agencies that send spammy, robotic pitch emails?",
+    categoryLabel: "B2B Cold Email Outreach",
+    question: "How do you make sure our emails land in the primary inbox instead of Google or Microsoft's spam folder?",
     shortAnswer:
-      "We focus on value-led, hyper-personalized messaging that speaks directly to the specific operational challenges of that executive's industry.",
+      "Through clean technical setup (SPF, DKIM, DMARC), 2-week inbox warm-up, low daily volume per inbox, plain-text human copy, and randomized sending intervals.",
     valueAnswer:
-      "We never send generic 'blast' emails asking for '15 minutes of your time' on email one. Every message is crafted around relevant industry insights, case studies, and clear commercial outcomes, positioning your business as a senior peer and trusted partner rather than a nuisance.",
+      "Spam filters flag accounts that fire 50 emails in 7 minutes or lack proper DNS authentication. Our automated workflows inject a randomized wait interval (such as 1–10 minutes) between every single email, send only 10–30 messages per inbox per day across multiple warmed addresses, avoid heavy links or attachments in first touches, and maintain strict bounce controls so emails land directly in the primary inbox.",
+  },
+  {
+    id: "outreach-6",
+    serviceTag: "B2B Cold Email Outreach",
+    category: "outreach",
+    categoryLabel: "B2B Cold Email Outreach",
+    question: "How do you avoid bad, outdated, or bouncing emails from LinkedIn lists?",
+    shortAnswer:
+      "Every single corporate email is run through dedicated verification tools before a single campaign email is ever sent — keeping bounce rates under 2%.",
+    valueAnswer:
+      "Unverified databases often have 15–20% bounce rates that burn sending domains within weeks. We pull targeted decision-makers, enrich and verify each address so only active, deliverable corporate emails enter the sending queue (for example, filtering 1,500 raw contacts down to 468 verified decision-maker emails — keeping our live bounce rate under 2%).",
+  },
+  {
+    id: "outreach-7",
+    serviceTag: "B2B Cold Email Outreach",
+    category: "outreach",
+    categoryLabel: "B2B Cold Email Outreach",
+    question: "Where do you get the decision-maker contacts, and why does fresh niche targeting beat recycled databases?",
+    shortAnswer:
+      "We build fresh, niche-specific decision-maker lists using targeted business filtering (such as LinkedIn Sales Navigator criteria by role, industry, and location) and verify direct corporate emails just before launch.",
+    valueAnswer:
+      "Generic bulk databases get downloaded and spammed by thousands of agencies at once, leading to dead emails and under-1% reply rates. By filtering specifically for exact decision-makers — CEOs, Founders, Managing Directors, or Heads of Marketing and Operations — in your target cities and verifying fresh addresses per campaign, you reach active executives who actually hold budget authority.",
+  },
+  {
+    id: "outreach-8",
+    serviceTag: "B2B Cold Email Outreach",
+    category: "outreach",
+    categoryLabel: "B2B Cold Email Outreach",
+    question: "How do you make sure AI-assisted cold emails sound genuinely human and don't embarrass our brand in front of CEOs?",
+    shortAnswer:
+      "We use AI as a research assistant to personalize each opening line from real public company and executive context — never to blast robotic, self-centered templates.",
+    valueAnswer:
+      "Instead of sending copy-pasted pitches about how great your company is, our workflow researches each executive's role, company focus, and market context to draft a short, respectful, human-sounding opening line tied to a real business problem they care about. Every message sequence is reviewed and approved by you before going live.",
+  },
+  {
+    id: "outreach-9",
+    serviceTag: "B2B Cold Email Outreach",
+    category: "outreach",
+    categoryLabel: "B2B Cold Email Outreach",
+    question: "Can skilled professionals or consultants also use this system to reach founders and hiring managers directly for contracts, retainers, or roles?",
+    shortAnswer:
+      "Yes — the exact same verified decision-maker outreach system helps specialists and consultants bypass crowded job portals and reach CEOs or hiring managers directly.",
+    valueAnswer:
+      "The secret is never sounding desperate or triggering spam filters on email #1. We send a short, plain-text introduction focused purely on your niche skillset and the specific problem you solve — with no resume attachments and no heavy links in the first email. Once the founder or hiring manager replies with interest, you follow up with your portfolio, case study, free sample value, or resume.",
+  },
+  {
+    id: "outreach-10",
+    serviceTag: "B2B Cold Email Outreach",
+    category: "outreach",
+    categoryLabel: "B2B Cold Email Outreach",
+    question: "Is B2B cold email outreach legal (Kenya Data Protection Act, GDPR, CAN-SPAM)?",
+    shortAnswer:
+      "Yes — responsible B2B outreach to relevant corporate email addresses is legal when done transparently, with clear sender identity and instant opt-out compliance.",
+    valueAnswer:
+      "We only target relevant business decision-makers at corporate addresses (never personal consumer spam), keep data strictly minimized to professional contact details, clearly state who is reaching out and why it's relevant to their role, and immediately honor and suppress every unsubscribe or 'not interested' reply in line with B2B legitimate-interest standards under CAN-SPAM, GDPR, and Kenya's Data Protection Act.",
+  },
+  {
+    id: "outreach-11",
+    serviceTag: "B2B Cold Email Outreach",
+    category: "outreach",
+    categoryLabel: "B2B Cold Email Outreach",
+    question: "How long does setup and warm-up take before emails start going out and replies come in?",
+    shortAnswer:
+      "Plan for 2 weeks of domain warm-up before live sending begins in Week 3, scaling safely from 10 to 30 emails per inbox per day.",
+    valueAnswer:
+      "Rushing volume on a brand-new domain destroys deliverability within weeks. During Weeks 1–2, we configure your secondary domains, DNS authentication, target niche research, verified lead list, and approved email copy while your inboxes warm up automatically. In Week 3, live outreach launches gradually across warmed inboxes — and scaling volume simply means adding additional warmed inboxes rather than overloading one.",
+  },
+  {
+    id: "outreach-12",
+    serviceTag: "B2B Cold Email Outreach",
+    category: "outreach",
+    categoryLabel: "B2B Cold Email Outreach",
+    question: "What does B2B Cold Email Outreach actually cost, and who owns the domains, inboxes, lead lists, and copy if we stop?",
+    shortAnswer:
+      "Custom build and setup starts from $1,000 depending on scope, you pay your third-party tools directly in your own name, and you own 100% of every domain, inbox, verified lead list, workflow, and email sequence.",
+    valueAnswer:
+      "There are zero hidden markups or vendor lock-in. Typical third-party tools paid directly in your own accounts include LinkedIn Sales Navigator (~$120/mo or ~KES 16,000/mo), email finding & verification (e.g., Anymail Finder from $29/mo for 400 credits), lead enrichment tools (from ~$69/mo), workflow automation (n8n from ~$25/mo), AI personalization credits (OpenAI API starting from $5/mo), plus secondary domains (~$12/yr) and sending inboxes (~$6–$7/mo each). Everything stays yours permanently, and your verified contact list (excluding anyone who opted out) remains a reusable business asset.",
   },
 ]

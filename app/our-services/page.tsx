@@ -31,7 +31,7 @@ export default function ServicesPage() {
     { id: "web-apps", label: `Web & Backend (${countByCategory("web-apps")})` },
     { id: "ai-agents", label: `AI Inboxes (${countByCategory("ai-agents")})` },
     { id: "automation", label: `Workflow Automation (${countByCategory("automation")})` },
-    { id: "outreach", label: `Cold Outreach (${countByCategory("outreach")})` },
+    { id: "outreach", label: `B2B Cold Email Outreach (${countByCategory("outreach")})` },
   ]
 
   const filteredFaqs = activeCategory === "all" 

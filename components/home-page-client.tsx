@@ -80,7 +80,7 @@ export function HomePageClient() {
     { id: "web-apps", label: `Web & Backend (${countFaqs("web-apps")})` },
     { id: "ai-agents", label: `AI Inboxes (${countFaqs("ai-agents")})` },
     { id: "automation", label: `Workflow Automation (${countFaqs("automation")})` },
-    { id: "outreach", label: `Cold Outreach (${countFaqs("outreach")})` },
+    { id: "outreach", label: `B2B Cold Email Outreach (${countFaqs("outreach")})` },
   ]
 
   const filteredFaqs = activeFaqCategory === "all"
