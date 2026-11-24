@@ -18,30 +18,36 @@ export async function GET(request: Request) {
       "08:00 PM"
     ];
 
-    // Generate upcoming eligible days (Wednesdays, Fridays, Sundays only)
+    // Generate upcoming eligible days in Nairobi time (EAT / UTC+3: Wed=3, Fri=5, Sun=0)
+    const now = new Date();
+    const minAdvanceTime = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Strictly 24 hours minimum notice
+    const eatOffsetMs = 3 * 60 * 60 * 1000;
+    const eatNow = new Date(now.getTime() + eatOffsetMs);
     const datesToQuery: { value: string; label: string }[] = [];
-    let current = new Date();
-    current.setDate(current.getDate() + 1); // Start tomorrow
+
+    // Start from today in EAT (slot-level 24h check below filters out any slot < 24h from now)
+    let cursor = new Date(Date.UTC(eatNow.getUTCFullYear(), eatNow.getUTCMonth(), eatNow.getUTCDate()));
 
     // Look ahead up to 60 days to gather upcoming eligible booking days
     let lookahead = 0;
     while (datesToQuery.length < 12 && lookahead < 60) {
-      const dayOfWeek = current.getDay(); // 0 = Sun, 3 = Wed, 5 = Fri
+      const dayOfWeek = cursor.getUTCDay(); // 0 = Sun, 3 = Wed, 5 = Fri
       if (dayOfWeek === 0 || dayOfWeek === 3 || dayOfWeek === 5) {
-        const year = current.getFullYear();
-        const month = String(current.getMonth() + 1).padStart(2, "0");
-        const dateStr = String(current.getDate()).padStart(2, "0");
+        const year = cursor.getUTCFullYear();
+        const month = String(cursor.getUTCMonth() + 1).padStart(2, "0");
+        const dateStr = String(cursor.getUTCDate()).padStart(2, "0");
         const value = `${year}-${month}-${dateStr}`;
-        
-        const label = current.toLocaleDateString("en-US", {
+
+        const label = new Intl.DateTimeFormat("en-US", {
+          timeZone: "UTC",
           weekday: "short",
           month: "short",
           day: "numeric",
-        });
-        
+        }).format(cursor);
+
         datesToQuery.push({ value, label });
       }
-      current.setDate(current.getDate() + 1);
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
       lookahead++;
     }
 
@@ -69,9 +75,6 @@ export async function GET(request: Request) {
       console.log("[Calendar Slots] Google Calendar credentials not configured in env, providing all standard slots.");
     }
 
-    const now = new Date();
-    const minAdvanceTime = new Date(now.getTime() + 12 * 60 * 60 * 1000); // 12 hours minimum notice
-
     const daysWithAvailability = datesToQuery.map(({ value: dateStr, label }) => {
       const slots = timeSlots.map((time) => {
         // Parse hour and minute relative to Nairobi (EAT / UTC+3)
@@ -84,9 +87,9 @@ export async function GET(request: Request) {
         const slotStart = new Date(`${dateStr}T${String(hr).padStart(2, "0")}:${minutes}:00+03:00`);
         const slotEnd = new Date(slotStart.getTime() + 60 * 60 * 1000); // 1 hour duration
 
-        // 1. Enforce minimum notice rule
+        // 1. Enforce strict 24-hour minimum advance notice rule
         if (slotStart < minAdvanceTime) {
-          return { time, available: false, reason: "Too short notice" };
+          return { time, available: false, reason: "Requires at least 24 hours advance notice" };
         }
 
         // 2. Expand slot with 30-minute buffer after meeting

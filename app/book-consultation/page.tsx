@@ -280,36 +280,55 @@ export default function BookConsultationPage() {
 
     function generateFallbackDays() {
       const fallbackList: CalendarDay[] = []
-      const d = new Date()
-      d.setDate(d.getDate() + 1)
-      while (fallbackList.length < 8) {
-        const dayOfWeek = d.getDay() // 0=Sun, 3=Wed, 5=Fri
+      const nowTime = new Date()
+      const minAdvanceTime = new Date(nowTime.getTime() + 24 * 60 * 60 * 1000)
+      const eatNow = new Date(nowTime.getTime() + 3 * 60 * 60 * 1000)
+      const d = new Date(Date.UTC(eatNow.getUTCFullYear(), eatNow.getUTCMonth(), eatNow.getUTCDate()))
+      const standardTimes = [
+        "08:00 AM",
+        "09:30 AM",
+        "11:00 AM",
+        "12:30 PM",
+        "02:00 PM",
+        "03:30 PM",
+        "05:00 PM",
+        "06:30 PM",
+        "08:00 PM",
+      ]
+
+      let lookahead = 0
+      while (fallbackList.length < 8 && lookahead < 60) {
+        const dayOfWeek = d.getUTCDay() // 0=Sun, 3=Wed, 5=Fri
         if (dayOfWeek === 0 || dayOfWeek === 3 || dayOfWeek === 5) {
-          const val = d.toISOString().split("T")[0]
-          const lbl = d.toLocaleDateString("en-US", {
+          const val = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`
+          const lbl = new Intl.DateTimeFormat("en-US", {
+            timeZone: "UTC",
             weekday: "short",
             month: "short",
             day: "numeric",
+          }).format(d)
+
+          const slots: DaySlot[] = standardTimes.map((time) => {
+            const slotDate = parseEatSlotToDate(val, time)
+            const available = slotDate ? slotDate >= minAdvanceTime : false
+            return {
+              time,
+              available,
+              reason: available ? undefined : "Requires 24h advance notice",
+            }
           })
-          const standardSlots: DaySlot[] = [
-            { time: "08:00 AM", available: true },
-            { time: "09:30 AM", available: true },
-            { time: "11:00 AM", available: true },
-            { time: "12:30 PM", available: true },
-            { time: "02:00 PM", available: true },
-            { time: "03:30 PM", available: true },
-            { time: "05:00 PM", available: true },
-            { time: "06:30 PM", available: true },
-            { time: "08:00 PM", available: true },
-          ]
-          fallbackList.push({
-            value: val,
-            label: lbl,
-            slots: standardSlots,
-            hasAvailableSlots: true,
-          })
+
+          if (slots.some((s) => s.available)) {
+            fallbackList.push({
+              value: val,
+              label: lbl,
+              slots,
+              hasAvailableSlots: true,
+            })
+          }
         }
-        d.setDate(d.getDate() + 1)
+        d.setUTCDate(d.getUTCDate() + 1)
+        lookahead++
       }
       setDays(fallbackList)
       if (fallbackList.length > 0) {
@@ -674,7 +693,7 @@ export default function BookConsultationPage() {
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <label className="block text-[11px] uppercase tracking-wider text-white/50">
-                          Available Times (30m buffer protected)
+                          Available Times (24h notice &bull; 30m buffer)
                         </label>
                         <span className="text-[10px] font-mono text-[#C9A66B]">
                           Shown in {selectedTzShort}

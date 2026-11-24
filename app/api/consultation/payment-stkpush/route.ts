@@ -69,6 +69,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid appointment date/time." }, { status: 400 })
     }
 
+    // Enforce strict 24-hour minimum advance notice server-side
+    const minAdvanceMs = Date.now() + 24 * 60 * 60 * 1000
+    if (parsedDate.getTime() < minAdvanceMs) {
+      return NextResponse.json(
+        { error: "Consultations must be booked at least 24 hours in advance. Please pick a later slot." },
+        { status: 400 }
+      )
+    }
+
     const supabase = getServiceSupabase()
 
     // 1. Insert pending_payment booking record in Supabase FIRST (server-enforced amount)
