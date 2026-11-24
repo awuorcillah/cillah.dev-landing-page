@@ -11,13 +11,13 @@ import "./globals.css"
 
 const sora = Sora({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+  display: "swap",
   variable: "--font-sora",
 })
 
 const inter = Inter({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
   variable: "--font-inter",
 })
 
