@@ -11,7 +11,7 @@ export const SITE = {
   linkedIn:
     "https://www.linkedin.com/in/cheryl-cilla-atulah-7187103b1?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app",
   instagram:
-    "https://www.instagram.com/awuor_cillah?igsh=MXhqZWZxbHppYWxmNA==",
+    "https://www.instagram.com/cillah.ai",
   phone: "+254759442265",
   calendarUrl: "/book-consultation",
   cta: "Book 1-on-1 Strategy Call",

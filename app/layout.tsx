@@ -129,8 +129,8 @@ export default function RootLayout({
                   },
                   "sameAs": [
                     "https://www.linkedin.com/in/cheryl-cilla-77a125415",
-                    "https://www.instagram.com/cheryl_cilla",
-                    "https://www.facebook.com/share/1EbU2KjfER/",
+                    "https://www.instagram.com/cillah.ai",
+                    "https://www.facebook.com/profile.php?id=1154809664378651",
                     "https://www.tiktok.com/@cillah.dev"
                   ],
                   "priceRange": "$$$$",

@@ -20,8 +20,8 @@ export function Footer() {
   const contactEmail = "atulah@cillah.dev"
   const phone = "+254759442265"
   const linkedIn = "https://www.linkedin.com/in/cheryl-cilla-77a125415?utm_source=share_via&utm_content=profile&utm_medium=member_android"
-  const instagram = "https://www.instagram.com/cheryl_cilla"
-  const facebook = "https://www.facebook.com/share/1EbU2KjfER/"
+  const instagram = "https://www.instagram.com/cillah.ai"
+  const facebook = "https://www.facebook.com/profile.php?id=1154809664378651"
   const tiktok = "https://www.tiktok.com/@cillah.dev"
 
   const quickLinks = [
