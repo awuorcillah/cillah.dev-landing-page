@@ -1,189 +1,276 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useState, useEffect, useCallback } from 'react'
 import {
-  Building2, Users, Shield, Plus, CheckCircle2, UserCheck,
-  Search, RefreshCw, Mail, Phone, Lock, Edit3, Trash2, Loader2,
-  Sparkles, DollarSign, Megaphone, Wrench, BarChart3, Briefcase
+  Building2,
+  Users,
+  Shield,
+  Plus,
+  Search,
+  RefreshCw,
+  Edit3,
+  Trash2,
+  Loader2,
+  DollarSign,
+  Megaphone,
+  Wrench,
+  BarChart3,
+  Briefcase,
+  CheckCircle2,
+  Database,
+  X,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import {
+  MARKETING_ROLE_TIERS,
+  getRolePermissions,
+  type MarketingRoleTier,
+} from '@/lib/marketing-config'
 
-interface TeamMember {
+interface LiveTeamMember {
   id: string
-  user_id: string
-  user_email: string
+  crm_id?: string | null
+  email: string
   full_name: string
-  team_name: string
-  role_title: string
-  is_dept_admin: boolean
-  created_at: string
+  phone_number: string
+  departments: string[]
+  raw_role: string
+  platform_access: 'super_admin' | 'admin' | 'user'
+  has_auth_profile: boolean
+  profile_id?: string | null
+  marketing_role: MarketingRoleTier | null
+  is_active: boolean
+  created_at?: string
+  updated_at?: string
+  source: 'staff_members' | 'profiles_only'
 }
 
-interface TeamCategory {
-  id: string
-  team_name: string
-  description: string
-  icon: any
-  members_count: number
-}
-
-const DEFAULT_TEAMS: TeamCategory[] = [
-  { id: 'T-1', team_name: 'Sales', description: 'Sales pipeline, CRM leads, phone calls & closing deals', icon: BarChart3, members_count: 4 },
-  { id: 'T-2', team_name: 'Marketing', description: 'Omnichannel messaging (WhatsApp, IG, FB, TikTok, Website live chat)', icon: Megaphone, members_count: 3 },
-  { id: 'T-3', team_name: 'Finance', description: 'Invoicing, payment reconciliations & retainer billing', icon: DollarSign, members_count: 2 },
-  { id: 'T-4', team_name: 'Operations', description: 'System deployment, client onboarding & support SLAs', icon: Briefcase, members_count: 2 },
-  { id: 'T-5', team_name: 'Engineering', description: 'Custom AI workflows, server management & API integrations', icon: Wrench, members_count: 3 },
-]
+const DEPARTMENTS = [
+  {
+    id: 'sales',
+    label: 'Sales',
+    description: 'Sales CRM pipeline, leads, viewings & closing deals',
+    icon: BarChart3,
+    badgeClass: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  },
+  {
+    id: 'marketing',
+    label: 'Marketing',
+    description: 'Omnichannel posting, scheduling, uploads & insights',
+    icon: Megaphone,
+    badgeClass: 'bg-[#C9A66B]/15 text-[#E5C992] border-[#C9A66B]/35',
+  },
+  {
+    id: 'finance',
+    label: 'Finance',
+    description: 'M-Pesa reconciliations, invoices & retainer billing',
+    icon: DollarSign,
+    badgeClass: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+  },
+  {
+    id: 'operations',
+    label: 'Operations',
+    description: 'Client onboarding, system deployments & support SLAs',
+    icon: Briefcase,
+    badgeClass: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
+  },
+  {
+    id: 'engineering',
+    label: 'Engineering',
+    description: 'AI agents, n8n workflows & infrastructure',
+    icon: Wrench,
+    badgeClass: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+  },
+] as const
 
 export default function TeamsAndRolesPage() {
-  const supabase = createClient()
-
-  const [teams, setTeams] = useState<TeamCategory[]>(DEFAULT_TEAMS)
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [members, setMembers] = useState<LiveTeamMember[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [selectedTeamFilter, setSelectedTeamFilter] = useState('All Teams')
-  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [selectedDeptFilter, setSelectedDeptFilter] = useState<string>('all')
 
-  // New Team Modal
-  const [isAddTeamOpen, setIsAddTeamOpen] = useState(false)
-  const [newTeamName, setNewTeamName] = useState('')
-  const [newTeamDesc, setNewTeamDesc] = useState('')
+  // Add / Edit Member Modal
+  const [modalMode, setModalMode] = useState<'add' | 'edit' | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [formEmail, setFormEmail] = useState('')
+  const [formName, setFormName] = useState('')
+  const [formPhone, setFormPhone] = useState('')
+  const [formDepartments, setFormDepartments] = useState<string[]>(['sales'])
+  const [formPlatformAccess, setFormPlatformAccess] = useState<'admin' | 'user'>('user')
+  const [formMarketingRole, setFormMarketingRole] =
+    useState<MarketingRoleTier>('content_creator')
+  const [formActive, setFormActive] = useState(true)
+  const [editingIsSuperAdmin, setEditingIsSuperAdmin] = useState(false)
 
-  // Member Assignment Modal
-  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
-
-  // ── Load Teams & Members ──
-  const fetchTeamsData = async () => {
+  const fetchLiveTeams = useCallback(async () => {
     setLoading(true)
     try {
-      // Fetch team members from Supabase table or profiles
-      const { data: dbMembers, error: membersErr } = await supabase
-        .from('team_members')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (membersErr || !dbMembers || dbMembers.length === 0) {
-        // High fidelity demo team members for cillah.dev organization
-        const initialMembers: TeamMember[] = [
-          { id: 'TM-101', user_id: 'U-1', full_name: 'John Kamau', user_email: 'john@cillah.dev', team_name: 'Sales', role_title: 'Head of Sales & CRM Lead', is_dept_admin: true, created_at: new Date().toISOString() },
-          { id: 'TM-102', user_id: 'U-2', full_name: 'Mercy Njeri', user_email: 'mercy@cillah.dev', team_name: 'Sales', role_title: 'Senior Sales Agent', is_dept_admin: false, created_at: new Date().toISOString() },
-          { id: 'TM-103', user_id: 'U-3', full_name: 'Brenda Cherono', user_email: 'brenda@cillah.dev', team_name: 'Marketing', role_title: 'Head of Marketing & Content', is_dept_admin: true, created_at: new Date().toISOString() },
-          { id: 'TM-104', user_id: 'U-4', full_name: 'Kelvin Mutiso', user_email: 'kelvin@cillah.dev', team_name: 'Marketing', role_title: 'Meta & WhatsApp Ads Specialist', is_dept_admin: false, created_at: new Date().toISOString() },
-          { id: 'TM-105', user_id: 'U-5', full_name: 'Agnes Wambui', user_email: 'agnes@cillah.dev', team_name: 'Finance', role_title: 'Finance Director & Billing Lead', is_dept_admin: true, created_at: new Date().toISOString() },
-          { id: 'TM-106', user_id: 'U-6', full_name: 'Daniel Omondi', user_email: 'daniel@cillah.dev', team_name: 'Operations', role_title: 'Client Onboarding & SLA Manager', is_dept_admin: true, created_at: new Date().toISOString() },
-          { id: 'TM-107', user_id: 'U-7', full_name: 'Awuor Cillah', user_email: 'awuorcillah@gmail.com', team_name: 'Engineering', role_title: 'Chief Technology Officer (Superadmin)', is_dept_admin: true, created_at: new Date().toISOString() },
-        ]
-        setTeamMembers(initialMembers)
-      } else {
-        setTeamMembers(dbMembers)
+      const res = await fetch('/api/admin/teams?org=cillah-dev')
+      const json = await res.json()
+      if (!res.ok) {
+        toast.error(json.error || 'Failed to load Supabase team members')
+        return
       }
-    } catch (err) {
-      console.error('Fetch teams error:', err)
-      toast.error('Failed to load team assignments')
+      setMembers(json.members || [])
+    } catch {
+      toast.error('Network error loading live Supabase team members')
     } finally {
       setLoading(false)
     }
-  }
-
-  useEffect(() => {
-    fetchTeamsData()
   }, [])
 
-  // ── Add New Team ──
-  const handleAddTeam = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchLiveTeams()
+  }, [fetchLiveTeams])
+
+  const openAddModal = () => {
+    setModalMode('add')
+    setEditingIsSuperAdmin(false)
+    setFormEmail('')
+    setFormName('')
+    setFormPhone('')
+    setFormDepartments(['sales', 'marketing'])
+    setFormPlatformAccess('user')
+    setFormMarketingRole('content_creator')
+    setFormActive(true)
+  }
+
+  const openEditModal = (m: LiveTeamMember) => {
+    setModalMode('edit')
+    setEditingIsSuperAdmin(m.platform_access === 'super_admin')
+    setFormEmail(m.email)
+    setFormName(m.full_name)
+    setFormPhone(m.phone_number || '')
+    setFormDepartments(m.departments.length > 0 ? m.departments : ['sales'])
+    setFormPlatformAccess(m.platform_access === 'user' ? 'user' : 'admin')
+    setFormMarketingRole(m.marketing_role || 'content_creator')
+    setFormActive(m.is_active)
+  }
+
+  const toggleDept = (deptId: string) => {
+    setFormDepartments((prev) =>
+      prev.includes(deptId) ? prev.filter((d) => d !== deptId) : [...prev, deptId]
+    )
+  }
+
+  const handleSaveMember = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newTeamName.trim()) return
-
-    const newTeamObj: TeamCategory = {
-      id: `T-${Date.now()}`,
-      team_name: newTeamName.trim(),
-      description: newTeamDesc.trim() || 'Department operations and team workflow',
-      icon: Users,
-      members_count: 0
+    if (!formEmail.trim() || !formName.trim()) {
+      toast.error('Email and full name are required.')
+      return
+    }
+    if (formDepartments.length === 0) {
+      toast.error('Select at least one department.')
+      return
     }
 
-    setTeams(prev => [...prev, newTeamObj])
-    toast.success(`New Team "${newTeamName.trim()}" created under Cillah`)
-    setNewTeamName('')
-    setNewTeamDesc('')
-    setIsAddTeamOpen(false)
-  }
-
-  // ── Update Member Role Title or Team ──
-  const handleUpdateMemberRole = async (memberId: string, newTeam: string, newRoleTitle: string, isDeptAdmin: boolean) => {
-    setUpdatingId(memberId)
+    setSaving(true)
     try {
-      setTeamMembers(prev =>
-        prev.map(m => (m.id === memberId ? { ...m, team_name: newTeam, role_title: newRoleTitle, is_dept_admin: isDeptAdmin } : m))
-      )
-
-      // Sync with Supabase table if available
-      try {
-        await supabase
-          .from('team_members')
-          .update({ team_name: newTeam, role_title: newRoleTitle, is_dept_admin: isDeptAdmin })
-          .eq('id', memberId)
-      } catch (err) {
-        // Fallback state update
+      const res = await fetch('/api/admin/teams?org=cillah-dev', {
+        method: modalMode === 'add' ? 'POST' : 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formEmail.trim().toLowerCase(),
+          full_name: formName.trim(),
+          phone_number: formPhone.trim(),
+          departments: formDepartments,
+          platform_access: formPlatformAccess,
+          marketing_role: formDepartments.includes('marketing')
+            ? formMarketingRole
+            : undefined,
+          is_active: formActive,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        toast.error(json.error || 'Could not save changes to Supabase.')
+        return
       }
-
-      toast.success(`Role updated successfully! Assigned to "${newTeam}" as "${newRoleTitle}"`)
-      setSelectedMember(null)
-    } catch (err) {
-      toast.error('Failed to update team member role')
+      toast.success(`Synced ${formEmail.trim()} directly to Supabase!`)
+      setModalMode(null)
+      fetchLiveTeams()
+    } catch {
+      toast.error('Network error saving team permissions.')
     } finally {
-      setUpdatingId(null)
+      setSaving(false)
     }
   }
 
-  // ── Filter Members ──
-  const filteredMembers = teamMembers.filter(m => {
-    const matchesTeam = selectedTeamFilter === 'All Teams' || m.team_name === selectedTeamFilter
+  const handleDeleteMember = async (member: LiveTeamMember) => {
+    if (member.platform_access === 'super_admin') {
+      toast.error('Super Admin cannot be removed.')
+      return
+    }
+    if (!confirm(`Remove ${member.email} from Cillah organization staff?`)) return
+
+    try {
+      const res = await fetch(
+        `/api/admin/teams?org=cillah-dev&email=${encodeURIComponent(member.email)}`,
+        { method: 'DELETE' }
+      )
+      const json = await res.json()
+      if (!res.ok) {
+        toast.error(json.error || 'Could not remove member.')
+        return
+      }
+      toast.success(`Removed ${member.email} from Supabase staff_members.`)
+      fetchLiveTeams()
+    } catch {
+      toast.error('Network error removing member.')
+    }
+  }
+
+  const filteredMembers = members.filter((m) => {
+    const matchesDept =
+      selectedDeptFilter === 'all' ||
+      m.departments.includes(selectedDeptFilter) ||
+      (selectedDeptFilter === 'engineering' && m.departments.includes('ceo'))
     const term = search.toLowerCase().trim()
     const matchesSearch =
       !term ||
       m.full_name.toLowerCase().includes(term) ||
-      m.user_email.toLowerCase().includes(term) ||
-      m.role_title.toLowerCase().includes(term) ||
-      m.team_name.toLowerCase().includes(term)
+      m.email.toLowerCase().includes(term) ||
+      m.departments.join(' ').toLowerCase().includes(term) ||
+      (m.marketing_role || '').toLowerCase().includes(term)
 
-    return matchesTeam && matchesSearch
+    return matchesDept && matchesSearch
   })
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      {/* ── Page Header ── */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-1">
-            <Building2 className="w-4 h-4" /> Cillah Organization & Infrastructure
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-1">
+            <Building2 className="w-4 h-4" /> Cillah Organization &amp; Infrastructure
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold normal-case">
+              <Database className="w-3 h-3" /> Live Supabase Sync
+            </span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-            🛡️ Teams, Departments & Role Management
+          <h1 className="text-2xl font-bold text-slate-100">
+            Teams, Departments &amp; Role Management
           </h1>
           <p className="text-sm text-slate-400 mt-0.5">
-            Configure organization teams (Sales, Marketing, Finance, Operations) and assign granular department roles & admin permissions
+            Changes here write directly to Supabase (<code className="text-cyan-300">staff_members</code>, <code className="text-cyan-300">profiles</code>, and <code className="text-cyan-300">marketing_role_assignments</code>) and immediately control what each user sees after login.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Button
             size="sm"
-            onClick={() => setIsAddTeamOpen(true)}
-            className="bg-cyan-600 hover:bg-cyan-500 text-white gap-2 text-xs"
+            onClick={openAddModal}
+            className="bg-[#C9A66B] hover:bg-[#d8b87d] text-slate-950 font-bold gap-1.5 text-xs"
           >
             <Plus className="w-4 h-4" />
-            Add New Department
+            Add Team Member
           </Button>
 
           <Button
             size="sm"
             variant="outline"
-            onClick={fetchTeamsData}
+            onClick={fetchLiveTeams}
             disabled={loading}
             className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 gap-2 text-xs"
           >
@@ -193,90 +280,108 @@ export default function TeamsAndRolesPage() {
         </div>
       </div>
 
-      {/* ── Team Categories Grid ── */}
+      {/* Live Department Count Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {teams.map((t) => {
-          const IconComp = t.icon || Users
-          const count = teamMembers.filter(m => m.team_name === t.team_name).length
+        {DEPARTMENTS.map((dept) => {
+          const IconComp = dept.icon
+          const count = members.filter(
+            (m) =>
+              m.departments.includes(dept.id) ||
+              (dept.id === 'engineering' && m.departments.includes('ceo'))
+          ).length
+          const isSelected = selectedDeptFilter === dept.id
           return (
             <Card
-              key={t.id}
-              onClick={() => setSelectedTeamFilter(t.team_name)}
+              key={dept.id}
+              onClick={() => setSelectedDeptFilter(isSelected ? 'all' : dept.id)}
               className={`border transition-all cursor-pointer ${
-                selectedTeamFilter === t.team_name
+                isSelected
                   ? 'bg-slate-900 border-cyan-500 shadow-xl ring-1 ring-cyan-500/50'
                   : 'bg-slate-900/70 border-slate-800 hover:border-slate-700'
               }`}
             >
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                  {t.team_name}
+                  {dept.label}
                 </CardTitle>
                 <IconComp className="w-4 h-4 text-cyan-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-slate-100">{count} Members</div>
-                <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{t.description}</p>
+                <div className="text-2xl font-bold text-slate-100">
+                  {count} {count === 1 ? 'Member' : 'Members'}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{dept.description}</p>
               </CardContent>
             </Card>
           )
         })}
       </div>
 
-      {/* ── Search & Filters Bar ── */}
+      {/* Search & Department Filter Bar */}
       <div className="space-y-4 bg-slate-900/50 border border-slate-800 p-4 rounded-xl">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          
-          {/* Search */}
           <div className="relative flex-1">
             <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search team members by name, email, department, or role title..."
+              placeholder="Search live Supabase users by name, email, department, or marketing tier..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-slate-950 border border-slate-800 text-slate-200 placeholder-slate-500 text-sm rounded-lg pl-9 pr-4 py-2 focus:outline-none focus:border-cyan-500/50 transition-colors"
             />
           </div>
 
-          {/* Department Filter Buttons */}
           <div className="flex flex-wrap items-center gap-1 bg-slate-950 border border-slate-800 p-1 rounded-lg">
-            {['All Teams', 'Sales', 'Marketing', 'Finance', 'Operations', 'Engineering'].map(tName => (
+            <button
+              type="button"
+              onClick={() => setSelectedDeptFilter('all')}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                selectedDeptFilter === 'all'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              All ({members.length})
+            </button>
+            {DEPARTMENTS.map((dept) => (
               <button
-                key={tName}
-                onClick={() => setSelectedTeamFilter(tName)}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                  selectedTeamFilter === tName
+                key={dept.id}
+                type="button"
+                onClick={() => setSelectedDeptFilter(dept.id)}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                  selectedDeptFilter === dept.id
                     ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                {tName}
+                {dept.label}
               </button>
             ))}
           </div>
-
         </div>
 
         <div className="flex items-center justify-between text-xs text-slate-400 pt-1 border-t border-slate-800/60">
           <div>
-            Showing <strong className="text-cyan-400 font-bold">{filteredMembers.length}</strong> configured team assignments under <strong>Cillah</strong>
+            Showing <strong className="text-cyan-400 font-bold">{filteredMembers.length}</strong> real Supabase account{filteredMembers.length === 1 ? '' : 's'} under <strong>Cillah</strong>
           </div>
+          <span className="text-[11px] text-emerald-400">
+            Zero demo placeholders — 100% live database records
+          </span>
         </div>
       </div>
 
-      {/* ── Team Members & Roles Table ── */}
+      {/* Live Supabase Members Table */}
       <div className="bg-slate-900/70 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-16 text-slate-500 gap-3">
             <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-            <p className="text-sm">Fetching organization teams and member roles...</p>
+            <p className="text-sm">Fetching live accounts &amp; roles from Supabase...</p>
           </div>
         ) : filteredMembers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-slate-500 gap-2">
             <Users className="w-10 h-10 text-slate-600 mb-2" />
-            <p className="text-base font-semibold text-slate-300">No team members found matching filter</p>
-            <p className="text-xs text-slate-500">Try adjusting your search query or department filter</p>
+            <p className="text-base font-semibold text-slate-300">No team members match this filter</p>
+            <p className="text-xs text-slate-500">Click &ldquo;Add Team Member&rdquo; or switch filters above.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -285,128 +390,272 @@ export default function TeamsAndRolesPage() {
                 <tr>
                   <th className="py-3.5 px-4 font-semibold">#</th>
                   <th className="py-3.5 px-4 font-semibold">Team Member</th>
-                  <th className="py-3.5 px-4 font-semibold">Assigned Team / Department</th>
-                  <th className="py-3.5 px-4 font-semibold">Granular Role Title</th>
-                  <th className="py-3.5 px-4 font-semibold">Department Admin Status</th>
-                  <th className="py-3.5 px-4 font-semibold text-right">Role Management</th>
+                  <th className="py-3.5 px-4 font-semibold">Assigned Departments</th>
+                  <th className="py-3.5 px-4 font-semibold">Marketing Role Tier</th>
+                  <th className="py-3.5 px-4 font-semibold">Platform Access</th>
+                  <th className="py-3.5 px-4 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {filteredMembers.map((member, index) => (
-                  <tr key={member.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="py-4 px-4 font-mono text-xs text-slate-500 font-bold">
-                      {index + 1}
-                    </td>
+                {filteredMembers.map((member, index) => {
+                  const mktTier = member.marketing_role
+                    ? getRolePermissions(member.marketing_role)
+                    : null
+                  return (
+                    <tr key={member.email} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="py-4 px-4 font-mono text-xs text-slate-500 font-bold">
+                        {index + 1}
+                      </td>
 
-                    {/* Member Details */}
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center text-xs font-bold text-cyan-300 shrink-0">
-                          {member.full_name[0]}
+                      {/* Identity */}
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#C9A66B]/25 to-cyan-500/20 border border-[#C9A66B]/40 flex items-center justify-center text-xs font-bold text-[#E5C992] shrink-0 uppercase">
+                            {(member.full_name || member.email)[0]}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-slate-100">{member.full_name}</p>
+                              {!member.is_active && (
+                                <span className="px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/30 text-red-300 text-[10px] font-bold">
+                                  Paused
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-400">{member.email}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-slate-100">{member.full_name}</p>
-                          <p className="text-xs text-slate-400">{member.user_email}</p>
+                      </td>
+
+                      {/* Multi-Department Badges */}
+                      <td className="py-4 px-4">
+                        <div className="flex flex-wrap gap-1.5">
+                          {member.departments.length === 0 ? (
+                            <span className="text-xs text-slate-500 italic">No department assigned</span>
+                          ) : (
+                            member.departments.map((d) => {
+                              const cfg = DEPARTMENTS.find((x) => x.id === d)
+                              return (
+                                <span
+                                  key={d}
+                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border capitalize ${
+                                    cfg?.badgeClass ||
+                                    'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                                  }`}
+                                >
+                                  {cfg?.label || d.toUpperCase()}
+                                </span>
+                              )
+                            })
+                          )}
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Department */}
-                    <td className="py-4 px-4">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
-                        member.team_name === 'Sales'
-                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                          : member.team_name === 'Marketing'
-                          ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
-                          : member.team_name === 'Finance'
-                          ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                          : 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
-                      }`}>
-                        {member.team_name} Dept
-                      </span>
-                    </td>
+                      {/* Marketing Role Tier */}
+                      <td className="py-4 px-4">
+                        {mktTier ? (
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${mktTier.badgeClass}`}
+                          >
+                            {mktTier.label}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-500">—</span>
+                        )}
+                      </td>
 
-                    {/* Role Title */}
-                    <td className="py-4 px-4 text-xs font-medium text-slate-200">
-                      {member.role_title}
-                    </td>
+                      {/* Platform Access */}
+                      <td className="py-4 px-4">
+                        {member.platform_access === 'super_admin' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#C9A66B]/20 text-[#E5C992] border border-[#C9A66B]/40">
+                            <Shield className="w-3 h-3" /> Super Admin
+                          </span>
+                        ) : member.platform_access === 'admin' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                            <Shield className="w-3 h-3" /> Org Admin
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                            Team User
+                          </span>
+                        )}
+                      </td>
 
-                    {/* Admin Status */}
-                    <td className="py-4 px-4">
-                      {member.is_dept_admin ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                          <Shield className="w-3 h-3" /> Dept Admin
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
-                          Team Member
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-4 px-4 text-right">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setSelectedMember(member)}
-                        className="text-cyan-400 hover:text-cyan-300 hover:bg-slate-800 text-xs gap-1"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" /> Edit Role & Team
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                      {/* Actions */}
+                      <td className="py-4 px-4 text-right">
+                        <div className="inline-flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openEditModal(member)}
+                            className="text-cyan-400 hover:text-cyan-300 hover:bg-slate-800 text-xs gap-1"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" /> Edit Roles
+                          </Button>
+                          {member.platform_access !== 'super_admin' && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMember(member)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                              title="Remove from organization"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* ── Add New Department Modal ── */}
-      {isAddTeamOpen && (
+      {/* Add / Edit Member Modal (Live Supabase Write) */}
+      {modalMode && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between border-b border-slate-800 pb-3">
               <div>
-                <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                  <Plus className="w-4 h-4 text-cyan-400" /> Create New Department
+                <h3 className="text-base font-bold text-slate-100">
+                  {modalMode === 'add' ? 'Add Real Team Member' : `Edit Access: ${formName}`}
                 </h3>
-                <p className="text-xs text-slate-400">Add a new operational team under Cillah</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Updates Supabase live — changes apply immediately to their workspace.
+                </p>
               </div>
-              <button onClick={() => setIsAddTeamOpen(false)} className="text-slate-400 text-sm font-bold">✕</button>
+              <button
+                type="button"
+                onClick={() => setModalMode(null)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            <form onSubmit={handleAddTeam} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Department / Team Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Finance Operations, Customer Support, DevOps"
-                  value={newTeamName}
-                  onChange={e => setNewTeamName(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 text-slate-200 rounded-lg p-2.5 focus:outline-none focus:border-cyan-500"
-                />
+            <form onSubmit={handleSaveMember} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Email *</label>
+                  <input
+                    type="email"
+                    required
+                    disabled={modalMode === 'edit'}
+                    value={formEmail}
+                    onChange={(e) => setFormEmail(e.target.value)}
+                    placeholder="member@cillah.dev"
+                    className="w-full bg-slate-950 border border-slate-800 text-slate-200 rounded-lg p-2.5 disabled:opacity-60 focus:outline-none focus:border-[#C9A66B]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="e.g. Atulah"
+                    className="w-full bg-slate-950 border border-slate-800 text-slate-200 rounded-lg p-2.5 focus:outline-none focus:border-[#C9A66B]"
+                  />
+                </div>
               </div>
 
+              {/* Multi-Select Departments */}
               <div>
-                <label className="block text-slate-300 font-medium mb-1">Department Description</label>
-                <textarea
-                  rows={3}
-                  placeholder="Describe the scope of work and responsibilities for this team..."
-                  value={newTeamDesc}
-                  onChange={e => setNewTeamDesc(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 text-slate-200 rounded-lg p-2.5 focus:outline-none focus:border-cyan-500"
-                />
+                <label className="block text-slate-300 font-semibold mb-2">
+                  Assigned Departments (Controls Workspace Dropdown) *
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {DEPARTMENTS.map((dept) => {
+                    const checked = formDepartments.includes(dept.id)
+                    return (
+                      <button
+                        key={dept.id}
+                        type="button"
+                        onClick={() => toggleDept(dept.id)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all cursor-pointer ${
+                          checked
+                            ? 'bg-[#C9A66B]/15 border-[#C9A66B] text-white font-bold'
+                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                        }`}
+                      >
+                        <CheckCircle2
+                          className={`w-3.5 h-3.5 shrink-0 ${
+                            checked ? 'text-[#C9A66B]' : 'text-slate-600'
+                          }`}
+                        />
+                        <span>{dept.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              {/* Marketing Role Tier (shown when Marketing department is checked) */}
+              {formDepartments.includes('marketing') && (
+                <div className="p-3.5 rounded-xl bg-[#C9A66B]/5 border border-[#C9A66B]/30 space-y-2">
+                  <label className="block text-[#E5C992] font-bold">
+                    Marketing Role Tier (Controls Post / Approve / Insights Access)
+                  </label>
+                  <select
+                    value={formMarketingRole}
+                    disabled={editingIsSuperAdmin}
+                    onChange={(e) =>
+                      setFormMarketingRole(e.target.value as MarketingRoleTier)
+                    }
+                    className="w-full bg-slate-950 border border-slate-800 text-white rounded-lg p-2.5 focus:outline-none focus:border-[#C9A66B]"
+                  >
+                    {(Object.keys(MARKETING_ROLE_TIERS) as MarketingRoleTier[]).map((k) => (
+                      <option key={k} value={k} className="bg-slate-900">
+                        {MARKETING_ROLE_TIERS[k].label} — {MARKETING_ROLE_TIERS[k].description}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Platform Access Level */}
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1.5">
+                  Platform Portal Level
+                </label>
+                <select
+                  value={formPlatformAccess}
+                  disabled={editingIsSuperAdmin}
+                  onChange={(e) => setFormPlatformAccess(e.target.value as 'admin' | 'user')}
+                  className="w-full bg-slate-950 border border-slate-800 text-white rounded-lg p-2.5 disabled:opacity-60 focus:outline-none focus:border-[#C9A66B]"
+                >
+                  <option value="user" className="bg-slate-900">
+                    Team User (Logs into /user/dashboard with assigned departments)
+                  </option>
+                  <option value="admin" className="bg-slate-900">
+                    Org Admin (Logs into /admin/dashboard)
+                  </option>
+                </select>
+              </div>
+
+              {!editingIsSuperAdmin && (
+                <label className="flex items-center gap-2 p-3 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formActive}
+                    onChange={(e) => setFormActive(e.target.checked)}
+                    className="w-4 h-4 accent-[#C9A66B] rounded"
+                  />
+                  <span className="text-slate-300 font-medium">
+                    Account Active (Uncheck to pause access without deleting)
+                  </span>
+                </label>
+              )}
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setIsAddTeamOpen(false)}
+                  onClick={() => setModalMode(null)}
                   className="border-slate-700 text-slate-300"
                 >
                   Cancel
@@ -414,91 +663,13 @@ export default function TeamsAndRolesPage() {
                 <Button
                   type="submit"
                   size="sm"
-                  className="bg-cyan-600 hover:bg-cyan-500 text-white"
+                  disabled={saving}
+                  className="bg-[#C9A66B] hover:bg-[#d8b87d] text-slate-950 font-bold"
                 >
-                  Save Department
+                  {saving ? 'Syncing to Supabase...' : 'Save to Supabase'}
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── Edit Member Role & Team Modal ── */}
-      {selectedMember && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-start justify-between border-b border-slate-800 pb-3">
-              <div>
-                <h3 className="text-base font-bold text-slate-100">
-                  Assign Team & Role: {selectedMember.full_name}
-                </h3>
-                <p className="text-xs text-slate-400">{selectedMember.user_email}</p>
-              </div>
-              <button onClick={() => setSelectedMember(null)} className="text-slate-400 text-sm font-bold">✕</button>
-            </div>
-
-            <div className="space-y-4 text-xs">
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Assigned Department / Team</label>
-                <select
-                  value={selectedMember.team_name}
-                  onChange={e => setSelectedMember({ ...selectedMember, team_name: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 text-slate-200 rounded-lg p-2.5 focus:outline-none focus:border-cyan-500"
-                >
-                  {teams.map(t => (
-                    <option key={t.id} value={t.team_name} className="bg-slate-900">
-                      {t.team_name} Department
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Granular Role Title</label>
-                <input
-                  type="text"
-                  value={selectedMember.role_title}
-                  onChange={e => setSelectedMember({ ...selectedMember, role_title: e.target.value })}
-                  placeholder="e.g. Head of Sales, Finance Lead, Senior Developer"
-                  className="w-full bg-slate-950 border border-slate-800 text-slate-200 rounded-lg p-2.5 focus:outline-none focus:border-cyan-500"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 p-3 bg-slate-950 rounded-xl border border-slate-800">
-                <input
-                  type="checkbox"
-                  id="deptAdminCheck"
-                  checked={selectedMember.is_dept_admin}
-                  onChange={e => setSelectedMember({ ...selectedMember, is_dept_admin: e.target.checked })}
-                  className="w-4 h-4 rounded accent-cyan-500 cursor-pointer"
-                />
-                <label htmlFor="deptAdminCheck" className="text-slate-300 text-xs font-semibold cursor-pointer">
-                  Grant Department Admin Access (Can view all activity in this department)
-                </label>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedMember(null)}
-                  className="border-slate-700 text-slate-300"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={updatingId === selectedMember.id}
-                  onClick={() => handleUpdateMemberRole(selectedMember.id, selectedMember.team_name, selectedMember.role_title, selectedMember.is_dept_admin)}
-                  className="bg-cyan-600 hover:bg-cyan-500 text-white"
-                >
-                  Update Role & Permissions
-                </Button>
-              </div>
-            </div>
           </div>
         </div>
       )}

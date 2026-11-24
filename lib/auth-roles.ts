@@ -25,18 +25,16 @@ export function isAdminAccount(
  * Parses comma-separated staff roles (e.g. "sales,marketing,finance") into supported user workspaces.
  */
 export function parseAssignedWorkspaces(
-  staffRole?: string | null,
-  email?: string | null
+  staffRole?: string | null
 ): UserWorkspaceRole[] {
-  const cleanEmail = (email || "").toLowerCase().trim()
   const raw = (staffRole || "")
     .toLowerCase()
     .split(/[,|/]/)
     .map((r) => r.trim())
     .filter(Boolean)
 
-  // Organization owner / primary Cillah team member gets full department selector (Sales, Marketing, Finance)
-  if (raw.includes("ceo") || cleanEmail === "atulah@cillah.dev") {
+  // CEO gets all 3 core workspaces
+  if (raw.includes("ceo")) {
     return ["sales", "marketing", "finance"]
   }
 

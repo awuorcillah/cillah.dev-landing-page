@@ -111,7 +111,7 @@ export default function UserDashboardPage() {
         email.split('@')[0]
       setDisplayName(name)
 
-      const workspaces = parseAssignedWorkspaces(staff?.role, email)
+      const workspaces = parseAssignedWorkspaces(staff?.role)
       setAssignedWorkspaces(workspaces)
 
       // Restore last chosen department if still allowed, otherwise pick first assigned
