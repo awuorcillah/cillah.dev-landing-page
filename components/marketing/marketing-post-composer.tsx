@@ -45,6 +45,8 @@ interface MarketingPostComposerProps {
   permissions: RoleTierPermissions
   posts: MarketingPostRecord[]
   loadingPosts: boolean
+  connectedChannels?: string[]
+  onOpenConnections?: () => void
   onPostsChanged: () => void
 }
 
@@ -53,6 +55,8 @@ export default function MarketingPostComposer({
   permissions,
   posts,
   loadingPosts,
+  connectedChannels = [],
+  onOpenConnections,
   onPostsChanged,
 }: MarketingPostComposerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -536,25 +540,48 @@ export default function MarketingPostComposer({
                   <p className="text-[11px] text-slate-400 mt-1.5 leading-snug">
                     {channel.description}
                   </p>
-                  <p className="text-[10px] text-slate-500 mt-2 font-medium">
-                    {channel.acceptedMediaHint}
-                  </p>
+                  <div className="flex items-center justify-between gap-2 mt-2">
+                    <p className="text-[10px] text-slate-500 font-medium truncate">
+                      {channel.acceptedMediaHint}
+                    </p>
+                    {channel.category === 'website' || connectedChannels.includes(channel.id) ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        Live
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-semibold text-amber-400/80 shrink-0">
+                        Connect
+                      </span>
+                    )}
+                  </div>
                 </button>
               )
             })}
           </div>
 
-          {/* Phase 2 Extensible Channels Indicator */}
-          <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-            <span className="font-semibold text-slate-400">Schema-Ready Next Channels:</span>
-            {FUTURE_MARKETING_CHANNELS.map((ch) => (
-              <span
-                key={ch.id}
-                className="px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-slate-400"
+          {/* Phase 2 Extensible Channels Indicator + Quick Connect Link */}
+          <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-slate-400">Schema-Ready Next Channels:</span>
+              {FUTURE_MARKETING_CHANNELS.map((ch) => (
+                <span
+                  key={ch.id}
+                  className="px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-slate-400"
+                >
+                  {ch.label}
+                </span>
+              ))}
+            </div>
+            {onOpenConnections && (
+              <button
+                type="button"
+                onClick={onOpenConnections}
+                className="text-xs font-bold text-[#C9A66B] hover:underline cursor-pointer"
               >
-                {ch.label}
-              </span>
-            ))}
+                Manage Connected Social Accounts →
+              </button>
+            )}
           </div>
         </section>
 

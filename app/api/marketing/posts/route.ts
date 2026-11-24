@@ -13,6 +13,7 @@ import {
   type MarketingChannelId,
   type MarketingPostStatus,
 } from '@/lib/marketing-config'
+import { dispatchToConnectedSocialChannels } from '@/lib/social-publishers'
 
 const validChannelIds = ACTIVE_MARKETING_CHANNELS.map((c) => c.id)
 
@@ -322,8 +323,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: insertError.message }, { status: 500 })
     }
 
+    let finalPost = created
     if (finalStatus === 'published') {
-      await dispatchSocialWebhookIfConfigured(created)
+      const [socialResults] = await Promise.all([
+        dispatchToConnectedSocialChannels(db, input.organization_slug, input.channels, {
+          title: created.title,
+          caption: created.caption,
+          hashtags: created.hashtags,
+          cta_url: created.cta_url,
+          media_files: created.media_files || [],
+        }),
+        dispatchSocialWebhookIfConfigured(created),
+      ])
+
+      if (Object.keys(socialResults).length > 0) {
+        const mergedStatuses = {
+          ...(created.channel_statuses || {}),
+          ...socialResults,
+        }
+        const { data: synced } = await db
+          .from('marketing_posts')
+          .update({ channel_statuses: mergedStatuses, updated_at: new Date().toISOString() })
+          .eq('id', created.id)
+          .select('*')
+          .single()
+        if (synced) finalPost = synced
+      }
+
       if (input.channels.includes('website_articles')) {
         revalidatePath('/articles')
         if (websiteSlug) revalidatePath(`/articles/${websiteSlug}`)
@@ -336,7 +362,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        post: created,
+        post: finalPost,
         roleNotice,
       },
       { status: 201 }
@@ -438,8 +464,38 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: updateError.message }, { status: 500 })
     }
 
+    let finalUpdated = updated
     if (nextStatus === 'published') {
-      await dispatchSocialWebhookIfConfigured(updated)
+      const [socialResults] = await Promise.all([
+        dispatchToConnectedSocialChannels(
+          db,
+          updated.organization_slug || orgSlug,
+          updated.channels || [],
+          {
+            title: updated.title,
+            caption: updated.caption,
+            hashtags: updated.hashtags,
+            cta_url: updated.cta_url,
+            media_files: updated.media_files || [],
+          }
+        ),
+        dispatchSocialWebhookIfConfigured(updated),
+      ])
+
+      if (Object.keys(socialResults).length > 0) {
+        const mergedStatuses = {
+          ...(updated.channel_statuses || {}),
+          ...socialResults,
+        }
+        const { data: synced } = await db
+          .from('marketing_posts')
+          .update({ channel_statuses: mergedStatuses, updated_at: new Date().toISOString() })
+          .eq('id', updated.id)
+          .select('*')
+          .single()
+        if (synced) finalUpdated = synced
+      }
+
       if ((updated.channels || []).includes('website_articles')) {
         revalidatePath('/articles')
         if (updated.website_slug) revalidatePath(`/articles/${updated.website_slug}`)
@@ -450,7 +506,7 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ post: updated })
+    return NextResponse.json({ post: finalUpdated })
   } catch (err: any) {
     console.error('[Marketing Patch Post Error]:', err)
     return NextResponse.json(

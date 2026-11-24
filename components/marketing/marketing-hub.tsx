@@ -13,9 +13,14 @@ import {
   AlertTriangle,
   Sparkles,
   Loader2,
+  Link2,
 } from 'lucide-react'
 import MarketingPostComposer from '@/components/marketing/marketing-post-composer'
 import MarketingInsightsView from '@/components/marketing/marketing-insights-view'
+import MarketingConnectionsView, {
+  type ProviderReadinessMap,
+  type SanitizedSocialConnection,
+} from '@/components/marketing/marketing-connections-view'
 import {
   MARKETING_ROLE_TIERS,
   getRolePermissions,
@@ -24,7 +29,7 @@ import {
   type MarketingRoleTier,
 } from '@/lib/marketing-config'
 
-type MarketingActionTab = 'post' | 'insights' | 'roles'
+type MarketingActionTab = 'post' | 'insights' | 'connections' | 'roles'
 
 interface MarketingHubProps {
   organizationSlug?: string
@@ -52,6 +57,39 @@ export default function MarketingHub({
   )
   const [roleAssignments, setRoleAssignments] = useState<MarketingRoleAssignment[]>([])
   const [loadingRoles, setLoadingRoles] = useState(false)
+
+  // Connected Social Accounts state
+  const [connections, setConnections] = useState<SanitizedSocialConnection[]>([])
+  const [providerConfig, setProviderConfig] = useState<ProviderReadinessMap>({})
+  const [connectionsSchemaPending, setConnectionsSchemaPending] = useState(false)
+  const [loadingConnections, setLoadingConnections] = useState(false)
+
+  // Handle OAuth callback return query params (?marketing_tab=connections&oauth_success=...)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const tab = params.get('marketing_tab')
+    const oauthSuccess = params.get('oauth_success')
+    const oauthError = params.get('oauth_error')
+
+    if (tab === 'connections') {
+      setActiveAction('connections')
+    }
+    if (oauthSuccess) {
+      toast.success(oauthSuccess)
+    }
+    if (oauthError) {
+      toast.error(oauthError)
+    }
+    if (tab || oauthSuccess || oauthError) {
+      params.delete('marketing_tab')
+      params.delete('oauth_success')
+      params.delete('oauth_error')
+      const cleanQuery = params.toString()
+      const nextUrl = `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}`
+      window.history.replaceState({}, '', nextUrl)
+    }
+  }, [])
 
   // Add / Update Role Form
   const [roleEmail, setRoleEmail] = useState('')
@@ -115,10 +153,30 @@ export default function MarketingHub({
     }
   }, [organizationSlug])
 
+  const fetchConnections = useCallback(async () => {
+    setLoadingConnections(true)
+    try {
+      const res = await fetch(
+        `/api/marketing/connections?org=${encodeURIComponent(organizationSlug)}`
+      )
+      const json = await res.json()
+      if (res.ok) {
+        setConnections(json.connections || [])
+        setProviderConfig(json.providerConfig || {})
+        setConnectionsSchemaPending(Boolean(json.schema_pending))
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingConnections(false)
+    }
+  }, [organizationSlug])
+
   useEffect(() => {
     fetchPostsAndContext()
     fetchRoles()
-  }, [fetchPostsAndContext, fetchRoles])
+    fetchConnections()
+  }, [fetchPostsAndContext, fetchRoles, fetchConnections])
 
   const handleSaveRole = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -202,6 +260,12 @@ export default function MarketingHub({
       label: 'Insights & Analytics',
       subtitle: 'Combined or per-channel performance in one easy read',
       icon: BarChart3,
+    },
+    {
+      id: 'connections',
+      label: `Connected Accounts (${connections.length})`,
+      subtitle: 'Link Meta (IG & FB), LinkedIn, YouTube, TikTok & WhatsApp',
+      icon: Link2,
     },
     {
       id: 'roles',
@@ -358,6 +422,10 @@ export default function MarketingHub({
           permissions={permissions}
           posts={posts}
           loadingPosts={loadingPosts}
+          connectedChannels={connections
+            .filter((c) => c.status === 'connected')
+            .map((c) => c.channel)}
+          onOpenConnections={() => setActiveAction('connections')}
           onPostsChanged={fetchPostsAndContext}
         />
       )}
@@ -366,6 +434,19 @@ export default function MarketingHub({
         <MarketingInsightsView
           organizationSlug={organizationSlug}
           permissions={permissions}
+        />
+      )}
+
+      {activeAction === 'connections' && (
+        <MarketingConnectionsView
+          organizationSlug={organizationSlug}
+          organizationName={organizationName}
+          permissions={permissions}
+          connections={connections}
+          providerConfig={providerConfig}
+          schemaPending={connectionsSchemaPending}
+          loading={loadingConnections}
+          onRefresh={fetchConnections}
         />
       )}
 

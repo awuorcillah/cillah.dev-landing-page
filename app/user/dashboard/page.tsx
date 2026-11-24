@@ -114,13 +114,21 @@ export default function UserDashboardPage() {
       const workspaces = parseAssignedWorkspaces(staff?.role)
       setAssignedWorkspaces(workspaces)
 
+      const urlParams =
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search)
+          : null
+      const returningFromMarketingOAuth = Boolean(urlParams?.get('marketing_tab'))
+
       // Restore last chosen department if still allowed, otherwise pick first assigned
       const savedDept =
         typeof window !== 'undefined'
           ? (localStorage.getItem('cillah_active_department') as UserWorkspaceRole | null)
           : null
 
-      if (savedDept && workspaces.includes(savedDept)) {
+      if (returningFromMarketingOAuth && workspaces.includes('marketing')) {
+        setActiveWorkspace('marketing')
+      } else if (savedDept && workspaces.includes(savedDept)) {
         setActiveWorkspace(savedDept)
       } else {
         setActiveWorkspace(workspaces[0] || 'sales')
