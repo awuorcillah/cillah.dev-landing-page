@@ -1,108 +1,17 @@
-import fs from "fs"
-import path from "path"
 import Link from "next/link"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import { ArrowLeft, ArrowRight, Clock, Calendar, Sparkles, Share2 } from "lucide-react"
+import { ArrowLeft, ArrowRight, Clock, Calendar, Sparkles } from "lucide-react"
 import { SITE_URL, DEFAULT_OG_IMAGE, absoluteUrl } from "@/lib/site-config"
+import { getAllArticles, getArticleBySlug } from "@/lib/website-content"
 
-interface ArticleData {
-  title: string
-  slug: string
-  teaser: string
-  date: string
-  author: string
-  category: string
-  readTime: string
-  featured?: boolean
-  content: string
-}
-
-function extractSlugFromFrontmatter(raw: string, filename: string): string {
-  const parts = raw.split("---")
-  if (parts.length >= 3) {
-    for (const line of parts[1].split("\n")) {
-      const index = line.indexOf(":")
-      if (index > -1) {
-        const key = line.slice(0, index).trim()
-        if (key === "slug") {
-          let value = line.slice(index + 1).trim()
-          if (
-            (value.startsWith('"') && value.endsWith('"')) ||
-            (value.startsWith("'") && value.endsWith("'"))
-          ) {
-            value = value.slice(1, -1)
-          }
-          if (value) return value
-        }
-      }
-    }
-  }
-  return filename.replace(/\.md$/, "")
-}
-
-function parseFrontmatter(raw: string, fallbackSlug: string): ArticleData {
-  const parts = raw.split("---")
-  const data: any = { content: "", slug: fallbackSlug }
-
-  if (parts.length >= 3) {
-    data.content = parts.slice(2).join("---").trim()
-    for (const line of parts[1].split("\n")) {
-      const index = line.indexOf(":")
-      if (index > -1) {
-        const key = line.slice(0, index).trim()
-        let value: any = line.slice(index + 1).trim()
-        if (
-          (value.startsWith('"') && value.endsWith('"')) ||
-          (value.startsWith("'") && value.endsWith("'"))
-        ) {
-          value = value.slice(1, -1)
-        } else if (value === "true") {
-          value = true
-        } else if (value === "false") {
-          value = false
-        }
-        data[key] = value
-      }
-    }
-  } else {
-    data.content = raw.trim()
-  }
-
-  return data as ArticleData
-}
-
-function getArticle(slug: string): ArticleData | null {
-  const dir = path.join(process.cwd(), "content/articles")
-  if (!fs.existsSync(dir)) return null
-
-  for (const file of fs.readdirSync(dir).filter((f) => f.endsWith(".md"))) {
-    const fullPath = path.join(dir, file)
-    const raw = fs.readFileSync(fullPath, "utf-8")
-    const fileSlug = extractSlugFromFrontmatter(raw, file)
-    if (fileSlug === slug) {
-      return parseFrontmatter(raw, slug)
-    }
-  }
-
-  return null
-}
+export const dynamic = "force-dynamic"
 
 export async function generateStaticParams() {
-  const dir = path.join(process.cwd(), "content/articles")
-  if (!fs.existsSync(dir)) return []
-  const files = fs.readdirSync(dir)
-  const params: { slug: string }[] = []
-
-  for (const file of files.filter((f) => f.endsWith(".md"))) {
-    const fullPath = path.join(dir, file)
-    const raw = fs.readFileSync(fullPath, "utf-8")
-    const slug = extractSlugFromFrontmatter(raw, file)
-    if (slug) params.push({ slug })
-  }
-  return params
+  const articles = await getAllArticles()
+  return articles.map((a) => ({ slug: a.slug }))
 }
 
 interface PageProps {
@@ -111,7 +20,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const article = getArticle(slug)
+  const article = await getArticleBySlug(slug)
 
   if (!article) {
     return {
@@ -232,7 +141,7 @@ function parseMarkdown(text: string) {
 
 export default async function ArticleDetailPage({ params }: PageProps) {
   const { slug } = await params
-  const article = getArticle(slug)
+  const article = await getArticleBySlug(slug)
 
   if (!article) {
     notFound()
@@ -300,6 +209,17 @@ export default async function ArticleDetailPage({ params }: PageProps) {
             </div>
           </div>
         </header>
+
+        {/* FEATURED IMAGE (when published with cover media) */}
+        {article.featuredImage && (
+          <div className="container mx-auto max-w-3xl px-6 mb-10 relative z-10">
+            <img
+              src={article.featuredImage}
+              alt={article.title}
+              className="w-full h-auto rounded-[18px] border border-white/10 object-cover"
+            />
+          </div>
+        )}
 
         {/* ARTICLE CONTENT */}
         <article className="container mx-auto max-w-3xl px-6 relative z-10">

@@ -1,114 +1,17 @@
-import fs from "fs"
-import path from "path"
 import Link from "next/link"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import { ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react"
+import { ArrowLeft, ArrowRight } from "lucide-react"
 import { SITE_URL, DEFAULT_OG_IMAGE, absoluteUrl } from "@/lib/site-config"
+import { getAllUseCases, getUseCaseBySlug } from "@/lib/website-content"
 
-interface UseCaseData {
-  title: string
-  slug: string
-  teaser: string
-  featuredImage?: string
-  publishedAt?: string
-  featured?: boolean
-  content: string
-}
+export const dynamic = "force-dynamic"
 
 export async function generateStaticParams() {
-  const dir = path.join(process.cwd(), "content/use-cases")
-  if (!fs.existsSync(dir)) return []
-  const files = fs.readdirSync(dir)
-  const params: { slug: string }[] = []
-  for (const file of files.filter(f => f.endsWith(".md"))) {
-    const fullPath = path.join(dir, file)
-    const raw = fs.readFileSync(fullPath, "utf-8")
-    const slug = extractSlugFromFrontmatter(raw, file)
-    if (slug) params.push({ slug })
-  }
-  return params
-}
-
-/**
- * Extract the value of the `slug` field from raw Markdown frontmatter.
- * Falls back to the filename (without .md) if no slug field is present.
- */
-function extractSlugFromFrontmatter(raw: string, filename: string): string {
-  const parts = raw.split("---")
-  if (parts.length >= 3) {
-    for (const line of parts[1].split("\n")) {
-      const index = line.indexOf(":")
-      if (index > -1) {
-        const key = line.slice(0, index).trim()
-        if (key === "slug") {
-          let value = line.slice(index + 1).trim()
-          if ((value.startsWith('"') && value.endsWith('"')) ||
-              (value.startsWith("'") && value.endsWith("'"))) {
-            value = value.slice(1, -1)
-          }
-          if (value) return value
-        }
-      }
-    }
-  }
-  // fallback: use filename without extension
-  return filename.replace(/\.md$/, "")
-}
-
-/**
- * Parse frontmatter key/value pairs from raw Markdown content.
- */
-function parseFrontmatter(raw: string, fallbackSlug: string): UseCaseData {
-  const parts = raw.split("---")
-  const data: any = { content: "", slug: fallbackSlug }
-
-  if (parts.length >= 3) {
-    data.content = parts.slice(2).join("---").trim()
-    for (const line of parts[1].split("\n")) {
-      const index = line.indexOf(":")
-      if (index > -1) {
-        const key = line.slice(0, index).trim()
-        let value: any = line.slice(index + 1).trim()
-        if (value.startsWith('"') && value.endsWith('"')) {
-          value = value.slice(1, -1)
-        } else if (value.startsWith("'") && value.endsWith("'")) {
-          value = value.slice(1, -1)
-        } else if (value === "true") {
-          value = true
-        } else if (value === "false") {
-          value = false
-        }
-        data[key] = value
-      }
-    }
-  } else {
-    data.content = raw.trim()
-  }
-
-  return data as UseCaseData
-}
-
-/**
- * Find and return the use case whose frontmatter `slug` matches the requested slug.
- * Scans all .md files — the public URL is fully decoupled from the filename.
- */
-function getUseCase(slug: string): UseCaseData | null {
-  const dir = path.join(process.cwd(), "content/use-cases")
-  if (!fs.existsSync(dir)) return null
-
-  for (const file of fs.readdirSync(dir).filter(f => f.endsWith(".md"))) {
-    const fullPath = path.join(dir, file)
-    const raw = fs.readFileSync(fullPath, "utf-8")
-    const fileSlug = extractSlugFromFrontmatter(raw, file)
-    if (fileSlug === slug) {
-      return parseFrontmatter(raw, slug)
-    }
-  }
-
-  return null
+  const useCases = await getAllUseCases()
+  return useCases.map((u) => ({ slug: u.slug }))
 }
 
 function parseInlineBold(text: string) {
@@ -166,7 +69,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const useCase = getUseCase(slug)
+  const useCase = await getUseCaseBySlug(slug)
 
   if (!useCase) {
     return {
@@ -201,7 +104,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function UseCasePage({ params }: PageProps) {
   const { slug } = await params
-  const useCase = getUseCase(slug)
+  const useCase = await getUseCaseBySlug(slug)
   
   if (!useCase) {
     notFound()

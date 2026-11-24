@@ -1,11 +1,12 @@
-import fs from "fs"
-import path from "path"
 import Link from "next/link"
 import type { Metadata } from "next"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { ArrowRight, Sparkles } from "lucide-react"
 import { DEFAULT_OG_IMAGE, absoluteUrl } from "@/lib/site-config"
+import { getAllUseCases } from "@/lib/website-content"
+
+export const dynamic = "force-dynamic"
 
 const pageUrl = absoluteUrl("/use-cases")
 
@@ -32,68 +33,8 @@ export const metadata: Metadata = {
   },
 }
 
-interface UseCaseData {
-  title: string
-  slug: string
-  teaser: string
-  featuredImage?: string
-  publishedAt?: string
-  featured?: boolean
-  content: string
-}
-
-function getUseCases(): UseCaseData[] {
-  const dir = path.join(process.cwd(), "content/use-cases")
-  if (!fs.existsSync(dir)) return []
-  const files = fs.readdirSync(dir)
-  
-  return files
-    .filter(file => file.endsWith(".md"))
-    .map(file => {
-      const fullPath = path.join(dir, file)
-      const rawContent = fs.readFileSync(fullPath, "utf-8")
-      
-      const parts = rawContent.split("---")
-      let data: any = { content: "" }
-      
-      if (parts.length >= 3) {
-        const frontmatter = parts[1]
-        data.content = parts.slice(2).join("---").trim()
-        
-        const lines = frontmatter.split("\n")
-        lines.forEach(line => {
-          const index = line.indexOf(":")
-          if (index > -1) {
-            const key = line.slice(0, index).trim()
-            let value: any = line.slice(index + 1).trim()
-            
-            if (value.startsWith('"') && value.endsWith('"')) {
-              value = value.slice(1, -1)
-            } else if (value.startsWith("'") && value.endsWith("'")) {
-              value = value.slice(1, -1)
-            } else if (value === "true") {
-              value = true
-            } else if (value === "false") {
-              value = false
-            }
-            data[key] = value
-          }
-        })
-      } else {
-        data.content = rawContent.trim()
-      }
-      
-      return data as UseCaseData
-    })
-    .sort((a, b) => {
-      const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0
-      const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0
-      return dateB - dateA
-    })
-}
-
-export default function UseCasesPage() {
-  const useCases = getUseCases()
+export default async function UseCasesPage() {
+  const useCases = await getAllUseCases()
 
   return (
     <>

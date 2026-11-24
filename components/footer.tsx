@@ -1,7 +1,25 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Linkedin, Instagram, Mail, Phone, Facebook, MapPin } from "lucide-react"
+
+function formatLiveAuditTimestamp(date: Date): string {
+  try {
+    return new Intl.DateTimeFormat("en-KE", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+      timeZone: "Africa/Nairobi",
+    }).format(date) + " EAT"
+  } catch {
+    return date.toLocaleString()
+  }
+}
 
 // Inline TikTok icon to prevent version compatibility issues
 function TikTokIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -16,6 +34,14 @@ export function Footer() {
   const brandName = "Cillah"
   const tagline = "The Operating System Behind High-Performing Real Estate Agencies"
   const currentYear = new Date().getFullYear()
+  const [liveAuditTime, setLiveAuditTime] = useState<string>("")
+
+  useEffect(() => {
+    const updateNow = () => setLiveAuditTime(formatLiveAuditTimestamp(new Date()))
+    updateNow()
+    const timer = setInterval(updateNow, 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   const contactEmail = "atulah@cillah.dev"
   const phone = "+254759442265"
@@ -171,7 +197,9 @@ export function Footer() {
             <span className="hidden sm:inline text-[#F4E7E7]/20">&bull;</span>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-sans">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Systems Active &bull; Last Audit: October 2026</span>
+              <span suppressHydrationWarning>
+                Systems Active &bull; Last Audit: {liveAuditTime || "Live Sync..."}
+              </span>
             </div>
           </div>
           <p className="text-sm text-[#F9F7F6]/30 font-sans">

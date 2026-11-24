@@ -1,11 +1,12 @@
-import fs from "fs"
-import path from "path"
 import Link from "next/link"
 import type { Metadata } from "next"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import { ArrowRight, Sparkles, BookOpen, Clock, Calendar, ArrowLeft } from "lucide-react"
+import { ArrowRight, Sparkles, Clock, Calendar } from "lucide-react"
 import { SITE_URL, DEFAULT_OG_IMAGE, absoluteUrl } from "@/lib/site-config"
+import { getAllArticles } from "@/lib/website-content"
+
+export const dynamic = "force-dynamic"
 
 const pageUrl = absoluteUrl("/articles")
 
@@ -33,74 +34,8 @@ export const metadata: Metadata = {
   },
 }
 
-interface ArticleData {
-  title: string
-  slug: string
-  teaser: string
-  date: string
-  author: string
-  category: string
-  readTime: string
-  featured?: boolean
-  content: string
-}
-
-function getArticles(): ArticleData[] {
-  const dir = path.join(process.cwd(), "content/articles")
-  if (!fs.existsSync(dir)) return []
-  const files = fs.readdirSync(dir)
-
-  return files
-    .filter((file) => file.endsWith(".md"))
-    .map((file) => {
-      const fullPath = path.join(dir, file)
-      const rawContent = fs.readFileSync(fullPath, "utf-8")
-
-      const parts = rawContent.split("---")
-      let data: any = { content: "" }
-
-      if (parts.length >= 3) {
-        const frontmatter = parts[1]
-        data.content = parts.slice(2).join("---").trim()
-
-        const lines = frontmatter.split("\n")
-        lines.forEach((line) => {
-          const index = line.indexOf(":")
-          if (index > -1) {
-            const key = line.slice(0, index).trim()
-            let value: any = line.slice(index + 1).trim()
-
-            if (value.startsWith('"') && value.endsWith('"')) {
-              value = value.slice(1, -1)
-            } else if (value.startsWith("'") && value.endsWith("'")) {
-              value = value.slice(1, -1)
-            } else if (value === "true") {
-              value = true
-            } else if (value === "false") {
-              value = false
-            }
-            data[key] = value
-          }
-        })
-      } else {
-        data.content = rawContent.trim()
-      }
-
-      if (!data.slug) {
-        data.slug = file.replace(/\.md$/, "")
-      }
-
-      return data as ArticleData
-    })
-    .sort((a, b) => {
-      const dateA = a.date ? new Date(a.date).getTime() : 0
-      const dateB = b.date ? new Date(b.date).getTime() : 0
-      return dateB - dateA
-    })
-}
-
-export default function ArticlesPage() {
-  const articles = getArticles()
+export default async function ArticlesPage() {
+  const articles = await getAllArticles()
 
   return (
     <>
