@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { createCalendarEvent } from "@/lib/google-calendar"
 import { CONSULTATION_PRICE_DISPLAY } from "@/lib/consultation-price"
+import { sendMetaCapiEvent } from "@/lib/meta-capi"
 
 function getServiceSupabase() {
   const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || "")
@@ -370,7 +371,40 @@ export async function POST(request: Request) {
       console.warn("[Mpesa Callback] No BOOKING_CONFIRMED_WEBHOOK_URL configured; skipping webhook.")
     }
 
-    // 4. Save finalized links and webhook delivery flag onto consultation_payments
+    // 4. Send server-side Meta Conversions API events (deduplicated with browser Pixel via eventId)
+    const usdVal = Number(claimedRow.amount_usd) || 1
+    await Promise.allSettled([
+      sendMetaCapiEvent({
+        eventName: "Schedule",
+        eventId: `consult-schedule-${claimedRow.id}`,
+        eventSourceUrl: "https://www.cillah.dev/book-consultation",
+        email: cleanEmail,
+        phone: cleanPhone,
+        fullName,
+        externalId: claimedRow.id,
+        customData: {
+          content_name: "60-Minute Deep Dive Consultation",
+          value: usdVal,
+          currency: "USD",
+        },
+      }),
+      sendMetaCapiEvent({
+        eventName: "Purchase",
+        eventId: `consult-purchase-${claimedRow.id}`,
+        eventSourceUrl: "https://www.cillah.dev/book-consultation",
+        email: cleanEmail,
+        phone: cleanPhone,
+        fullName,
+        externalId: claimedRow.id,
+        customData: {
+          content_name: "60-Minute Deep Dive Consultation",
+          value: usdVal,
+          currency: "USD",
+        },
+      }),
+    ])
+
+    // 5. Save finalized links and webhook delivery flag onto consultation_payments
     await supabase
       .from("consultation_payments")
       .update({

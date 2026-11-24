@@ -18,9 +18,11 @@ import {
   RefreshCw,
 } from "lucide-react"
 import { toast } from "sonner"
+import { trackMetaEvent } from "@/components/meta-pixel-tracker"
 import {
   CONSULTATION_PRICE_DISPLAY,
   CONSULTATION_PRICE_KES_FORMATTED,
+  CONSULTATION_PRICE_USD,
 } from "@/lib/consultation-price"
 
 interface DaySlot {
@@ -403,6 +405,11 @@ export default function BookConsultationPage() {
     }
 
     setStep(3)
+    trackMetaEvent("InitiateCheckout", {
+      content_name: "60-Minute Deep Dive Consultation",
+      value: CONSULTATION_PRICE_USD,
+      currency: "USD",
+    })
     window.scrollTo({ top: 120, behavior: "smooth" })
   }
 
@@ -423,6 +430,24 @@ export default function BookConsultationPage() {
           setCalendarEventUrl(data.calendarEventUrl || "")
           setMpesaPhase("idle")
           setStep(4)
+          trackMetaEvent(
+            "Schedule",
+            {
+              content_name: "60-Minute Deep Dive Consultation",
+              value: CONSULTATION_PRICE_USD,
+              currency: "USD",
+            },
+            `consult-schedule-${bookingId}`
+          )
+          trackMetaEvent(
+            "Purchase",
+            {
+              content_name: "60-Minute Deep Dive Consultation",
+              value: CONSULTATION_PRICE_USD,
+              currency: "USD",
+            },
+            `consult-purchase-${bookingId}`
+          )
           toast.success("M-Pesa payment verified! Your strategy session is confirmed.")
           window.scrollTo({ top: 100, behavior: "smooth" })
           return true

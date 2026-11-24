@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/react"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Toaster } from "sonner"
 import { PageSwipeNavigator } from "@/components/page-swipe-navigator"
+import { MetaPixelTracker } from "@/components/meta-pixel-tracker"
 import { SITE_URL, DEFAULT_OG_IMAGE, absoluteUrl } from "@/lib/site-config"
 
 import "./globals.css"
@@ -214,6 +215,7 @@ export default function RootLayout({
         )}
         {children}
         <PageSwipeNavigator />
+        {metaPixelId && <MetaPixelTracker />}
         <Toaster position="top-left" theme="dark" />
         <Analytics />
         <SpeedInsights />

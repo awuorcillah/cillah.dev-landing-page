@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { extractMetaCookies, sendMetaCapiEvent } from "@/lib/meta-capi"
 
 const VALID_VOLUMES = ["0-20", "20-50", "50-100", "100+"]
 const VALID_PLATFORMS = ["instagram", "facebook", "whatsapp", "website"]
@@ -65,6 +66,29 @@ export async function POST(request: Request) {
       platforms,
       biggestProblem: biggestProblem?.trim() || "",
       timestamp: new Date().toISOString(),
+    })
+
+    // Send server-side Meta Conversions API Lead event (ad-blocker proof)
+    const { fbp, fbc } = extractMetaCookies(request.headers.get("cookie"))
+    const clientIp =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip") ||
+      null
+
+    await sendMetaCapiEvent({
+      eventName: "Lead",
+      eventSourceUrl: request.headers.get("referer") || "https://www.cillah.dev",
+      phone,
+      fullName: fullName.trim(),
+      clientIpAddress: clientIp,
+      clientUserAgent: request.headers.get("user-agent"),
+      fbp,
+      fbc,
+      customData: {
+        content_name: agencyName.trim(),
+        monthly_volume: monthlyVolume,
+        platforms,
+      },
     })
 
     return NextResponse.json({ success: true })
