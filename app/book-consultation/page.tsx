@@ -5,6 +5,7 @@ import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import {
   Calendar as CalendarIcon,
+  ChevronDown,
   Clock,
   Globe,
   CheckCircle2,
@@ -625,26 +626,39 @@ export default function BookConsultationPage() {
                 </h2>
 
                 {/* Timezone Selector Dropdown */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                  <label
-                    htmlFor="booking-timezone"
-                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#E5C687] shrink-0"
-                  >
-                    <Globe className="w-3.5 h-3.5 text-[#E5C687]" />
-                    <span>Your Timezone:</span>
-                  </label>
-                  <select
-                    id="booking-timezone"
-                    value={selectedTimeZone}
-                    onChange={(e) => setSelectedTimeZone(e.target.value)}
-                    className="flex-1 bg-[#FBF6EC] border border-[#C9A66B] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#141418] focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/60 cursor-pointer shadow-sm"
-                  >
-                    {timeZoneOptions.map((tz) => (
-                      <option key={tz.value} value={tz.value} className="bg-[#FBF6EC] text-[#141418]">
-                        {tz.label}
-                      </option>
-                    ))}
-                  </select>
+                <div className="space-y-1.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                    <label
+                      htmlFor="booking-timezone"
+                      className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#E5C687] shrink-0"
+                    >
+                      <Globe className="w-3.5 h-3.5 text-[#E5C687]" />
+                      <span>Your Timezone:</span>
+                    </label>
+                    <div className="relative flex-1">
+                      <select
+                        id="booking-timezone"
+                        value={selectedTimeZone}
+                        onChange={(e) => setSelectedTimeZone(e.target.value)}
+                        className="w-full appearance-none bg-[#FBF6EC] border-2 border-[#C9A66B] rounded-xl pl-3.5 pr-11 py-2.5 text-xs font-bold text-[#141418] focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/60 cursor-pointer shadow-sm"
+                      >
+                        {timeZoneOptions.map((tz) => (
+                          <option key={tz.value} value={tz.value} className="bg-[#FBF6EC] text-[#141418]">
+                            {tz.label}
+                          </option>
+                        ))}
+                      </select>
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg bg-[#141418] text-[#E5C687] flex items-center justify-center shadow-sm"
+                      >
+                        <ChevronDown className="w-4 h-4" strokeWidth={2.8} />
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-[#FAF4E8]/70 sm:text-right">
+                    Select your timezone to view every available slot in your exact local time.
+                  </p>
                 </div>
               </div>
 
