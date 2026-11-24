@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import dynamic from "next/dynamic"
 import { motion, AnimatePresence } from "framer-motion"
 import { Navbar } from "@/components/navbar"
@@ -71,6 +72,41 @@ export function HomePageClient() {
 
   const [activeFaqCategory, setActiveFaqCategory] = useState<string>("all")
   const [openFaq, setOpenFaq] = useState<string | null>("web-1")
+  const [heroSceneIdx, setHeroSceneIdx] = useState<number>(0)
+
+  const heroScenes = [
+    {
+      src: "/images/hero-nairobi-1.jpg",
+      alt: "Real estate executive entering a modern Nairobi glass office tower",
+      objectPosition: "object-[65%_22%]",
+      durationMs: 4500,
+      fromScale: 1.0,
+      toScale: 1.07,
+    },
+    {
+      src: "/images/hero-nairobi-2.jpg",
+      alt: "Two executives sharing a warm handshake in a contemporary Nairobi office lobby",
+      objectPosition: "object-[58%_20%]",
+      durationMs: 4500,
+      fromScale: 1.06,
+      toScale: 1.0,
+    },
+    {
+      src: "/images/hero-nairobi-3.jpg",
+      alt: "Executives seated on a luxury Nairobi office sofa reviewing a property system on a laptop overlooking the skyline",
+      objectPosition: "object-[62%_22%]",
+      durationMs: 5500,
+      fromScale: 1.0,
+      toScale: 1.06,
+    },
+  ]
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setHeroSceneIdx((prev) => (prev + 1) % heroScenes.length)
+    }, heroScenes[heroSceneIdx].durationMs)
+    return () => clearTimeout(timer)
+  }, [heroSceneIdx])
 
   const countFaqs = (cat: string) =>
     FAQS_BY_SERVICE.filter((item) => item.category === cat).length
@@ -110,7 +146,44 @@ export function HomePageClient() {
         <div className="absolute bottom-1/4 left-1/3 w-[500px] h-[500px] rounded-full bg-[#C9A66B]/3 blur-[120px] pointer-events-none -z-10" />
 
         {/* 1. HERO SECTION */}
-        <section className="relative pt-32 pb-20 md:pt-40 md:pb-24 flex flex-col items-center justify-center border-b border-white/5">
+        <section className="relative min-h-[78vh] md:min-h-[85vh] pt-36 pb-24 md:pt-44 md:pb-28 flex flex-col items-center justify-center border-b border-white/5 overflow-hidden">
+          {/* 3-Scene Cinematic Nairobi Background Reel */}
+          <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden" aria-hidden="true">
+            {heroScenes.map((scene, idx) => {
+              const isActive = idx === heroSceneIdx
+              return (
+                <motion.div
+                  key={scene.src}
+                  initial={false}
+                  animate={{
+                    opacity: isActive ? 1 : 0,
+                    scale: isActive ? scene.toScale : scene.fromScale,
+                  }}
+                  transition={{
+                    opacity: { duration: 1.2, ease: "easeInOut" },
+                    scale: { duration: scene.durationMs / 1000 + 1.2, ease: "easeOut" },
+                  }}
+                  className="absolute inset-0 will-change-transform"
+                >
+                  <Image
+                    src={scene.src}
+                    alt={scene.alt}
+                    fill
+                    priority={idx === 0}
+                    quality={85}
+                    sizes="100vw"
+                    className={`object-cover ${scene.objectPosition}`}
+                  />
+                </motion.div>
+              )
+            })}
+
+            {/* Luxury Dark Editorial Overlays for Crisp Readability */}
+            <div className="absolute inset-0 bg-[#07070B]/52" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#07070B]/80 via-[#07070B]/35 to-[#07070B]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(7,7,11,0.58)_0%,rgba(7,7,11,0.22)_65%,rgba(7,7,11,0.72)_100%)]" />
+          </div>
+
           <div className="container mx-auto max-w-5xl px-6 md:px-12 relative z-10 text-center flex flex-col items-center">
             
             {/* Headline & Subtexts */}
@@ -120,26 +193,43 @@ export function HomePageClient() {
               transition={{ duration: 0.8, ease: "easeOut" }}
               className="max-w-4xl mx-auto flex flex-col items-center text-center"
             >
-              <span className="text-[11px] font-heading font-medium uppercase tracking-[0.25em] text-[#C9A66B] mb-4 block">
+              <span className="text-[11px] font-heading font-medium uppercase tracking-[0.25em] text-[#C9A66B] mb-4 block drop-shadow-[0_2px_10px_rgba(0,0,0,0.85)]">
                 AI &amp; AUTOMATION FOR REAL ESTATE AGENCIES
               </span>
 
               {/* Luxury Headline */}
-              <h1 className="font-heading font-light text-[34px] sm:text-[44px] md:text-[56px] leading-[1.12] text-[#F9F7F6] mb-8 text-balance">
+              <h1 className="font-heading font-light text-[34px] sm:text-[44px] md:text-[56px] leading-[1.12] text-[#F9F7F6] mb-8 text-balance drop-shadow-[0_4px_24px_rgba(0,0,0,0.85)]">
                 Turn every message into a{" "}
                 <span className="text-[#C9A66B] font-normal italic">booked viewing</span>.
               </h1>
 
               {/* Luxury Subtexts */}
               <div className="space-y-6 max-w-3xl mx-auto">
-                <p className="text-[16px] md:text-[18px] leading-relaxed text-[#F9F7F6]/85">
+                <p className="text-[16px] md:text-[18px] leading-relaxed text-[#F9F7F6]/92 drop-shadow-[0_2px_14px_rgba(0,0,0,0.85)]">
                   While human agents are asleep, busy, or answering the same questions repeatedly, potential buyers are moving to competitors who respond first. Social media and the internet create more inquiries than any manual team can consistently handle.
                 </p>
-                <p className="text-[15px] md:text-[16px] leading-relaxed text-[#F9F7F6]/65 font-light">
+                <p className="text-[15px] md:text-[16px] leading-relaxed text-[#F9F7F6]/80 font-light drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]">
                   Cillah gives your business a system that responds instantly, qualifies buyers automatically, follows up continuously, and keeps converting opportunities — even when your team is offline.
                 </p>
               </div>
             </motion.div>
+
+            {/* Subtle Story Scene Indicators */}
+            <div className="mt-12 flex items-center gap-2.5" aria-label="Hero story scenes">
+              {heroScenes.map((scene, idx) => (
+                <button
+                  key={scene.src}
+                  type="button"
+                  onClick={() => setHeroSceneIdx(idx)}
+                  aria-label={`View scene ${idx + 1}`}
+                  className={`h-1 rounded-full transition-all duration-500 ${
+                    idx === heroSceneIdx
+                      ? "w-10 bg-[#C9A66B]"
+                      : "w-4 bg-white/30 hover:bg-white/55"
+                  }`}
+                />
+              ))}
+            </div>
 
           </div>
         </section>
