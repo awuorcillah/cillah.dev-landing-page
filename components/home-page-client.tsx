@@ -78,8 +78,8 @@ export function HomePageClient() {
   const faqCategories = [
     { id: "all", label: `All Questions (${FAQS_BY_SERVICE.length})` },
     { id: "web-apps", label: `Web & Backend (${countFaqs("web-apps")})` },
-    { id: "ai-agents", label: `AI Inboxes (${countFaqs("ai-agents")})` },
-    { id: "automation", label: `Workflow Automation (${countFaqs("automation")})` },
+    { id: "ai-agents", label: `AI Inbox Automation (${countFaqs("ai-agents")})` },
+    { id: "automation", label: `AI Workflow Automation (${countFaqs("automation")})` },
     { id: "outreach", label: `B2B Cold Email Outreach (${countFaqs("outreach")})` },
   ]
 

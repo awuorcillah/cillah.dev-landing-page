@@ -146,121 +146,231 @@ export const FAQS_BY_SERVICE: FAQItem[] = [
   },
 
   // -------------------------------------------------------------
-  // SERVICE 2: Autonomous AI Agents in Inboxes
+  // SERVICE 2: AI Inbox Automation
   // -------------------------------------------------------------
   {
     id: "ai-1",
-    serviceTag: "Autonomous AI Agents in Inboxes",
+    serviceTag: "AI Inbox Automation",
     category: "ai-agents",
-    categoryLabel: "AI Inboxes",
-    question: "Will this AI replace me, my sales team, or our support staff in our workspace?",
+    categoryLabel: "AI Inbox Automation",
+    question: "Won't an AI chat assistant sound robotic and push away high-value buyers?",
     shortAnswer:
-      "No. AI does not replace high-performing humans—it eliminates the repetitive, low-leverage busywork that drains their working hours.",
+      "Badly built chatbots sound robotic and bombard people with 10 questions at once — ours are designed to reply warmly, concisely, and naturally like a helpful front-desk coordinator.",
     valueAnswer:
-      "The AI takes over the exhausting front-end 80%: answering repetitive FAQs at 2:00 AM, verifying buyer budgets, confirming location preferences, and collecting phone numbers. Your human team is freed up to do what AI cannot: build high-trust relationships, negotiate terms, and close high-value sales. Your team isn't replaced; they're given superpowers.",
+      "High-value buyers don't hate fast answers; they hate scripted menus and vague walls of text. We train your AI assistant on your brand tone so it answers what the buyer actually asked first, shares relevant details or photos upfront, and smoothly connects serious buyers to a real human agent without feeling pushy or mechanical.",
   },
   {
     id: "ai-2",
-    serviceTag: "Autonomous AI Agents in Inboxes",
+    serviceTag: "AI Inbox Automation",
     category: "ai-agents",
-    categoryLabel: "AI Inboxes",
-    question: "What happens if a customer asks a complex, sensitive, or unusual question the AI doesn't know?",
+    categoryLabel: "AI Inbox Automation",
+    question: "What if the AI quotes the wrong price, payment plan, or tells a buyer a sold property/item is still available?",
     shortAnswer:
-      "The AI never hallucinates or guesses. If an inquiry falls outside its trained business parameters, it gracefully pauses and immediately hands off the conversation to a human team member.",
+      "It is locked strictly to your live inventory and approved business rules — it is never allowed to guess or make up prices, availability, or terms.",
     valueAnswer:
-      "The system sends an instant notification (via WhatsApp, SMS, or dashboard alert) to the assigned sales agent with a complete summary of the conversation so far. The human agent can jump in seamlessly without the customer ever feeling frustrated.",
+      "Whenever you update a price or mark a unit as sold in your back end, the AI sees that live data immediately. If a buyer asks anything outside your verified pricing or policies, the assistant politely holds off and hands the chat straight to a human team member rather than fabricating an answer.",
   },
   {
     id: "ai-3",
-    serviceTag: "Autonomous AI Agents in Inboxes",
+    serviceTag: "AI Inbox Automation",
     category: "ai-agents",
-    categoryLabel: "AI Inboxes",
-    question: "How does the AI know our specific product pricing, inventory availability, and company rules?",
+    categoryLabel: "AI Inbox Automation",
+    question: "Will automating WhatsApp, Instagram, or Facebook DMs get our business account banned by Meta?",
     shortAnswer:
-      "The AI agent is trained exclusively on your verified business knowledge base and connected directly to your live product or listing database.",
+      "No — bans happen when people use unofficial scraping tools or blast repetitive spam replies. We build strictly on Meta's official APIs with safe rate limits and human-like guardrails.",
     valueAnswer:
-      "It checks real-time availability before confirming a viewing or order, quotes exact pricing according to your guidelines, and speaks in your brand's tone of voice. If you update a price or mark an item as sold in your dashboard, the AI updates its knowledge instantly.",
+      "We never use unauthorized browser hacks or mass-spam comment scripts that trigger Meta restrictions. Your automation responds to inbound enquiries naturally, varies replies properly, respects Meta's 24-hour messaging rules, and keeps your brand accounts compliant and safe.",
   },
   {
     id: "ai-4",
-    serviceTag: "Autonomous AI Agents in Inboxes",
+    serviceTag: "AI Inbox Automation",
     category: "ai-agents",
-    categoryLabel: "AI Inboxes",
-    question: "Can the AI filter out window shoppers, spam, and tire-kickers so our sales reps don't waste time?",
+    categoryLabel: "AI Inbox Automation",
+    question: "Can I keep my existing WhatsApp Business number — and what happens to my previous chats?",
     shortAnswer:
-      "Yes. Autonomous qualification is one of the AI's primary roles.",
+      "Yes, you can connect your existing number — and we walk you through the exact trade-offs transparently before touching anything so you never lose a chat by surprise.",
     valueAnswer:
-      "Before any inquiry reaches your senior sales staff, the AI politely asks qualifying questions (e.g., budget range, purchase timeline, preferred location, decision-making authority). Inquiries are tagged as Hot, Warm, Cold, or Unqualified, ensuring your expensive sales reps only spend time on serious buyers ready to transact.",
+      "Many platforms hide a critical detail: moving a number directly to the standard WhatsApp Cloud API can disconnect the classic WhatsApp Business phone app and doesn't automatically migrate old local chat history. Before setup, we back up your history and help you choose the cleanest setup for your agency (either keeping your current number on a supported coexistence/backup flow or running a dedicated official API line linked to your ads and website).",
   },
   {
     id: "ai-5",
-    serviceTag: "Autonomous AI Agents in Inboxes",
+    serviceTag: "AI Inbox Automation",
     category: "ai-agents",
-    categoryLabel: "AI Inboxes",
-    question: "Is there any risk of our official WhatsApp Business or Instagram accounts getting blocked or banned?",
+    categoryLabel: "AI Inbox Automation",
+    question: "Can the AI handle voice notes, property photos, mixed English/Swahili (or Sheng), and vague messages like 'sometime next week'?",
     shortAnswer:
-      "None. We build exclusively on official Meta Cloud APIs and WhatsApp Business Platform integrations—not unauthorized scraping tools or risky browser extensions.",
+      "Yes — we build specifically for how Kenyan and international buyers actually message on WhatsApp and Instagram, not just textbook English text.",
     valueAnswer:
-      "Your business operates with verified green badge eligibility, 100% compliance with Meta's Terms of Service, end-to-end data security, and uninterrupted 24/7 uptime.",
+      "Buyers routinely send voice notes, forward property screenshots, switch between English and Swahili, and say things like 'maybe next weekend.' Our AI transcribes voice notes, reads shared context, understands natural mixed language, and guides vague timing into a clear, confirmed calendar slot.",
+  },
+  {
+    id: "ai-6",
+    serviceTag: "AI Inbox Automation",
+    category: "ai-agents",
+    categoryLabel: "AI Inbox Automation",
+    question: "What happens when a buyer asks a super-specific question or wants a real human — do they have to repeat everything?",
+    shortAnswer:
+      "No — the AI pauses immediately and hands the conversation to the assigned human sales rep along with the full chat history and a concise summary.",
+    valueAnswer:
+      "The moment a buyer asks to speak to an agent, raises a complex negotiation question, or finishes qualifying, your sales rep gets an instant notification with the buyer's name, budget, interest, and full transcript so they step in smoothly without making the client repeat a single word.",
+  },
+  {
+    id: "ai-7",
+    serviceTag: "AI Inbox Automation",
+    category: "ai-agents",
+    categoryLabel: "AI Inbox Automation",
+    question: "How fast does it reply, and can it actually share real property photos, prices, and book viewings inside WhatsApp or Instagram?",
+    shortAnswer:
+      "Under 60 seconds, 24/7 — including evenings and weekends — sharing live photos, details, and direct booking/payment links right inside the chat.",
+    valueAnswer:
+      "Buyers frequently want to see photos and pricing before answering a dozen questions. The AI responds instantly while interest is hot, shares matching options from your live inventory, and guides ready buyers straight into a confirmed viewing or strategy call on your calendar.",
+  },
+  {
+    id: "ai-8",
+    serviceTag: "AI Inbox Automation",
+    category: "ai-agents",
+    categoryLabel: "AI Inbox Automation",
+    question: "Why use AI Inbox Automation instead of just hiring a receptionist or social media assistant — doesn't it replace the human touch?",
+    shortAnswer:
+      "It doesn't replace your human team — it covers the evenings, weekends, and peak-hour rushes so serious buyers never wait 6 hours for a first reply and walk to a competitor.",
+    valueAnswer:
+      "High-ticket buyers still expect a real human advisor to negotiate and close the deal. Your AI assistant simply handles the instant first-60-second response, answers routine questions, and qualifies intent so your human team shows up fresh for the conversations that actually produce commissions.",
+  },
+  {
+    id: "ai-9",
+    serviceTag: "AI Inbox Automation",
+    category: "ai-agents",
+    categoryLabel: "AI Inbox Automation",
+    question: "What are the real costs — including Meta's WhatsApp message fees — so we don't get surprise bills?",
+    shortAnswer:
+      "Custom setup starts from $1,000 depending on scope (40% upfront / 60% on completion and approval), plus transparent, direct pass-through costs for AI usage and Meta messaging with zero hidden markups.",
+    valueAnswer:
+      "We break down all three lines clearly before you start: (1) our build and optional monthly management fee, (2) direct AI usage credits (typically a few dollars a month depending on volume), and (3) Meta's official WhatsApp messaging charges (billed directly to your Meta Business account by message category and country, with budget alert caps so you never get blindsided).",
+  },
+  {
+    id: "ai-10",
+    serviceTag: "AI Inbox Automation",
+    category: "ai-agents",
+    categoryLabel: "AI Inbox Automation",
+    question: "Who owns our chat history and leads, and how do we prove this actually books real viewings within 30 days?",
+    shortAnswer:
+      "You own 100% of every lead, contact, and transcript inside your own back end — with a clear 30-day dashboard showing leads captured, response speed, qualified buyers, and viewings booked.",
+    valueAnswer:
+      "We measure success on business outcomes, not vanity 'messages answered.' Your back end tracks every WhatsApp, Instagram, Facebook, and website enquiry from first message to human handover and booked viewing so you can see the exact return within the first 30 days.",
   },
 
   // -------------------------------------------------------------
-  // SERVICE 3: Marketing-to-Operations Workflow Automation
+  // SERVICE 3: AI Workflow Automation
   // -------------------------------------------------------------
   {
     id: "auto-1",
-    serviceTag: "Marketing-to-Operations Workflow Automation",
+    serviceTag: "AI Workflow Automation",
     category: "automation",
-    categoryLabel: "Workflow Automation",
-    question: "How does workflow automation prevent leads from falling through the cracks when we run marketing ads?",
+    categoryLabel: "AI Workflow Automation",
+    question: "Which daily business tasks give the fastest ROI when automated first — and where should AI stop and let humans decide?",
     shortAnswer:
-      "Leads generated from Meta Ads, TikTok Ads, Google Search, or website forms are captured and processed within 3 seconds, triggering instant multi-channel actions.",
+      "Automate the repetitive admin that drains hours every day — capturing leads, syncing forms to your CRM, tracking invoices, and sending follow-ups — while keeping humans strictly in charge of high-stakes decisions.",
     valueAnswer:
-      "Instead of waiting hours for a marketer to download a CSV file, the lead is automatically created in your CRM, qualified by AI, assigned to the right sales rep, and greeted with an automated personalized WhatsApp message while their buying intent is at its highest.",
+      "We never pretend automation cuts your workday to one hour a day, and we never hand refunds, custom price quotes, legal matters, or deal negotiations over to autopilot. Automation handles the predictable busywork consistently, and routes sensitive or high-value decisions straight to a real person for approval.",
   },
   {
     id: "auto-2",
-    serviceTag: "Marketing-to-Operations Workflow Automation",
+    serviceTag: "AI Workflow Automation",
     category: "automation",
-    categoryLabel: "Workflow Automation",
-    question: "Can this integrate with our existing CRM, Google Calendar, and internal software?",
+    categoryLabel: "AI Workflow Automation",
+    question: "Our current process and spreadsheets are messy — won't automation just automate chaos?",
     shortAnswer:
-      "Yes. We build custom API bridges and webhooks to synchronize your current software stack (HubSpot, Salesforce, Zoho, Google Workspace, Airtable, or custom SQL databases).",
+      "Yes, if you skip the audit — which is why we always map and clean up your workflow first before building a single automation.",
     valueAnswer:
-      "You don't have to throw away tools your team already likes. We connect the missing links so data flows freely between your advertising channels, messaging inboxes, calendars, and customer records without manual copy-pasting.",
+      "Before writing code or connecting tools, we walk through how leads, bookings, and data actually move through your business, fix broken intake steps, define clear ownership, and start by automating one stable, high-impact workflow rather than rushing everything at once.",
   },
   {
     id: "auto-3",
-    serviceTag: "Marketing-to-Operations Workflow Automation",
+    serviceTag: "AI Workflow Automation",
     category: "automation",
-    categoryLabel: "Workflow Automation",
-    question: "How does automated lead distribution and smart sales routing work across multiple agents?",
+    categoryLabel: "AI Workflow Automation",
+    question: "How do you stop paid ad leads, website forms, and Instagram/WhatsApp DMs from vanishing between tools?",
     shortAnswer:
-      "The system routes leads using customized business logic—such as round-robin distribution, geographical territory, property/service category, or agent availability.",
+      "Every channel feeds automatically into one central pipeline within seconds — with fallback storage and duplicate checks so zero enquiries slip through the cracks.",
     valueAnswer:
-      "This prevents internal disputes among sales reps, eliminates response lag, and ensures high-priority VIP leads are automatically directed to your most experienced closers.",
+      "Instead of staff manually copying leads from Facebook Ads, Instagram DMs, WhatsApp, and website forms into spreadsheets (where up to half get missed or delayed), every incoming lead is captured, cleaned, routed to the right team member, and logged automatically in real time.",
   },
   {
     id: "auto-4",
-    serviceTag: "Marketing-to-Operations Workflow Automation",
+    serviceTag: "AI Workflow Automation",
     category: "automation",
-    categoryLabel: "Workflow Automation",
-    question: "What happens to past inquiries and cold leads who never bought months ago?",
+    categoryLabel: "AI Workflow Automation",
+    question: "What happens if an automation silently breaks (an expired token, changed field, or permission error) — would anyone notice?",
     shortAnswer:
-      "The automation engine runs scheduled re-activation workflows that re-engage dormant contacts with relevant updates.",
+      "Nothing fails silently. Every critical workflow we build includes automatic retries, fallback lead storage, and instant failure alerts sent straight to WhatsApp or email.",
     valueAnswer:
-      "When you launch a new listing, drop a price, or release a seasonal offer, the system segments past inquiries based on their recorded preferences and sends tailored re-engagement messages. This routinely generates fresh sales from leads you already paid to acquire.",
+      "A silent failure is worse than no automation at all. If a connected app expires a token or changes a field, our error-handling layer catches it immediately, preserves the raw incoming lead so nothing is lost, and alerts the right person the moment it happens instead of weeks later.",
   },
   {
     id: "auto-5",
-    serviceTag: "Marketing-to-Operations Workflow Automation",
+    serviceTag: "AI Workflow Automation",
     category: "automation",
-    categoryLabel: "Workflow Automation",
-    question: "How does management track team response speed and conversion performance?",
+    categoryLabel: "AI Workflow Automation",
+    question: "Why shouldn't we just duct-tape Zapier, Google Sheets scripts, and random tools ourselves?",
     shortAnswer:
-      "The system records time-stamped metrics for every customer interaction, feeding a centralized executive dashboard.",
+      "DIY setups break easily, are hard to troubleshoot, and Zapier's per-task billing can spiral or pause your workflows right when business grows.",
     valueAnswer:
-      "Business owners can see average first-response times, lead-to-booking conversion rates, and revenue performance per sales agent. You replace guesswork and assumptions with verifiable operational data.",
+      "We build clean, documented systems on reliable infrastructure (like self-hosted n8n and custom APIs) with predictable monthly run costs — replacing fragile chains of random scripts with one unified system built around your actual operations.",
+  },
+  {
+    id: "auto-6",
+    serviceTag: "AI Workflow Automation",
+    category: "automation",
+    categoryLabel: "AI Workflow Automation",
+    question: "Our CRM feels like a glorified spreadsheet — how does workflow automation stop reps from wasting 2+ hours a day on manual data entry and forgotten follow-ups?",
+    shortAnswer:
+      "Automation turns a passive CRM into an active engine that logs leads automatically, triggers timely reminders, and handles routine follow-ups without manual copy-pasting.",
+    valueAnswer:
+      "Sales reps shouldn't dread making calls because of two hours of boring CRM admin afterward. Incoming leads, booked consultations, notes, and follow-up schedules populate automatically so your team spends their day having real sales conversations and closing deals.",
+  },
+  {
+    id: "auto-7",
+    serviceTag: "AI Workflow Automation",
+    category: "automation",
+    categoryLabel: "AI Workflow Automation",
+    question: "Can you automate workflows around the CRM and tools we already use (Salesforce, HubSpot, Zoho, Google Sheets, WhatsApp) without forcing us to switch?",
+    shortAnswer:
+      "Yes — we connect and automate around the tools your team already uses instead of forcing an expensive, disruptive CRM migration.",
+    valueAnswer:
+      "Whether you run on Salesforce, HubSpot, Zoho, Google Workspace, WhatsApp, or even legacy spreadsheets, we bridge your existing tools so data flows cleanly between them — and only recommend upgrading a tool if it is genuinely blocking your growth.",
+  },
+  {
+    id: "auto-8",
+    serviceTag: "AI Workflow Automation",
+    category: "automation",
+    categoryLabel: "AI Workflow Automation",
+    question: "How do automated follow-ups and AI lead scoring filter out junk leads while still feeling human instead of robotic spam?",
+    shortAnswer:
+      "AI scores and filters every lead against your exact criteria behind the scenes, and follow-ups are written in short, natural language triggered by what the prospect actually asked for.",
+    valueAnswer:
+      "Your sales team stops wasting hours sifting through unqualified leads and focuses strictly on prospects who match your budget, location, and timeline. Follow-up messages feel like a helpful check-in tied to their specific enquiry — never spammy mass blasts.",
+  },
+  {
+    id: "auto-9",
+    serviceTag: "AI Workflow Automation",
+    category: "automation",
+    categoryLabel: "AI Workflow Automation",
+    question: "My team struggles with new software — how do you make sure staff actually adopt the system without disrupting daily work?",
+    shortAnswer:
+      "Most of the automation runs invisibly behind the scenes, and we include plain-English SOPs, short walkthrough videos, and hands-on team onboarding.",
+    valueAnswer:
+      "We don't dump a complicated tool on your staff and disappear. We roll out in simple phases that remove manual work your team already hates, give each role clean access to only what they need, and train them in under an hour so adoption sticks from week one.",
+  },
+  {
+    id: "auto-10",
+    serviceTag: "AI Workflow Automation",
+    category: "automation",
+    categoryLabel: "AI Workflow Automation",
+    question: "Who owns our workflows and customer data, is it compliant with data protection laws, and what does it cost?",
+    shortAnswer:
+      "Custom builds start from $1,000 depending on scope (with a 40% upfront / 60% upon completion and approval structure), third-party tools stay in your own name, and you own 100% of every workflow, credential, and record.",
+    valueAnswer:
+      "We never lock you into an agency account. All workflows, documentation, and customer data live under your business ownership with role-based access controls built in line with Kenya's Data Protection Act and GDPR best practices. You can start with one focused starter workflow, track real 30/60/90-day metrics (leads captured, response speed, hours saved, failed-run count), and scale only once you see it working.",
   },
 
   // -------------------------------------------------------------

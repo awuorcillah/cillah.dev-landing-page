@@ -63,7 +63,7 @@ export function Navbar() {
   const navItems: { name: string; href: string; highlight?: boolean }[] = [
     { name: "Home", href: "/" },
     { name: "Software Services", href: "/our-services" },
-    { name: "Book Consultation", href: "/book-consultation", highlight: true },
+    { name: "Consultation", href: "/book-consultation", highlight: true },
     { name: "Use Cases", href: "/use-cases" },
     { name: "Articles", href: "/articles" },
     { name: "FAQs", href: "/#faq" },

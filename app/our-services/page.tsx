@@ -29,8 +29,8 @@ export default function ServicesPage() {
   const categories = [
     { id: "all", label: `All Questions (${FAQS_BY_SERVICE.length})` },
     { id: "web-apps", label: `Web & Backend (${countByCategory("web-apps")})` },
-    { id: "ai-agents", label: `AI Inboxes (${countByCategory("ai-agents")})` },
-    { id: "automation", label: `Workflow Automation (${countByCategory("automation")})` },
+    { id: "ai-agents", label: `AI Inbox Automation (${countByCategory("ai-agents")})` },
+    { id: "automation", label: `AI Workflow Automation (${countByCategory("automation")})` },
     { id: "outreach", label: `B2B Cold Email Outreach (${countByCategory("outreach")})` },
   ]
 

@@ -25,7 +25,7 @@ export function Footer() {
   const tiktok = "https://www.tiktok.com/@cillah.dev"
 
   const quickLinks = [
-    { name: "Book a Consultation", href: "/book-consultation" },
+    { name: "Consultation", href: "/book-consultation" },
     { name: "Our Services", href: "/our-services" },
     { name: "Use Cases", href: "/use-cases" },
     { name: "Articles", href: "/articles" },
