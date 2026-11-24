@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
@@ -22,6 +23,41 @@ import { FAQS_BY_SERVICE } from "@/lib/faqs-data"
 export default function ServicesPage() {
   const [activeCategory, setActiveCategory] = useState<string>("all")
   const [openFaq, setOpenFaq] = useState<string | null>("web-1")
+  const [heroSceneIdx, setHeroSceneIdx] = useState<number>(0)
+
+  const heroScenes = [
+    {
+      src: "/images/services-nairobi-1.jpg",
+      alt: "Kenyan software architect designing business systems in a modern Nairobi studio",
+      objectPosition: "object-[72%_25%]",
+      durationMs: 4500,
+      fromScale: 1.0,
+      toScale: 1.07,
+    },
+    {
+      src: "/images/services-nairobi-2.jpg",
+      alt: "Modern Nairobi sales and marketing team collaborating around a unified live dashboard",
+      objectPosition: "object-[52%_25%]",
+      durationMs: 4500,
+      fromScale: 1.06,
+      toScale: 1.0,
+    },
+    {
+      src: "/images/services-nairobi-3.jpg",
+      alt: "Business founder overlooking Nairobi skyline at dusk while automated systems work after hours",
+      objectPosition: "object-[70%_20%]",
+      durationMs: 5500,
+      fromScale: 1.0,
+      toScale: 1.06,
+    },
+  ]
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setHeroSceneIdx((prev) => (prev + 1) % heroScenes.length)
+    }, heroScenes[heroSceneIdx].durationMs)
+    return () => clearTimeout(timer)
+  }, [heroSceneIdx])
 
   const countByCategory = (cat: string) =>
     FAQS_BY_SERVICE.filter((item) => item.category === cat).length
@@ -151,30 +187,84 @@ export default function ServicesPage() {
         <div className="absolute top-1/2 left-1/4 w-[600px] h-[600px] rounded-full bg-[#C9A66B]/3 blur-[160px] pointer-events-none -z-10" />
 
         {/* HERO HEADER */}
-        <section className="relative pt-36 pb-16 md:pt-44 md:pb-20 border-b border-white/5">
-          <div className="container mx-auto max-w-5xl px-6 md:px-12 text-center">
+        <section className="relative min-h-[72vh] md:min-h-[80vh] pt-36 pb-20 md:pt-44 md:pb-24 flex flex-col items-center justify-center border-b border-white/5 overflow-hidden">
+          {/* 3-Scene Cinematic Nairobi Systems Background Reel */}
+          <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden" aria-hidden="true">
+            {heroScenes.map((scene, idx) => {
+              const isActive = idx === heroSceneIdx
+              return (
+                <motion.div
+                  key={scene.src}
+                  initial={false}
+                  animate={{
+                    opacity: isActive ? 1 : 0,
+                    scale: isActive ? scene.toScale : scene.fromScale,
+                  }}
+                  transition={{
+                    opacity: { duration: 1.2, ease: "easeInOut" },
+                    scale: { duration: scene.durationMs / 1000 + 1.2, ease: "easeOut" },
+                  }}
+                  className="absolute inset-0 will-change-transform"
+                >
+                  <Image
+                    src={scene.src}
+                    alt={scene.alt}
+                    fill
+                    priority={idx === 0}
+                    quality={85}
+                    sizes="100vw"
+                    className={`object-cover ${scene.objectPosition}`}
+                  />
+                </motion.div>
+              )
+            })}
+
+            {/* Luxury Dark Editorial Overlays for Crisp Readability */}
+            <div className="absolute inset-0 bg-[#07070B]/52" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#07070B]/80 via-[#07070B]/35 to-[#07070B]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(7,7,11,0.60)_0%,rgba(7,7,11,0.22)_65%,rgba(7,7,11,0.75)_100%)]" />
+          </div>
+
+          <div className="container mx-auto max-w-5xl px-6 md:px-12 relative z-10 text-center flex flex-col items-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, ease: "easeOut" }}
               className="max-w-3xl mx-auto space-y-4"
             >
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-[#C9A66B]/30 backdrop-blur-md">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#07070B]/60 border border-[#C9A66B]/40 backdrop-blur-md">
                 <Sparkles className="h-3.5 w-3.5 text-[#C9A66B]" />
                 <span className="text-[11px] font-medium tracking-[0.2em] uppercase text-[#C9A66B]">
                   Building Software Systems for Business
                 </span>
               </div>
 
-              <h1 className="font-heading font-light text-[32px] sm:text-[44px] md:text-[52px] leading-[1.15] text-[#F9F7F6] text-balance">
+              <h1 className="font-heading font-light text-[32px] sm:text-[44px] md:text-[52px] leading-[1.15] text-[#F9F7F6] text-balance drop-shadow-[0_4px_24px_rgba(0,0,0,0.85)]">
                 Everything your business needs to <br className="hidden sm:inline" />
                 <span className="text-[#C9A66B] font-normal italic">capture leads, qualify buyers, close deals,</span> and run automatically.
               </h1>
 
-              <p className="text-[15px] sm:text-[17px] leading-relaxed text-[#F9F7F6]/70 max-w-2xl mx-auto font-light pt-2">
+              <p className="text-[15px] sm:text-[17px] leading-relaxed text-[#F9F7F6]/88 max-w-2xl mx-auto font-light pt-2 drop-shadow-[0_2px_14px_rgba(0,0,0,0.85)]">
                 We build the central digital headquarters, 24/7 AI systems, and outbound client acquisition engines that turn customer interest into revenue while saving your team hundreds of manual hours.
               </p>
             </motion.div>
+
+            {/* Subtle Story Scene Indicators */}
+            <div className="mt-10 flex items-center gap-2.5" aria-label="Services hero scenes">
+              {heroScenes.map((scene, idx) => (
+                <button
+                  key={scene.src}
+                  type="button"
+                  onClick={() => setHeroSceneIdx(idx)}
+                  aria-label={`View scene ${idx + 1}`}
+                  className={`h-1 rounded-full transition-all duration-500 ${
+                    idx === heroSceneIdx
+                      ? "w-10 bg-[#C9A66B]"
+                      : "w-4 bg-white/30 hover:bg-white/55"
+                  }`}
+                />
+              ))}
+            </div>
           </div>
         </section>
 
