@@ -541,56 +541,56 @@ export default function BookConsultationPage() {
             </div>
           </div>
 
-          {/* LIVE CURRENT DATE & TIME BOX FRAME (Nairobi / EAT + Selected Timezone) */}
-          <div className="mb-6 rounded-2xl bg-[#0D0F18]/90 border border-[#C9A66B]/30 backdrop-blur-xl px-4 py-3.5 sm:px-6 sm:py-4 shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex items-start sm:items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-[#C9A66B]/12 border border-[#C9A66B]/30 flex items-center justify-center shrink-0">
-                  <Clock className="w-5 h-5 text-[#C9A66B]" />
+          {/* LIVE CURRENT DATE & TIME BOX FRAME — Distinctive Warm Champagne Spotlight */}
+          <div className="mb-6 rounded-2xl bg-gradient-to-br from-[#FBF6EC] via-[#F4E7CE] to-[#EAD6B0] border-2 border-[#C9A66B] px-4 py-4 sm:px-6 sm:py-5 shadow-[0_14px_40px_rgba(201,166,107,0.22)] text-[#141418]">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5">
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div className="h-11 w-11 rounded-xl bg-[#141418] border border-[#C9A66B]/60 flex items-center justify-center shrink-0 shadow-md">
+                  <Clock className="w-5 h-5 text-[#E5C687]" />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-600 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600" />
                     </span>
-                    <span className="text-[10px] font-heading uppercase tracking-[0.18em] text-[#C9A66B]">
+                    <span className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-[#7A5922]">
                       Current Date &amp; Time (Nairobi / EAT)
                     </span>
                   </div>
-                  <div className="mt-1 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 min-h-[24px]">
+                  <div className="mt-1 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 min-h-[26px]">
                     {now ? (
                       <>
-                        <span className="text-sm sm:text-[15px] font-medium text-[#F9F7F6]">
+                        <span className="text-sm sm:text-[16px] font-semibold text-[#141418]">
                           {eatDateText}
                         </span>
-                        <span className="text-white/25 hidden sm:inline">&bull;</span>
-                        <span className="font-mono text-sm sm:text-[15px] font-semibold text-[#C9A66B] tabular-nums">
+                        <span className="text-[#141418]/30 hidden sm:inline">&bull;</span>
+                        <span className="font-mono text-sm sm:text-[16px] font-bold text-[#6E4D14] tabular-nums">
                           {eatTimeText} EAT
                         </span>
                       </>
                     ) : (
-                      <span className="text-xs text-white/40 font-mono">Syncing live clock...</span>
+                      <span className="text-xs text-[#141418]/60 font-mono">Syncing live clock...</span>
                     )}
                   </div>
                 </div>
               </div>
 
               {!isSelectedEat && now ? (
-                <div className="sm:text-right border-t sm:border-t-0 sm:border-l border-white/10 pt-2.5 sm:pt-0 sm:pl-4 shrink-0">
-                  <div className="flex items-center sm:justify-end gap-1.5 text-[10px] uppercase tracking-[0.14em] text-white/50">
-                    <Globe className="w-3 h-3 text-[#C9A66B]/80" />
+                <div className="sm:text-right border-t sm:border-t-0 sm:border-l border-[#141418]/15 pt-2.5 sm:pt-0 sm:pl-4 shrink-0">
+                  <div className="flex items-center sm:justify-end gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7A5922]">
+                    <Globe className="w-3 h-3 text-[#7A5922]" />
                     <span>Your Selected Time ({selectedTzShort})</span>
                   </div>
-                  <p className="font-mono text-xs sm:text-[13px] text-[#F9F7F6]/90 font-medium tabular-nums mt-0.5">
+                  <p className="font-mono text-xs sm:text-[13px] text-[#141418] font-bold tabular-nums mt-0.5">
                     {selectedTzDateText} &bull; {selectedTzTimeText}
                   </p>
-                  <p className="text-[10px] text-white/45 truncate max-w-[200px] sm:ml-auto">
+                  <p className="text-[10px] text-[#141418]/65 truncate max-w-[200px] sm:ml-auto">
                     {selectedTimeZone.replace(/_/g, " ")}
                   </p>
                 </div>
               ) : (
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/10 text-[11px] font-mono text-white/65 shrink-0">
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#141418] text-[11px] font-mono font-semibold text-[#E5C687] shrink-0 shadow-sm">
                   <Globe className="w-3.5 h-3.5 text-[#C9A66B]" />
                   <span>UTC+3</span>
                 </div>
@@ -616,30 +616,31 @@ export default function BookConsultationPage() {
 
           {/* STEP 1: DATE & SLOT SELECTION */}
           {step === 1 && (
-            <div className="rounded-[22px] bg-[#0D0F18]/80 border border-white/10 backdrop-blur-xl p-5 sm:p-7 shadow-2xl space-y-6">
-              <div className="space-y-3">
-                <h2 className="text-sm font-heading uppercase tracking-wider text-white/85 font-medium flex items-center gap-2">
-                  <CalendarIcon className="w-4 h-4 text-[#C9A66B]" />
-                  Select Date &amp; Time (Wed, Fri, Sun &bull; 8am - 9pm EAT)
+            <div className="rounded-[22px] bg-[#0D0F18]/90 border border-white/10 backdrop-blur-xl shadow-2xl overflow-hidden">
+              {/* Distinctive Warm Header Strip for Select Date & Time + Timezone */}
+              <div className="bg-gradient-to-r from-[#272016] via-[#312719] to-[#231D14] border-b border-[#C9A66B]/40 px-5 py-4 sm:px-7 sm:py-5 space-y-3.5">
+                <h2 className="text-sm font-heading uppercase tracking-wider text-[#FAF4E8] font-semibold flex items-center gap-2">
+                  <CalendarIcon className="w-4 h-4 text-[#E5C687] shrink-0" />
+                  <span>Select Date &amp; Time (Wed, Fri, Sun &bull; 8am - 9pm EAT)</span>
                 </h2>
 
                 {/* Timezone Selector Dropdown */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 pt-1">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                   <label
                     htmlFor="booking-timezone"
-                    className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-white/60 shrink-0"
+                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#E5C687] shrink-0"
                   >
-                    <Globe className="w-3.5 h-3.5 text-[#C9A66B]" />
+                    <Globe className="w-3.5 h-3.5 text-[#E5C687]" />
                     <span>Your Timezone:</span>
                   </label>
                   <select
                     id="booking-timezone"
                     value={selectedTimeZone}
                     onChange={(e) => setSelectedTimeZone(e.target.value)}
-                    className="flex-1 bg-[#141724] border border-[#C9A66B]/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#C9A66B] cursor-pointer"
+                    className="flex-1 bg-[#FBF6EC] border border-[#C9A66B] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#141418] focus:outline-none focus:ring-2 focus:ring-[#C9A66B]/60 cursor-pointer shadow-sm"
                   >
                     {timeZoneOptions.map((tz) => (
-                      <option key={tz.value} value={tz.value} className="bg-[#0D0F18] text-white">
+                      <option key={tz.value} value={tz.value} className="bg-[#FBF6EC] text-[#141418]">
                         {tz.label}
                       </option>
                     ))}
@@ -647,6 +648,8 @@ export default function BookConsultationPage() {
                 </div>
               </div>
 
+              {/* Available Days & Time Slots (Classic Dark Obsidian Background) */}
+              <div className="p-5 sm:p-7">
               {loadingSlots ? (
                 <div className="py-12 flex flex-col items-center justify-center gap-2 text-white/60">
                   <Loader2 className="w-6 h-6 animate-spin text-[#C9A66B]" />
@@ -768,6 +771,7 @@ export default function BookConsultationPage() {
                   </div>
                 </div>
               )}
+              </div>
             </div>
           )}
 
