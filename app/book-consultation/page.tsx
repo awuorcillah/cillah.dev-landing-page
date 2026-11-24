@@ -1,8 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
-import Image from "next/image"
-import { motion } from "framer-motion"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import {
@@ -39,51 +37,119 @@ interface CalendarDay {
 
 type MpesaPhase = "idle" | "sending" | "waiting" | "failed" | "timeout"
 
+const CURATED_TIMEZONES: { value: string; label: string }[] = [
+  { value: "Africa/Nairobi", label: "Nairobi, Kenya (EAT • UTC+3)" },
+  { value: "Asia/Dubai", label: "Dubai, UAE (GST • UTC+4)" },
+  { value: "Europe/London", label: "London, UK (GMT / BST)" },
+  { value: "Europe/Paris", label: "Paris / Berlin / Amsterdam (CET / CEST)" },
+  { value: "America/New_York", label: "New York / Miami (ET)" },
+  { value: "America/Chicago", label: "Chicago / Dallas (CT)" },
+  { value: "America/Denver", label: "Denver (MT)" },
+  { value: "America/Los_Angeles", label: "Los Angeles / San Francisco (PT)" },
+  { value: "America/Toronto", label: "Toronto, Canada (ET)" },
+  { value: "Africa/Johannesburg", label: "Johannesburg, South Africa (SAST)" },
+  { value: "Africa/Lagos", label: "Lagos, Nigeria (WAT)" },
+  { value: "Africa/Cairo", label: "Cairo, Egypt (EET)" },
+  { value: "Asia/Riyadh", label: "Riyadh / Doha (AST • UTC+3)" },
+  { value: "Asia/Kolkata", label: "Mumbai / Delhi, India (IST)" },
+  { value: "Asia/Singapore", label: "Singapore (SGT • UTC+8)" },
+  { value: "Asia/Tokyo", label: "Tokyo, Japan (JST)" },
+  { value: "Australia/Sydney", label: "Sydney, Australia (AEST / AEDT)" },
+]
+
+function parseEatSlotToDate(dateIso: string, eatTimeStr: string): Date | null {
+  if (!dateIso || !eatTimeStr) return null
+  const parts = eatTimeStr.trim().split(" ")
+  if (parts.length < 2) return null
+  const [timeVal, modifier] = parts
+  const [hoursStr, minutesStr] = timeVal.split(":")
+  let hr = parseInt(hoursStr, 10)
+  if (Number.isNaN(hr)) return null
+  if (modifier === "PM" && hr < 12) hr += 12
+  if (modifier === "AM" && hr === 12) hr = 0
+  const iso = `${dateIso}T${String(hr).padStart(2, "0")}:${minutesStr || "00"}:00+03:00`
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+function getTimeZoneShortName(date: Date, timeZone: string): string {
+  if (timeZone === "Africa/Nairobi") return "EAT"
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      timeZoneName: "short",
+    }).formatToParts(date)
+    const tzPart = parts.find((p) => p.type === "timeZoneName")?.value
+    return tzPart || timeZone.split("/").pop()?.replace(/_/g, " ") || timeZone
+  } catch {
+    return timeZone
+  }
+}
+
+function formatSlotInTimeZone(
+  dateIso: string,
+  eatTimeStr: string,
+  targetTimeZone: string
+): {
+  timeLabel: string
+  dateLabel: string
+  dayOffsetLabel: string
+  tzShort: string
+} {
+  const slotDate = parseEatSlotToDate(dateIso, eatTimeStr)
+  if (!slotDate) {
+    return { timeLabel: eatTimeStr, dateLabel: dateIso, dayOffsetLabel: "", tzShort: "EAT" }
+  }
+
+  try {
+    const timeLabel = new Intl.DateTimeFormat("en-US", {
+      timeZone: targetTimeZone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }).format(slotDate)
+
+    const dateLabel = new Intl.DateTimeFormat("en-US", {
+      timeZone: targetTimeZone,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    }).format(slotDate)
+
+    // Compare YYYY-MM-DD in target timezone vs EAT dateIso to detect midnight shifts
+    const targetYmd = new Intl.DateTimeFormat("en-CA", {
+      timeZone: targetTimeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(slotDate)
+
+    let dayOffsetLabel = ""
+    if (targetYmd < dateIso) dayOffsetLabel = "prev day"
+    else if (targetYmd > dateIso) dayOffsetLabel = "next day"
+
+    const tzShort = getTimeZoneShortName(slotDate, targetTimeZone)
+    return { timeLabel, dateLabel, dayOffsetLabel, tzShort }
+  } catch {
+    return { timeLabel: eatTimeStr, dateLabel: dateIso, dayOffsetLabel: "", tzShort: "EAT" }
+  }
+}
+
 export default function BookConsultationPage() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
 
-  // Warm 1-on-1 Consultation Hero Background Reel
-  const [heroSceneIdx, setHeroSceneIdx] = useState<number>(0)
-  const [extraScenesReady, setExtraScenesReady] = useState<boolean>(false)
+  // Live clock & automatic browser IANA timezone detection + manual override
   const [now, setNow] = useState<Date | null>(null)
-  const [visitorTimeZone, setVisitorTimeZone] = useState<string>("Africa/Nairobi")
+  const [detectedTimeZone, setDetectedTimeZone] = useState<string>("Africa/Nairobi")
+  const [selectedTimeZone, setSelectedTimeZone] = useState<string>("Africa/Nairobi")
 
-  const consultationHeroScenes = [
-    {
-      src: "/images/hero-nairobi-3.jpg",
-      alt: "Warm 1-on-1 private strategy consultation on a Nairobi office lounge sofa",
-      objectPosition: "object-[60%_22%]",
-      durationMs: 5500,
-      fromScale: 1.0,
-      toScale: 1.06,
-    },
-    {
-      src: "/images/hero-nairobi-2.jpg",
-      alt: "Welcoming executive handshake ahead of a personalized consultation in Nairobi",
-      objectPosition: "object-[58%_20%]",
-      durationMs: 5000,
-      fromScale: 1.05,
-      toScale: 1.0,
-    },
-  ]
-
-  useEffect(() => {
-    const t = window.setTimeout(() => setExtraScenesReady(true), 350)
-    return () => window.clearTimeout(t)
-  }, [])
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setHeroSceneIdx((prev) => (prev + 1) % consultationHeroScenes.length)
-    }, consultationHeroScenes[heroSceneIdx].durationMs)
-    return () => window.clearTimeout(timer)
-  }, [heroSceneIdx])
-
-  // Live ticking clock (client-side only to prevent SSR hydration mismatch)
   useEffect(() => {
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
-      if (tz) setVisitorTimeZone(tz)
+      if (tz) {
+        setDetectedTimeZone(tz)
+        setSelectedTimeZone(tz)
+      }
     } catch {}
     setNow(new Date())
     const interval = window.setInterval(() => {
@@ -92,8 +158,19 @@ export default function BookConsultationPage() {
     return () => window.clearInterval(interval)
   }, [])
 
-  const isVisitorInNairobi =
-    visitorTimeZone === "Africa/Nairobi" || visitorTimeZone === "Africa/Kampala" || visitorTimeZone === "Africa/Dar_es_Salaam"
+  const timeZoneOptions = useMemo(() => {
+    const exists = CURATED_TIMEZONES.some((t) => t.value === detectedTimeZone)
+    if (exists || !detectedTimeZone) return CURATED_TIMEZONES
+    return [
+      {
+        value: detectedTimeZone,
+        label: `${detectedTimeZone.replace(/_/g, " ")} (Auto-detected)`,
+      },
+      ...CURATED_TIMEZONES,
+    ]
+  }, [detectedTimeZone])
+
+  const isSelectedEat = selectedTimeZone === "Africa/Nairobi"
 
   const eatDateText = now
     ? new Intl.DateTimeFormat("en-US", {
@@ -115,10 +192,10 @@ export default function BookConsultationPage() {
       }).format(now)
     : ""
 
-  const localTimeText =
-    now && !isVisitorInNairobi
+  const selectedTzTimeText =
+    now && !isSelectedEat
       ? new Intl.DateTimeFormat("en-US", {
-          timeZone: visitorTimeZone,
+          timeZone: selectedTimeZone,
           hour: "2-digit",
           minute: "2-digit",
           second: "2-digit",
@@ -126,15 +203,17 @@ export default function BookConsultationPage() {
         }).format(now)
       : ""
 
-  const localDateText =
-    now && !isVisitorInNairobi
+  const selectedTzDateText =
+    now && !isSelectedEat
       ? new Intl.DateTimeFormat("en-US", {
-          timeZone: visitorTimeZone,
+          timeZone: selectedTimeZone,
           weekday: "short",
           month: "short",
           day: "numeric",
         }).format(now)
       : ""
+
+  const selectedTzShort = now ? getTimeZoneShortName(now, selectedTimeZone) : "EAT"
 
   // Step 1: Calendar & Slot Selection
   const [days, setDays] = useState<CalendarDay[]>([])
@@ -249,6 +328,16 @@ export default function BookConsultationPage() {
   }, [phoneNumber, mpesaPhone])
 
   const selectedDayObj = days.find((d) => d.value === selectedDate)
+  const selectedConvertedSlot =
+    selectedDate && selectedTime
+      ? formatSlotInTimeZone(selectedDate, selectedTime, selectedTimeZone)
+      : null
+
+  const formattedSelectedSummary = selectedDayObj && selectedTime
+    ? isSelectedEat
+      ? `${selectedDayObj.label} @ ${selectedTime} EAT`
+      : `${selectedConvertedSlot?.dateLabel} @ ${selectedConvertedSlot?.timeLabel} ${selectedConvertedSlot?.tzShort} (${selectedDayObj.label} @ ${selectedTime} EAT)`
+    : ""
 
   const buildScheduledAtIso = () => {
     const [timeVal, modifier] = selectedTime.split(" ")
@@ -418,86 +507,23 @@ export default function BookConsultationPage() {
     <>
       <Navbar />
 
-      <main className="min-h-screen bg-[#07070B] text-[#F9F7F6] overflow-x-hidden font-sans font-light pb-24 relative selection:bg-[#C9A66B]/30">
+      <main className="min-h-screen bg-[#07070B] text-[#F9F7F6] overflow-x-hidden font-sans font-light pt-24 sm:pt-28 pb-24 relative selection:bg-[#C9A66B]/30">
         {/* Subtle ambient lighting */}
         <div className="absolute top-0 left-1/3 w-[500px] h-[500px] rounded-full bg-[#C9A66B]/5 blur-[130px] pointer-events-none -z-10" />
 
-        {/* WARM 1-ON-1 CONSULTATION HERO HEADER */}
-        <section className="relative pt-28 pb-14 sm:pt-36 sm:pb-16 md:pt-40 md:pb-20 border-b border-white/10 overflow-hidden">
-          <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden" aria-hidden="true">
-            {consultationHeroScenes.map((scene, idx) => {
-              if (idx > 0 && !extraScenesReady) return null
-              const isActive = idx === heroSceneIdx
-              return (
-                <motion.div
-                  key={scene.src}
-                  initial={false}
-                  animate={{
-                    opacity: isActive ? 1 : 0,
-                    scale: isActive ? scene.toScale : scene.fromScale,
-                  }}
-                  transition={{
-                    opacity: { duration: 1.1, ease: "easeInOut" },
-                    scale: { duration: scene.durationMs / 1000 + 1.1, ease: "easeOut" },
-                  }}
-                  className="absolute inset-0 will-change-transform"
-                >
-                  <Image
-                    src={scene.src}
-                    alt={scene.alt}
-                    fill
-                    priority={idx === 0}
-                    fetchPriority={idx === 0 ? "high" : "low"}
-                    quality={75}
-                    sizes="100vw"
-                    className={`object-cover ${scene.objectPosition}`}
-                  />
-                </motion.div>
-              )
-            })}
-
-            {/* Warm luxury editorial readability overlays */}
-            <div className="absolute inset-0 bg-[#07070B]/58" />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#07070B]/80 via-[#07070B]/40 to-[#07070B]" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(7,7,11,0.55)_0%,rgba(7,7,11,0.25)_65%,rgba(7,7,11,0.8)_100%)]" />
-          </div>
-
-          <div className="container mx-auto max-w-2xl px-4 sm:px-6 relative z-10 text-center">
-            <h1 className="font-heading font-light text-[28px] sm:text-[38px] md:text-[42px] text-[#F9F7F6] leading-tight mb-2.5 drop-shadow-[0_4px_20px_rgba(0,0,0,0.85)]">
-              1-on-1 AI Strategy &amp; Architecture Call
-            </h1>
-            <p className="text-sm sm:text-base text-[#F9F7F6]/85 font-light mb-4 drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]">
+        <section className="container mx-auto max-w-2xl px-4 sm:px-6">
+          {/* Ultra-Clean Header: Subtitle + Dynamic Price Only */}
+          <div className="text-center max-w-xl mx-auto mb-6">
+            <h1 className="font-heading font-light text-[22px] sm:text-[28px] text-[#F9F7F6] leading-snug mb-3">
               A private 60 minutes deep dive consultation
-            </p>
-            <div className="inline-block px-4 py-1.5 rounded-full bg-[#07070B]/70 backdrop-blur-md border border-[#C9A66B]/45 font-mono text-xs sm:text-sm font-medium text-[#C9A66B] shadow-lg">
+            </h1>
+            <div className="inline-block px-4 py-1.5 rounded-full bg-white/[0.04] border border-[#C9A66B]/40 font-mono text-xs sm:text-sm font-medium text-[#C9A66B]">
               {CONSULTATION_PRICE_DISPLAY}
             </div>
-            <p className="text-sm sm:text-[15px] text-[#F9F7F6]/85 font-light mt-4 max-w-lg mx-auto leading-relaxed drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]">
-              Project pricing depends on your scope, so it is quoted after the call. On the call, we ask a few questions about how your business runs today and where automation can fix it. Then you get a fixed price for your specific scope.
-            </p>
-
-            {/* Subtle scene indicators */}
-            <div className="mt-7 flex items-center justify-center gap-2" aria-label="Consultation hero scenes">
-              {consultationHeroScenes.map((scene, idx) => (
-                <button
-                  key={scene.src}
-                  type="button"
-                  onClick={() => setHeroSceneIdx(idx)}
-                  aria-label={`View consultation scene ${idx + 1}`}
-                  className={`h-1 rounded-full transition-all duration-500 cursor-pointer ${
-                    idx === heroSceneIdx
-                      ? "w-9 bg-[#C9A66B]"
-                      : "w-4 bg-white/30 hover:bg-white/55"
-                  }`}
-                />
-              ))}
-            </div>
           </div>
-        </section>
 
-        <section className="container mx-auto max-w-2xl px-4 sm:px-6 pt-8">
-          {/* LIVE CURRENT DATE & TIME BOX FRAME */}
-          <div className="mb-7 rounded-2xl bg-[#0D0F18]/90 border border-[#C9A66B]/30 backdrop-blur-xl px-4 py-3.5 sm:px-6 sm:py-4 shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
+          {/* LIVE CURRENT DATE & TIME BOX FRAME (Nairobi / EAT + Selected Timezone) */}
+          <div className="mb-6 rounded-2xl bg-[#0D0F18]/90 border border-[#C9A66B]/30 backdrop-blur-xl px-4 py-3.5 sm:px-6 sm:py-4 shadow-[0_8px_30px_rgba(0,0,0,0.45)]">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-start sm:items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-[#C9A66B]/12 border border-[#C9A66B]/30 flex items-center justify-center shrink-0">
@@ -531,17 +557,17 @@ export default function BookConsultationPage() {
                 </div>
               </div>
 
-              {!isVisitorInNairobi && now ? (
+              {!isSelectedEat && now ? (
                 <div className="sm:text-right border-t sm:border-t-0 sm:border-l border-white/10 pt-2.5 sm:pt-0 sm:pl-4 shrink-0">
                   <div className="flex items-center sm:justify-end gap-1.5 text-[10px] uppercase tracking-[0.14em] text-white/50">
                     <Globe className="w-3 h-3 text-[#C9A66B]/80" />
-                    <span>Your Local Time</span>
+                    <span>Your Selected Time ({selectedTzShort})</span>
                   </div>
                   <p className="font-mono text-xs sm:text-[13px] text-[#F9F7F6]/90 font-medium tabular-nums mt-0.5">
-                    {localDateText} &bull; {localTimeText}
+                    {selectedTzDateText} &bull; {selectedTzTimeText}
                   </p>
-                  <p className="text-[10px] text-white/40 truncate max-w-[180px] sm:ml-auto">
-                    {visitorTimeZone.replace(/_/g, " ")}
+                  <p className="text-[10px] text-white/45 truncate max-w-[200px] sm:ml-auto">
+                    {selectedTimeZone.replace(/_/g, " ")}
                   </p>
                 </div>
               ) : (
@@ -554,7 +580,7 @@ export default function BookConsultationPage() {
           </div>
 
           {/* Stepper Dots */}
-          <div className="flex items-center justify-center gap-2 mb-8">
+          <div className="flex items-center justify-center gap-2 mb-6">
             {[1, 2, 3, 4].map((i) => (
               <div
                 key={i}
@@ -572,11 +598,34 @@ export default function BookConsultationPage() {
           {/* STEP 1: DATE & SLOT SELECTION */}
           {step === 1 && (
             <div className="rounded-[22px] bg-[#0D0F18]/80 border border-white/10 backdrop-blur-xl p-5 sm:p-7 shadow-2xl space-y-6">
-              <div>
-                <h2 className="text-sm font-heading uppercase tracking-wider text-white/80 font-medium flex items-center gap-2">
+              <div className="space-y-3">
+                <h2 className="text-sm font-heading uppercase tracking-wider text-white/85 font-medium flex items-center gap-2">
                   <CalendarIcon className="w-4 h-4 text-[#C9A66B]" />
                   Select Date &amp; Time (Wed, Fri, Sun &bull; 8am - 9pm EAT)
                 </h2>
+
+                {/* Timezone Selector Dropdown */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 pt-1">
+                  <label
+                    htmlFor="booking-timezone"
+                    className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-white/60 shrink-0"
+                  >
+                    <Globe className="w-3.5 h-3.5 text-[#C9A66B]" />
+                    <span>Your Timezone:</span>
+                  </label>
+                  <select
+                    id="booking-timezone"
+                    value={selectedTimeZone}
+                    onChange={(e) => setSelectedTimeZone(e.target.value)}
+                    className="flex-1 bg-[#141724] border border-[#C9A66B]/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#C9A66B] cursor-pointer"
+                  >
+                    {timeZoneOptions.map((tz) => (
+                      <option key={tz.value} value={tz.value} className="bg-[#0D0F18] text-white">
+                        {tz.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {loadingSlots ? (
@@ -589,7 +638,7 @@ export default function BookConsultationPage() {
                   {/* Days Row */}
                   <div>
                     <label className="block text-[11px] uppercase tracking-wider text-white/50 mb-2">
-                      Available Days
+                      Available Days (Nairobi Schedule: Wed, Fri, Sun)
                     </label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {days.map((d) => {
@@ -602,7 +651,7 @@ export default function BookConsultationPage() {
                               setSelectedDate(d.value)
                               setSelectedTime("")
                             }}
-                            className={`p-3 rounded-xl text-left border transition-all ${
+                            className={`p-3 rounded-xl text-left border transition-all cursor-pointer ${
                               isSelected
                                 ? "bg-[#C9A66B] text-[#07070B] border-[#C9A66B] font-semibold shadow-md"
                                 : "bg-white/[0.03] text-white/80 border-white/10 hover:border-white/20"
@@ -623,16 +672,23 @@ export default function BookConsultationPage() {
                   {/* Time Slots */}
                   {selectedDayObj && (
                     <div>
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between gap-2 mb-2">
                         <label className="block text-[11px] uppercase tracking-wider text-white/50">
-                          Time Slot (30m buffer protected)
+                          Available Times (30m buffer protected)
                         </label>
-                        <span className="text-[10px] text-white/40">EAT (UTC+3)</span>
+                        <span className="text-[10px] font-mono text-[#C9A66B]">
+                          Shown in {selectedTzShort}
+                        </span>
                       </div>
 
                       <div className="grid grid-cols-3 gap-2">
                         {selectedDayObj.slots.map((slot) => {
                           const isSelected = selectedTime === slot.time
+                          const converted = formatSlotInTimeZone(
+                            selectedDayObj.value,
+                            slot.time,
+                            selectedTimeZone
+                          )
                           return (
                             <button
                               key={slot.time}
@@ -643,15 +699,39 @@ export default function BookConsultationPage() {
                                 !slot.available
                                   ? "bg-white/[0.01] border-white/5 text-white/20 cursor-not-allowed line-through"
                                   : isSelected
-                                  ? "bg-[#C9A66B] text-[#07070B] border-[#C9A66B] font-bold"
-                                  : "bg-white/[0.03] border-white/10 text-white/90 hover:border-[#C9A66B]/40"
+                                  ? "bg-[#C9A66B] text-[#07070B] border-[#C9A66B] font-bold cursor-pointer"
+                                  : "bg-white/[0.03] border-white/10 text-white/90 hover:border-[#C9A66B]/40 cursor-pointer"
                               }`}
                             >
-                              {slot.time}
+                              <span className="block">{converted.timeLabel}</span>
+                              {!isSelectedEat && (
+                                <span
+                                  className={`block text-[10px] mt-0.5 ${
+                                    isSelected ? "text-[#07070B]/75" : "text-white/45"
+                                  }`}
+                                >
+                                  {converted.dayOffsetLabel
+                                    ? `${converted.dayOffsetLabel} • ${slot.time} EAT`
+                                    : `${slot.time} EAT`}
+                                </span>
+                              )}
                             </button>
                           )
                         })}
                       </div>
+
+                      {selectedTime && !isSelectedEat && selectedConvertedSlot && (
+                        <div className="mt-3 px-3.5 py-2 rounded-xl bg-[#C9A66B]/10 border border-[#C9A66B]/25 text-[11px] text-[#F9F7F6]/90">
+                          Selected:{" "}
+                          <strong className="text-[#C9A66B]">
+                            {selectedConvertedSlot.dateLabel} at {selectedConvertedSlot.timeLabel}{" "}
+                            {selectedConvertedSlot.tzShort}
+                          </strong>{" "}
+                          <span className="text-white/55">
+                            ({selectedDayObj.label} at {selectedTime} EAT)
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -661,7 +741,7 @@ export default function BookConsultationPage() {
                       type="button"
                       disabled={!selectedDate || !selectedTime}
                       onClick={handleProceedToStep2}
-                      className="w-full py-3.5 rounded-xl bg-[#C9A66B] text-[#07070B] font-heading font-semibold text-xs tracking-wide hover:bg-[#b59357] transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                      className="w-full py-3.5 rounded-xl bg-[#C9A66B] text-[#07070B] font-heading font-semibold text-xs tracking-wide hover:bg-[#b59357] transition-all flex items-center justify-center gap-2 disabled:opacity-40 cursor-pointer"
                     >
                       Continue
                       <ArrowRight className="w-4 h-4" />
@@ -675,9 +755,9 @@ export default function BookConsultationPage() {
           {/* STEP 2: STRATEGY INTAKE FORM */}
           {step === 2 && (
             <div className="rounded-[22px] bg-[#0D0F18]/80 border border-white/10 backdrop-blur-xl p-5 sm:p-7 shadow-2xl space-y-5 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-3">
                 <span className="text-xs text-[#C9A66B] font-medium">
-                  {selectedDayObj?.label} @ {selectedTime} EAT
+                  {formattedSelectedSummary}
                 </span>
                 <button
                   type="button"
@@ -1010,8 +1090,8 @@ export default function BookConsultationPage() {
               <div className="p-3.5 rounded-xl bg-black/40 border border-white/10 text-xs font-mono text-white/80 space-y-1.5 text-left">
                 <div className="flex justify-between gap-2">
                   <span className="text-white/50">Date &amp; Time:</span>
-                  <span className="text-[#C9A66B] font-semibold">
-                    {selectedDayObj?.label} @ {selectedTime} EAT
+                  <span className="text-[#C9A66B] font-semibold text-right">
+                    {formattedSelectedSummary}
                   </span>
                 </div>
                 <div className="flex justify-between gap-2">
