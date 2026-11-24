@@ -5,16 +5,15 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { isAdminAccount } from "@/lib/auth-roles"
-import { ChevronDown, LogIn, Menu, UserPlus, X } from "lucide-react"
+import { LogIn, Menu, UserPlus, X } from "lucide-react"
 
 export function Navbar() {
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
   const [role, setRole] = useState<string | null>(null)
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
-  const [portalMenuOpen, setPortalMenuOpen] = useState(false)
-  const profileRef = useRef<HTMLDivElement>(null)
-  const portalRef = useRef<HTMLDivElement>(null)
+  const [isOpen, setIsOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const pathname = usePathname()
 
   useEffect(() => {
     async function fetchUser() {
@@ -43,27 +42,36 @@ export function Navbar() {
     fetchUser()
   }, [])
 
-  // Close dropdowns when clicking outside
+  // Close drawer when clicking outside or pressing Escape
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setProfileMenuOpen(false)
-      }
-      if (portalRef.current && !portalRef.current.contains(e.target as Node)) {
-        setPortalMenuOpen(false)
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
       }
     }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setIsOpen(false)
+    }
     document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
+    document.addEventListener("keydown", handleKeyDown)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("keydown", handleKeyDown)
+    }
   }, [])
 
-  const [isOpen, setIsOpen] = useState(false)
-  const pathname = usePathname()
+  // Close drawer automatically on route change
+  useEffect(() => {
+    setIsOpen(false)
+  }, [pathname])
 
-  const navItems: { name: string; href: string; highlight?: boolean }[] = [
+  const primaryItems: { name: string; href: string; highlight?: boolean }[] = [
     { name: "Home", href: "/" },
-    { name: "Software Services", href: "/our-services" },
+    { name: "Services", href: "/our-services" },
     { name: "Consultation", href: "/book-consultation", highlight: true },
+  ]
+
+  const secondaryItems: { name: string; href: string }[] = [
     { name: "Use Cases", href: "/use-cases" },
     { name: "Articles", href: "/articles" },
     { name: "FAQs", href: "/#faq" },
@@ -75,262 +83,164 @@ export function Navbar() {
   }
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-[#1C1C1C]/90 backdrop-blur-md border-b border-[#F4E7E7]/10">
-      <div className="container mx-auto max-w-7xl px-6 md:px-10 h-20 flex items-center justify-between gap-4">
-        {/* LOGO */}
-        <Link href="/" className="flex items-center gap-3 group shrink-0">
-          <div className="relative h-11 w-11 rounded-full overflow-hidden border border-[#C9A66B]/30 group-hover:border-[#C9A66B] transition-colors duration-300">
-            <img
-              src="/images/cillah-emblem.png"
-              alt="Cillah Logo"
-              className="object-cover h-full w-full"
-            />
-          </div>
-          <span className="font-heading font-semibold text-xl tracking-tight text-[#F9F7F6] group-hover:text-[#F4E7E7] transition-colors duration-300">
-            Cillah
-          </span>
-        </Link>
+    <header
+      ref={menuRef}
+      className="fixed top-0 left-0 right-0 z-50 bg-[#141418]/90 backdrop-blur-md border-b border-[#F4E7E7]/10"
+    >
+      <div className="container mx-auto max-w-7xl px-4 sm:px-6 md:px-10 h-16 sm:h-20 flex items-center justify-between gap-3">
+        {/* Spacer on desktop to keep the 3 core page links visually centered */}
+        <div className="hidden sm:block w-10 shrink-0" aria-hidden="true" />
 
-        {/* DESKTOP NAV */}
-        <nav className="hidden lg:flex items-center gap-3.5 xl:gap-6">
-          {navItems.map((item) =>
-            item.highlight ? (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="inline-flex items-center justify-center bg-[#C9A66B] text-[#1C1C1C] hover:bg-[#d6b67d] font-heading font-semibold rounded-[12px] px-4 py-2 text-[13px] xl:text-[14px] tracking-wide whitespace-nowrap transition-all duration-300 shadow-[0_0_18px_rgba(201,166,107,0.3)] hover:shadow-[0_0_24px_rgba(201,166,107,0.45)]"
-              >
-                {item.name}
-              </Link>
-            ) : (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`text-[13px] xl:text-[14px] font-medium tracking-wide whitespace-nowrap transition-all duration-300 ${
-                  isActive(item.href)
-                    ? "text-[#C9A66B]"
-                    : "text-[#F9F7F6]/75 hover:text-[#F4E7E7]"
-                }`}
-              >
-                {item.name}
-              </Link>
-            )
-          )}
-
-          {/* Profile Avatar Dropdown - ONLY SHOWN WHEN ACTIVELY LOGGED IN */}
-          {user && (
-            <div className="relative" ref={profileRef}>
-              <button
-                className="flex items-center gap-2 text-[#F9F7F6] hover:text-[#C9A66B] focus:outline-none cursor-pointer"
-                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-              >
-                <img
-                  src={user?.user_metadata?.avatar_url || "/placeholder-avatar.png"}
-                  alt="Avatar"
-                  className="h-8 w-8 xl:h-9 xl:w-9 rounded-full border-2 border-[#C9A66B]/50 object-cover"
-                />
-                {role === "admin" && (
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#C9A66B]">
-                    Admin
-                  </span>
-                )}
-              </button>
-              {profileMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-[#1C1C1C] border border-[#F4E7E7]/15 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-white/5">
-                  <div className="px-4 py-2.5 bg-black/40">
-                    <p className="text-xs font-semibold text-white truncate">
-                      {user.email?.split("@")[0]}
-                    </p>
-                    <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
-                  </div>
-                  <div className="py-1">
-                    <Link
-                      href="/user/profile"
-                      onClick={() => setProfileMenuOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#F9F7F6] hover:bg-[#C9A66B]/20 transition-colors"
-                    >
-                      Profile
-                    </Link>
-                    <Link
-                      href={role === "admin" ? "/admin/dashboard" : "/user/dashboard"}
-                      onClick={() => setProfileMenuOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#F9F7F6] hover:bg-[#C9A66B]/20 transition-colors"
-                    >
-                      Dashboard
-                    </Link>
-                    <Link
-                      href={role === "admin" ? "/admin/pipeline" : "/user/dashboard"}
-                      onClick={() => setProfileMenuOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#C9A66B] hover:bg-[#C9A66B]/20 transition-colors font-semibold"
-                    >
-                      Sales Pipeline
-                    </Link>
-                  </div>
-                  <div className="py-1">
-                    <button
-                      onClick={async () => {
-                        setProfileMenuOpen(false)
-                        try {
-                          await Promise.race([
-                            supabase.auth.signOut({ scope: 'local' }),
-                            new Promise((resolve) => setTimeout(resolve, 1200)),
-                          ])
-                        } catch {}
-                        window.location.replace("/login")
-                      }}
-                      className="w-full text-left flex items-center gap-2 px-4 py-2 text-xs text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-                    >
-                      Log Out
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </nav>
-
-        {/* DESKTOP RIGHT ACTION: Dashboard (when logged in) OR Client Portal dropdown */}
-        <div className="hidden lg:flex items-center shrink-0">
-          {user ? (
-            <Link
-              href={role === "admin" ? "/admin/dashboard" : "/user/dashboard"}
-              className="inline-flex items-center justify-center border border-[#C9A66B]/50 text-[#C9A66B] hover:bg-[#C9A66B]/10 font-heading font-semibold rounded-[12px] px-4 py-2 text-[13px] xl:text-[14px] tracking-wide whitespace-nowrap transition-all duration-300"
-            >
-              Client Portal
-            </Link>
-          ) : (
-            <div className="relative" ref={portalRef}>
-              <button
-                type="button"
-                onClick={() => setPortalMenuOpen((prev) => !prev)}
-                aria-expanded={portalMenuOpen}
-                aria-haspopup="menu"
-                className="inline-flex items-center justify-center gap-1.5 border border-[#C9A66B]/45 bg-white/[0.03] text-[#F9F7F6] hover:border-[#C9A66B] hover:text-[#C9A66B] font-heading font-medium rounded-[12px] px-4 py-2 text-[13px] xl:text-[14px] tracking-wide whitespace-nowrap transition-all duration-300 cursor-pointer"
-              >
-                <span>Client Portal</span>
-                <ChevronDown
-                  className={`h-4 w-4 text-[#C9A66B] transition-transform duration-200 ${
-                    portalMenuOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-
-              {portalMenuOpen && (
-                <div
-                  role="menu"
-                  className="absolute right-0 top-full mt-2 w-52 bg-[#1C1C1C] border border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden p-1.5 space-y-1"
-                >
-                  <Link
-                    href="/login"
-                    rel="nofollow"
-                    role="menuitem"
-                    onClick={() => setPortalMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[13px] font-heading font-medium text-[#F9F7F6] hover:bg-[#C9A66B]/15 hover:text-[#C9A66B] transition-colors"
-                  >
-                    <LogIn className="h-4 w-4 text-[#C9A66B]" />
-                    <span>Log In</span>
-                  </Link>
-                  <Link
-                    href="/signup"
-                    rel="nofollow"
-                    role="menuitem"
-                    onClick={() => setPortalMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-[13px] font-heading font-medium text-[#F9F7F6] hover:bg-[#C9A66B]/15 hover:text-[#C9A66B] transition-colors"
-                  >
-                    <UserPlus className="h-4 w-4 text-[#C9A66B]" />
-                    <span>Sign Up</span>
-                  </Link>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* MOBILE MENU BUTTON (visible below lg breakpoint) */}
-        <button
-          className="lg:hidden text-[#F9F7F6] p-2 hover:bg-[#F4E7E7]/5 rounded-lg transition-colors cursor-pointer"
-          onClick={() => setIsOpen(!isOpen)}
-          aria-label="Toggle Menu"
+        {/* CLEAN 3-PAGE PRIMARY NAVIGATION */}
+        <nav
+          aria-label="Primary navigation"
+          className="flex items-center justify-center gap-2 sm:gap-6 md:gap-8"
         >
-          {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
-      </div>
-
-      {/* MOBILE NAV OVERLAY */}
-      {isOpen && (
-        <div className="lg:hidden absolute top-20 left-0 right-0 bg-[#1C1C1C] border-b border-[#F4E7E7]/10 px-6 py-6 flex flex-col gap-5 shadow-2xl animate-in fade-in slide-in-from-top-5 duration-200 z-50">
-          <nav className="flex flex-col gap-2.5">
-            {navItems.map((item) =>
-              item.highlight ? (
+          {primaryItems.map((item) => {
+            const active = isActive(item.href)
+            if (item.highlight) {
+              return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  onClick={() => setIsOpen(false)}
-                  className="my-1 w-full text-center bg-[#C9A66B] text-[#1C1C1C] hover:bg-[#d6b67d] font-heading font-semibold rounded-[14px] py-3 text-[15px] tracking-wide transition-all duration-300 shadow-[0_0_18px_rgba(201,166,107,0.25)]"
-                >
-                  {item.name}
-                </Link>
-              ) : (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setIsOpen(false)}
-                  className={`text-base font-medium tracking-wide py-2 border-b border-[#F4E7E7]/5 ${
-                    isActive(item.href) ? "text-[#C9A66B]" : "text-[#F9F7F6]/80"
+                  prefetch={true}
+                  className={`inline-flex items-center justify-center font-heading font-semibold rounded-[12px] px-3.5 sm:px-5 py-1.5 sm:py-2 text-[13px] sm:text-[14px] tracking-wide whitespace-nowrap transition-all duration-200 ${
+                    active
+                      ? "bg-[#d6b67d] text-[#141418] ring-2 ring-[#C9A66B]/60 shadow-[0_0_24px_rgba(201,166,107,0.5)]"
+                      : "bg-[#C9A66B] text-[#141418] hover:bg-[#d6b67d] shadow-[0_0_16px_rgba(201,166,107,0.28)] hover:shadow-[0_0_22px_rgba(201,166,107,0.45)]"
                   }`}
                 >
                   {item.name}
                 </Link>
               )
-            )}
+            }
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                prefetch={true}
+                className={`relative px-2.5 sm:px-3 py-1.5 text-[13px] sm:text-[14px] font-heading font-medium tracking-wide whitespace-nowrap transition-colors duration-200 ${
+                  active
+                    ? "text-[#C9A66B]"
+                    : "text-[#F9F7F6]/80 hover:text-[#F9F7F6]"
+                }`}
+              >
+                {item.name}
+                {active && (
+                  <span className="absolute left-2.5 right-2.5 -bottom-0.5 h-[2px] rounded-full bg-[#C9A66B]" />
+                )}
+              </Link>
+            )
+          })}
+        </nav>
+
+        {/* UNIVERSAL THREE-LINE MENU BUTTON (Desktop & Mobile) */}
+        <button
+          type="button"
+          className="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-white/10 bg-white/[0.03] text-[#F9F7F6] hover:border-[#C9A66B]/50 hover:text-[#C9A66B] transition-colors cursor-pointer shrink-0"
+          onClick={() => setIsOpen((prev) => !prev)}
+          aria-expanded={isOpen}
+          aria-label="Toggle navigation menu"
+        >
+          {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      </div>
+
+      {/* THREE-LINE DROPDOWN MENU (Desktop & Mobile) */}
+      {isOpen && (
+        <div className="absolute top-16 sm:top-20 right-0 left-0 sm:left-auto sm:right-6 md:right-10 sm:w-72 bg-[#141418]/98 backdrop-blur-xl border-b sm:border border-[#F4E7E7]/15 sm:rounded-2xl px-5 py-5 flex flex-col gap-5 shadow-2xl z-50">
+          <nav className="flex flex-col gap-1" aria-label="Secondary navigation">
+            <span className="text-[10px] font-heading font-medium uppercase tracking-[0.2em] text-[#C9A66B]/85 px-2 pb-1.5">
+              Explore
+            </span>
+            {secondaryItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setIsOpen(false)}
+                className={`px-3 py-2.5 rounded-xl text-[14px] font-medium tracking-wide transition-colors ${
+                  isActive(item.href)
+                    ? "bg-[#C9A66B]/15 text-[#C9A66B]"
+                    : "text-[#F9F7F6]/85 hover:bg-white/[0.05] hover:text-[#F9F7F6]"
+                }`}
+              >
+                {item.name}
+              </Link>
+            ))}
           </nav>
 
-          <div className="flex flex-col gap-2.5 pt-2 border-t border-white/10">
-            <span className="text-[11px] font-heading font-medium uppercase tracking-[0.2em] text-[#C9A66B]">
+          <div className="flex flex-col gap-2.5 pt-3 border-t border-white/10">
+            <span className="text-[10px] font-heading font-medium uppercase tracking-[0.2em] text-[#C9A66B]/85 px-2">
               Client Portal
             </span>
             {user ? (
-              <>
+              <div className="flex flex-col gap-1.5">
+                <div className="px-3 py-2 rounded-xl bg-white/[0.03] border border-white/5 mb-1">
+                  <p className="text-xs font-semibold text-white truncate">
+                    {user.email?.split("@")[0]}
+                  </p>
+                  <p className="text-[10px] text-white/50 truncate">{user.email}</p>
+                </div>
+                <Link
+                  href="/user/profile"
+                  onClick={() => setIsOpen(false)}
+                  className="px-3 py-2 rounded-xl text-[13px] text-[#F9F7F6]/85 hover:bg-[#C9A66B]/15 hover:text-[#C9A66B] transition-colors"
+                >
+                  Profile
+                </Link>
                 <Link
                   href={role === "admin" ? "/admin/dashboard" : "/user/dashboard"}
                   onClick={() => setIsOpen(false)}
-                  className="w-full text-center border border-[#C9A66B]/45 text-[#C9A66B] font-heading font-semibold rounded-[14px] py-3 text-[15px] tracking-wide"
+                  className="px-3 py-2 rounded-xl text-[13px] text-[#F9F7F6]/85 hover:bg-[#C9A66B]/15 hover:text-[#C9A66B] transition-colors"
                 >
-                  Go to Dashboard
+                  Dashboard
                 </Link>
+                {role === "admin" && (
+                  <Link
+                    href="/admin/pipeline"
+                    onClick={() => setIsOpen(false)}
+                    className="px-3 py-2 rounded-xl text-[13px] font-semibold text-[#C9A66B] hover:bg-[#C9A66B]/15 transition-colors"
+                  >
+                    Sales Pipeline
+                  </Link>
+                )}
                 <button
+                  type="button"
                   onClick={async () => {
                     setIsOpen(false)
                     try {
                       await Promise.race([
-                        supabase.auth.signOut({ scope: 'local' }),
+                        supabase.auth.signOut({ scope: "local" }),
                         new Promise((resolve) => setTimeout(resolve, 1200)),
                       ])
                     } catch {}
                     window.location.replace("/login")
                   }}
-                  className="w-full text-center border border-red-500/30 text-red-400 font-heading font-medium rounded-[14px] py-2.5 text-sm"
+                  className="mt-1 w-full text-center border border-red-500/30 text-red-400 hover:bg-red-500/10 font-heading font-medium rounded-xl py-2.5 text-xs transition-colors cursor-pointer"
                 >
-                  Log Out ({user.email})
+                  Log Out
                 </button>
-              </>
+              </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <Link
                   href="/login"
                   rel="nofollow"
                   onClick={() => setIsOpen(false)}
-                  className="w-full text-center border border-[#C9A66B]/35 text-[#F9F7F6] hover:border-[#C9A66B] hover:text-[#C9A66B] font-heading font-medium rounded-[14px] py-3 text-[14px] tracking-wide transition-all duration-300"
+                  className="inline-flex items-center justify-center gap-1.5 border border-[#C9A66B]/35 text-[#F9F7F6] hover:border-[#C9A66B] hover:text-[#C9A66B] font-heading font-medium rounded-xl py-2.5 text-[13px] tracking-wide transition-colors"
                 >
-                  Log In
+                  <LogIn className="h-3.5 w-3.5 text-[#C9A66B]" />
+                  <span>Log In</span>
                 </Link>
                 <Link
                   href="/signup"
                   rel="nofollow"
                   onClick={() => setIsOpen(false)}
-                  className="w-full text-center bg-white/5 border border-white/15 text-[#F9F7F6] hover:border-[#C9A66B] hover:text-[#C9A66B] font-heading font-medium rounded-[14px] py-3 text-[14px] tracking-wide transition-all duration-300"
+                  className="inline-flex items-center justify-center gap-1.5 bg-white/5 border border-white/15 text-[#F9F7F6] hover:border-[#C9A66B] hover:text-[#C9A66B] font-heading font-medium rounded-xl py-2.5 text-[13px] tracking-wide transition-colors"
                 >
-                  Sign Up
+                  <UserPlus className="h-3.5 w-3.5 text-[#C9A66B]" />
+                  <span>Sign Up</span>
                 </Link>
               </div>
             )}

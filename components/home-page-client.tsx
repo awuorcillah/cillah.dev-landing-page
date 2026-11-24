@@ -73,6 +73,12 @@ export function HomePageClient() {
   const [activeFaqCategory, setActiveFaqCategory] = useState<string>("all")
   const [openFaq, setOpenFaq] = useState<string | null>("web-1")
   const [heroSceneIdx, setHeroSceneIdx] = useState<number>(0)
+  const [extraScenesReady, setExtraScenesReady] = useState<boolean>(false)
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setExtraScenesReady(true), 350)
+    return () => window.clearTimeout(t)
+  }, [])
 
   const heroScenes = [
     {
@@ -150,6 +156,7 @@ export function HomePageClient() {
           {/* 3-Scene Cinematic Nairobi Background Reel */}
           <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden" aria-hidden="true">
             {heroScenes.map((scene, idx) => {
+              if (idx > 0 && !extraScenesReady) return null
               const isActive = idx === heroSceneIdx
               return (
                 <motion.div
@@ -160,8 +167,8 @@ export function HomePageClient() {
                     scale: isActive ? scene.toScale : scene.fromScale,
                   }}
                   transition={{
-                    opacity: { duration: 1.2, ease: "easeInOut" },
-                    scale: { duration: scene.durationMs / 1000 + 1.2, ease: "easeOut" },
+                    opacity: { duration: 1.1, ease: "easeInOut" },
+                    scale: { duration: scene.durationMs / 1000 + 1.1, ease: "easeOut" },
                   }}
                   className="absolute inset-0 will-change-transform"
                 >
@@ -170,7 +177,8 @@ export function HomePageClient() {
                     alt={scene.alt}
                     fill
                     priority={idx === 0}
-                    quality={85}
+                    fetchPriority={idx === 0 ? "high" : "low"}
+                    quality={75}
                     sizes="100vw"
                     className={`object-cover ${scene.objectPosition}`}
                   />
@@ -186,13 +194,8 @@ export function HomePageClient() {
 
           <div className="container mx-auto max-w-5xl px-6 md:px-12 relative z-10 text-center flex flex-col items-center">
             
-            {/* Headline & Subtexts */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="max-w-4xl mx-auto flex flex-col items-center text-center"
-            >
+            {/* Headline & Subtexts (zero opacity:0 on SSR so text paints instantaneously) */}
+            <div className="max-w-4xl mx-auto flex flex-col items-center text-center">
               <span className="text-[11px] font-heading font-medium uppercase tracking-[0.25em] text-[#C9A66B] mb-4 block drop-shadow-[0_2px_10px_rgba(0,0,0,0.85)]">
                 AI &amp; AUTOMATION FOR REAL ESTATE AGENCIES
               </span>
@@ -212,7 +215,7 @@ export function HomePageClient() {
                   Cillah gives your business a system that responds instantly, qualifies buyers automatically, follows up continuously, and keeps converting opportunities — even when your team is offline.
                 </p>
               </div>
-            </motion.div>
+            </div>
 
             {/* Subtle Story Scene Indicators */}
             <div className="mt-12 flex items-center gap-2.5" aria-label="Hero story scenes">

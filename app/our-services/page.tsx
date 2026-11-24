@@ -24,6 +24,12 @@ export default function ServicesPage() {
   const [activeCategory, setActiveCategory] = useState<string>("all")
   const [openFaq, setOpenFaq] = useState<string | null>("web-1")
   const [heroSceneIdx, setHeroSceneIdx] = useState<number>(0)
+  const [extraScenesReady, setExtraScenesReady] = useState<boolean>(false)
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setExtraScenesReady(true), 350)
+    return () => window.clearTimeout(t)
+  }, [])
 
   const heroScenes = [
     {
@@ -191,6 +197,7 @@ export default function ServicesPage() {
           {/* 3-Scene Cinematic Nairobi Systems Background Reel */}
           <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden" aria-hidden="true">
             {heroScenes.map((scene, idx) => {
+              if (idx > 0 && !extraScenesReady) return null
               const isActive = idx === heroSceneIdx
               return (
                 <motion.div
@@ -201,8 +208,8 @@ export default function ServicesPage() {
                     scale: isActive ? scene.toScale : scene.fromScale,
                   }}
                   transition={{
-                    opacity: { duration: 1.2, ease: "easeInOut" },
-                    scale: { duration: scene.durationMs / 1000 + 1.2, ease: "easeOut" },
+                    opacity: { duration: 1.1, ease: "easeInOut" },
+                    scale: { duration: scene.durationMs / 1000 + 1.1, ease: "easeOut" },
                   }}
                   className="absolute inset-0 will-change-transform"
                 >
@@ -211,7 +218,8 @@ export default function ServicesPage() {
                     alt={scene.alt}
                     fill
                     priority={idx === 0}
-                    quality={85}
+                    fetchPriority={idx === 0 ? "high" : "low"}
+                    quality={75}
                     sizes="100vw"
                     className={`object-cover ${scene.objectPosition}`}
                   />
@@ -226,12 +234,7 @@ export default function ServicesPage() {
           </div>
 
           <div className="container mx-auto max-w-5xl px-6 md:px-12 relative z-10 text-center flex flex-col items-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, ease: "easeOut" }}
-              className="max-w-3xl mx-auto space-y-4"
-            >
+            <div className="max-w-3xl mx-auto space-y-4">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#07070B]/60 border border-[#C9A66B]/40 backdrop-blur-md">
                 <Sparkles className="h-3.5 w-3.5 text-[#C9A66B]" />
                 <span className="text-[11px] font-medium tracking-[0.2em] uppercase text-[#C9A66B]">
@@ -247,7 +250,7 @@ export default function ServicesPage() {
               <p className="text-[15px] sm:text-[17px] leading-relaxed text-[#F9F7F6]/88 max-w-2xl mx-auto font-light pt-2 drop-shadow-[0_2px_14px_rgba(0,0,0,0.85)]">
                 We build the central digital headquarters, 24/7 AI systems, and outbound client acquisition engines that turn customer interest into revenue while saving your team hundreds of manual hours.
               </p>
-            </motion.div>
+            </div>
 
             {/* Subtle Story Scene Indicators */}
             <div className="mt-10 flex items-center gap-2.5" aria-label="Services hero scenes">
