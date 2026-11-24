@@ -169,7 +169,7 @@ export default function UseCasesPage() {
 
             {useCases.length === 0 && (
               <p className="text-center text-[#1C1C1C]/40 py-12">
-                No use cases published yet. Publish via TinaCMS to see them here.
+                No use cases published yet.
               </p>
             )}
           </div>
