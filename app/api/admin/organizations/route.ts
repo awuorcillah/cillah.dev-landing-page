@@ -329,11 +329,15 @@ export async function DELETE(request: Request) {
       )
     }
 
-    // Soft-deactivate org staff before deleting org record
-    await db
-      .from('staff_members')
-      .update({ is_active: false, updated_at: new Date().toISOString() })
-      .eq('org_id', orgId)
+    // Safely detach child FK rows before deleting org record
+    await Promise.all([
+      db
+        .from('staff_members')
+        .update({ is_active: false, org_id: null, updated_at: new Date().toISOString() })
+        .eq('org_id', orgId),
+      db.from('stage_leads').update({ org_id: null }).eq('org_id', orgId),
+      db.from('properties').update({ org_id: null }).eq('org_id', orgId),
+    ])
 
     const { error } = await db.from('organizations').delete().eq('id', orgId)
     if (error) {
