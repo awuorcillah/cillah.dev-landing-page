@@ -53,6 +53,7 @@ interface MarketingConnectionsViewProps {
   providerConfig: ProviderReadinessMap
   schemaPending: boolean
   loading: boolean
+  isSuperAdminView?: boolean
   onRefresh: () => void
 }
 
@@ -112,6 +113,7 @@ export default function MarketingConnectionsView({
   providerConfig,
   schemaPending,
   loading,
+  isSuperAdminView = false,
   onRefresh,
 }: MarketingConnectionsViewProps) {
   const pathname = usePathname()
@@ -141,10 +143,14 @@ export default function MarketingConnectionsView({
     }
     const cfg = providerConfig[providerId]
     if (!cfg?.configured) {
-      setExpandedGuide(providerId)
-      toast.info(
-        `Add ${cfg?.requiredEnv.join(' & ')} in Vercel Environment Variables first, then click Connect again.`
-      )
+      if (isSuperAdminView) {
+        setExpandedGuide(providerId)
+        toast.info(
+          `Add ${cfg?.requiredEnv.join(' & ')} in Vercel Environment Variables first, then redeploy.`
+        )
+      } else {
+        toast.info('This channel integration is being activated by your platform administrator.')
+      }
       return
     }
     const connectUrl = `/api/marketing/oauth/${providerId}/connect?org=${encodeURIComponent(
@@ -210,41 +216,16 @@ export default function MarketingConnectionsView({
   const waConnections = connections.filter((c) => c.channel === 'whatsapp_status')
 
   return (
-    <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-400">
-            <ShieldCheck className="w-4 h-4" /> Native Multi-Tenant OAuth 2.0 &bull; AES-256 Encrypted Tokens
-          </div>
-          <h3 className="text-lg font-extrabold text-white mt-1">
-            Connected Social &amp; Website Channels — {organizationName}
-          </h3>
-          <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-            Register each developer app once for Cillah, then any organization simply clicks <strong>Connect</strong> to log into their own social accounts and post from one place.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={loading}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white self-start md:self-auto cursor-pointer"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          <span>Refresh Status</span>
-        </button>
-      </div>
-
-      {schemaPending && (
+    <div className="space-y-5">
+      {schemaPending && isSuperAdminView && (
         <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
           <div className="text-xs space-y-1">
             <p className="font-bold text-amber-200">
-              One Quick SQL Step to Store OAuth Connections
+              Database Setup Pending
             </p>
             <p className="text-slate-300">
-              Run <code className="px-1.5 py-0.5 rounded bg-slate-950 text-[#E5C992]">supabase/marketing_social_connections.sql</code> in your Supabase SQL Editor to create the encrypted <code className="px-1 rounded bg-slate-950">marketing_social_connections</code> table.
+              Run <code className="px-1.5 py-0.5 rounded bg-slate-950 text-[#E5C992]">supabase/marketing_social_connections.sql</code> in Supabase SQL Editor.
             </p>
           </div>
         </div>
@@ -254,33 +235,13 @@ export default function MarketingConnectionsView({
         <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-4 flex items-center gap-3 text-xs text-purple-200">
           <Lock className="w-4 h-4 shrink-0" />
           <span>
-            Viewing in read-only mode ({permissions.label}). Only Marketing Admins or Publishers can link or disconnect organization social accounts.
+            Read-only ({permissions.label}). Only Marketing Admins or Publishers can connect or disconnect accounts.
           </span>
         </div>
       )}
 
-      {/* NATIVE WEBSITE CHANNELS (ALWAYS CONNECTED) */}
-      <div className="rounded-2xl bg-[#C9A66B]/5 border border-[#C9A66B]/30 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#C9A66B]/20 border border-[#C9A66B]/40 flex items-center justify-center text-[#E5C992] shrink-0">
-            <Globe className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h4 className="text-sm font-bold text-white">Website Articles &amp; Website Use Cases</h4>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                <CheckCircle2 className="w-3 h-3" /> Live &amp; Native
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 mt-1">
-              Publishing to Website Articles or Use Cases immediately renders live on <code className="text-[#E5C992]">cillah.dev/articles</code> and <code className="text-[#E5C992]">cillah.dev/use-cases</code> — zero external OAuth required.
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* 4 NATIVE OAUTH PROVIDER CARDS */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {OAUTH_PROVIDERS.map((provider) => {
           const cfg = providerConfig[provider.id]
           const providerConns = connections.filter((c) => c.provider === provider.id)
@@ -308,16 +269,14 @@ export default function MarketingConnectionsView({
                     </span>
                   ) : isConfigured ? (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30 shrink-0">
-                      Ready to Login
+                      Ready
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0">
-                      App Keys Needed
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-800 text-slate-400 border border-slate-700 shrink-0">
+                      {isSuperAdminView ? 'Setup Required' : 'Coming Soon'}
                     </span>
                   )}
                 </div>
-
-                <p className="text-xs text-slate-400 leading-relaxed">{provider.description}</p>
 
                 {/* Connected Accounts List for this provider */}
                 {providerConns.length > 0 && (
@@ -372,95 +331,89 @@ export default function MarketingConnectionsView({
                   </div>
                 )}
 
-                {/* Collapsible Developer Setup & Callback URL Helper */}
-                <div className="pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setExpandedGuide(isExpanded ? null : provider.id)}
-                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 hover:text-[#E5C992] transition-colors cursor-pointer"
-                  >
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 transition-transform ${
-                        isExpanded ? 'rotate-180' : ''
-                      }`}
-                    />
-                    <span>Developer Setup, Scopes &amp; Redirect URL</span>
-                  </button>
+                {/* Developer Setup Drawer — visible ONLY in Super Admin view */}
+                {isSuperAdminView && (
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedGuide(isExpanded ? null : provider.id)}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 hover:text-[#E5C992] transition-colors cursor-pointer"
+                    >
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 transition-transform ${
+                          isExpanded ? 'rotate-180' : ''
+                        }`}
+                      />
+                      <span>Platform Setup &amp; Redirect URL</span>
+                    </button>
 
-                  {isExpanded && cfg && (
-                    <div className="mt-3 p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5 text-[11px]">
-                      <div>
-                        <p className="text-slate-400 font-semibold mb-1">
-                          1. Paste this OAuth Redirect URI in {provider.portalLabel}:
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <code className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-cyan-300 truncate">
-                            {cfg.callbackUrl}
-                          </code>
-                          <button
-                            type="button"
-                            onClick={() => copyCallback(cfg.callbackUrl)}
-                            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white inline-flex items-center gap-1 cursor-pointer shrink-0"
-                          >
-                            {copiedUrl === cfg.callbackUrl ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-400" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                            <span>Copy</span>
-                          </button>
+                    {isExpanded && cfg && (
+                      <div className="mt-3 p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5 text-[11px]">
+                        <div>
+                          <p className="text-slate-400 font-semibold mb-1">
+                            Redirect URI ({provider.portalLabel}):
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <code className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-cyan-300 truncate">
+                              {cfg.callbackUrl}
+                            </code>
+                            <button
+                              type="button"
+                              onClick={() => copyCallback(cfg.callbackUrl)}
+                              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white inline-flex items-center gap-1 cursor-pointer shrink-0"
+                            >
+                              {copiedUrl === cfg.callbackUrl ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                              <span>Copy</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
 
-                      <div>
-                        <p className="text-slate-400 font-semibold">2. Required Scopes:</p>
-                        <p className="text-slate-300 font-mono text-[10px] mt-0.5 break-words">
-                          {provider.scopesSummary}
-                        </p>
-                      </div>
+                        <div>
+                          <p className="text-slate-400 font-semibold">Vercel Env Keys:</p>
+                          <p className="text-[#E5C992] font-mono mt-0.5">
+                            {cfg.requiredEnv.join('  •  ')}
+                          </p>
+                        </div>
 
-                      <div>
-                        <p className="text-slate-400 font-semibold">
-                          3. Add to Vercel Env Variables (Production &amp; Local):
-                        </p>
-                        <p className="text-[#E5C992] font-mono mt-0.5">
-                          {cfg.requiredEnv.join('  •  ')}
-                        </p>
+                        <a
+                          href={cfg.portalUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-cyan-400 hover:underline font-semibold pt-1"
+                        >
+                          Open {provider.portalLabel} <ExternalLink className="w-3 h-3" />
+                        </a>
                       </div>
-
-                      <a
-                        href={cfg.portalUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-cyan-400 hover:underline font-semibold pt-1"
-                      >
-                        Open {provider.portalLabel} <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Action Button */}
-              <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
-                <span className="text-[11px] text-slate-500">
-                  {isConfigured
-                    ? 'OAuth credentials active'
-                    : `Needs ${cfg?.requiredEnv.join(' + ')}`}
-                </span>
+              <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  disabled={!permissions.canPublishDirectly}
+                  disabled={!permissions.canPublishDirectly || (!isConfigured && !isSuperAdminView)}
                   onClick={() => handleConnectProvider(provider.id)}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50 ${
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                     isConfigured
                       ? 'bg-[#C9A66B] hover:bg-[#d8b87d] text-slate-950 shadow-md shadow-[#C9A66B]/20'
-                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
                   }`}
                 >
                   <Link2 className="w-3.5 h-3.5" />
                   <span>
-                    {providerConns.length > 0 ? 'Reconnect / Add Account' : `Connect ${provider.name.split(' ')[0]}`}
+                    {providerConns.length > 0
+                      ? 'Add / Reconnect'
+                      : isConfigured
+                      ? `Connect ${provider.name.split(' ')[0]}`
+                      : isSuperAdminView
+                      ? 'Configure Keys'
+                      : 'Coming Soon'}
                   </span>
                 </button>
               </div>
@@ -471,30 +424,37 @@ export default function MarketingConnectionsView({
 
       {/* WHATSAPP STATUS CHANNEL CARD */}
       <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
-        <div className="space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <MessageCircle className="w-4 h-4 text-emerald-400" />
-            <h4 className="text-base font-bold text-white">WhatsApp Status</h4>
-            {waConnections.length > 0 && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                <CheckCircle2 className="w-3 h-3" /> Configured ({waConnections[0].account_handle})
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-slate-400 max-w-2xl">
-            Meta&apos;s official WhatsApp Cloud API does not support direct personal Status uploads yet. Connect your WhatsApp number for <strong>1-click mobile Status sharing</strong>, or optionally paste a Whapi.cloud / Evolution API gateway URL for automated Status posting.
-          </p>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <MessageCircle className="w-4 h-4 text-emerald-400" />
+          <h4 className="text-base font-bold text-white">WhatsApp Status</h4>
+          {waConnections.length > 0 && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+              <CheckCircle2 className="w-3 h-3" /> {waConnections[0].account_handle}
+            </span>
+          )}
         </div>
 
-        <button
-          type="button"
-          disabled={!permissions.canPublishDirectly}
-          onClick={() => setWaModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-xs font-bold shrink-0 cursor-pointer disabled:opacity-50"
-        >
-          <MessageCircle className="w-3.5 h-3.5" />
-          <span>{waConnections.length > 0 ? 'Update WhatsApp' : 'Configure WhatsApp Status'}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={!permissions.canPublishDirectly}
+            onClick={() => setWaModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-xs font-bold shrink-0 cursor-pointer disabled:opacity-50"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            <span>{waConnections.length > 0 ? 'Update' : 'Connect WhatsApp'}</span>
+          </button>
+        </div>
       </div>
 
       {/* WhatsApp Status Config Modal */}

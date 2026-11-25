@@ -394,6 +394,7 @@ export default function MarketingHub({
           providerConfig={providerConfig}
           schemaPending={connectionsSchemaPending}
           loading={loadingConnections}
+          isSuperAdminView={isAdminView}
           onRefresh={fetchConnections}
         />
       )}
