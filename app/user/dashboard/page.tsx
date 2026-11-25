@@ -57,6 +57,8 @@ export default function UserDashboardPage() {
   const supabase = createClient()
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('')
   const [displayName, setDisplayName] = useState<string>('')
+  const [organizationSlug, setOrganizationSlug] = useState<string>('cillah-dev')
+  const [organizationName, setOrganizationName] = useState<string>('Cillah')
   const [assignedWorkspaces, setAssignedWorkspaces] = useState<UserWorkspaceRole[]>([
     'sales',
     'marketing',
@@ -99,10 +101,23 @@ export default function UserDashboardPage() {
           .maybeSingle(),
         supabase
           .from('staff_members')
-          .select('full_name, role, status')
+          .select('full_name, role, status, org_id')
           .ilike('email', email)
           .maybeSingle(),
       ])
+
+      if (staff?.org_id) {
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('slug, name')
+          .eq('id', staff.org_id)
+          .maybeSingle()
+
+        if (org?.slug) {
+          setOrganizationSlug(org.slug)
+          setOrganizationName(org.name || org.slug)
+        }
+      }
 
       const name =
         staff?.full_name ||
@@ -193,7 +208,7 @@ export default function UserDashboardPage() {
                   {displayName || 'Workspace'}
                 </p>
                 <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-[10px] font-bold text-cyan-300">
-                  <Building2 className="w-2.5 h-2.5" /> Cillah Org
+                  <Building2 className="w-2.5 h-2.5" /> {organizationName}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 leading-tight truncate">
@@ -226,7 +241,7 @@ export default function UserDashboardPage() {
                 <div className="absolute left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-0 top-12 w-72 rounded-2xl bg-slate-950 border border-[#C9A66B]/35 shadow-2xl overflow-hidden divide-y divide-slate-800/80 z-50">
                   <div className="px-4 py-2.5 bg-slate-900/70">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-[#C9A66B]">
-                      Select Department — Cillah
+                      Select Department — {organizationName}
                     </p>
                   </div>
                   <div className="p-1.5 space-y-1">
@@ -321,8 +336,8 @@ export default function UserDashboardPage() {
 
         {activeWorkspace === 'marketing' && (
           <MarketingHub
-            organizationSlug="cillah-dev"
-            organizationName="Cillah"
+            organizationSlug={organizationSlug}
+            organizationName={organizationName}
             currentUserEmail={currentUserEmail}
             isAdminView={false}
           />
