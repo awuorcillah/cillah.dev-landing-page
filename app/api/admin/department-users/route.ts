@@ -12,7 +12,7 @@ function getAdminDb() {
   return createAdminClient(supabaseUrl, serviceRoleKey)
 }
 
-async function requireAdminCaller() {
+async function requireAdminCaller(requestedOrgId?: string, requestedDepartment?: string) {
   const authClient = await createServerSupabase()
   const {
     data: { user },
@@ -23,14 +23,20 @@ async function requireAdminCaller() {
   }
 
   const email = (user.email || '').toLowerCase().trim()
+  const isSuper = isSuperAdminEmail(email)
   const db = getAdminDb()
-  const { data: profile } = await db
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle()
 
-  if (!isAdminAccount(email, profile?.role)) {
+  const [{ data: profile }, { data: callerStaff }] = await Promise.all([
+    db.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+    db.from('staff_members').select('org_id, role, status').ilike('email', email).maybeSingle(),
+  ])
+
+  const hasAdminRole =
+    isSuper ||
+    isAdminAccount(email, profile?.role) ||
+    String(callerStaff?.status || '').toLowerCase() === 'admin'
+
+  if (!hasAdminRole) {
     return {
       error: NextResponse.json(
         { error: 'Forbidden: Only Admin / CEO can manage department users.' },
@@ -39,7 +45,34 @@ async function requireAdminCaller() {
     }
   }
 
-  return { user, email, db }
+  // STRICT TENANT ISOLATION: Non-Super Admins can ONLY access their own organization & assigned departments
+  const callerOrgId = callerStaff?.org_id || null
+  const callerRoles = parseRoles(callerStaff?.role)
+
+  if (!isSuper) {
+    if (!callerOrgId || (requestedOrgId && callerOrgId !== requestedOrgId)) {
+      return {
+        error: NextResponse.json(
+          { error: 'Forbidden: Organization Admins can only manage users within their own organization.' },
+          { status: 403 }
+        ),
+      }
+    }
+    if (
+      requestedDepartment &&
+      !callerRoles.includes('ceo') &&
+      !callerRoles.includes(requestedDepartment.toLowerCase())
+    ) {
+      return {
+        error: NextResponse.json(
+          { error: `Forbidden: You do not have Admin access to the ${requestedDepartment} department.` },
+          { status: 403 }
+        ),
+      }
+    }
+  }
+
+  return { user, email, db, isSuper, callerOrgId }
 }
 
 function parseRoles(raw?: string | null): string[] {
@@ -52,10 +85,6 @@ function parseRoles(raw?: string | null): string[] {
 
 export async function GET(request: Request) {
   try {
-    const auth = await requireAdminCaller()
-    if ('error' in auth && auth.error) return auth.error
-    const { db } = auth
-
     const { searchParams } = new URL(request.url)
     const orgId = searchParams.get('orgId') || ''
     const department = (searchParams.get('department') || 'sales').toLowerCase().trim()
@@ -63,6 +92,10 @@ export async function GET(request: Request) {
     if (!orgId) {
       return NextResponse.json({ error: 'orgId is required' }, { status: 400 })
     }
+
+    const auth = await requireAdminCaller(orgId, department)
+    if ('error' in auth && auth.error) return auth.error
+    const { db } = auth
 
     const [{ data: staffRows, error: staffErr }, { data: leadsRows }, { data: profileRows }] =
       await Promise.all([
@@ -137,10 +170,6 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const auth = await requireAdminCaller()
-    if ('error' in auth && auth.error) return auth.error
-    const { db } = auth
-
     const body = await request.json()
     const orgId = (body.orgId || '').trim()
     const department = (body.department || 'sales').toLowerCase().trim()
@@ -155,6 +184,10 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+
+    const auth = await requireAdminCaller(orgId, department)
+    if ('error' in auth && auth.error) return auth.error
+    const { db } = auth
 
     // Check if staff member already exists by email
     const { data: existing } = await db
@@ -234,7 +267,7 @@ export async function PATCH(request: Request) {
   try {
     const auth = await requireAdminCaller()
     if ('error' in auth && auth.error) return auth.error
-    const { db } = auth
+    const { db, isSuper, callerOrgId } = auth
 
     const body = await request.json()
     const { userId, full_name, phone_number, access_level } = body
@@ -250,6 +283,13 @@ export async function PATCH(request: Request) {
 
     if (!existing) {
       return NextResponse.json({ error: 'Staff member not found' }, { status: 404 })
+    }
+
+    if (!isSuper && existing.org_id !== callerOrgId) {
+      return NextResponse.json(
+        { error: 'Forbidden: Cannot edit users outside your own organization.' },
+        { status: 403 }
+      )
     }
 
     if (isSuperAdminEmail(existing.email) && access_level === 'user') {
@@ -291,10 +331,6 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const auth = await requireAdminCaller()
-    if ('error' in auth && auth.error) return auth.error
-    const { db, email: adminEmail } = auth
-
     const body = await request.json()
     const {
       userId,
@@ -314,6 +350,10 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'userId and orgId are required' }, { status: 400 })
     }
 
+    const auth = await requireAdminCaller(orgId, department)
+    if ('error' in auth && auth.error) return auth.error
+    const { db, email: adminEmail, isSuper, callerOrgId } = auth
+
     const { data: targetUser } = await db
       .from('staff_members')
       .select('*')
@@ -322,6 +362,13 @@ export async function DELETE(request: Request) {
 
     if (!targetUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    if (!isSuper && targetUser.org_id !== callerOrgId) {
+      return NextResponse.json(
+        { error: 'Forbidden: Cannot remove users outside your own organization.' },
+        { status: 403 }
+      )
     }
 
     if (isSuperAdminEmail(targetUser.email)) {

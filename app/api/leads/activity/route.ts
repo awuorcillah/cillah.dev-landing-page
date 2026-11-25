@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createClient as createServerSupabase } from '@/lib/supabase/server'
+import { isSuperAdminEmail, isAdminAccount } from '@/lib/auth-roles'
 
 const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '')
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -20,9 +21,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const callerEmail = (user.email || '').toLowerCase().trim()
+    const isSuper = isSuperAdminEmail(callerEmail)
+    const db = getAdminDb()
+
     const { searchParams } = new URL(request.url)
-    const orgId = searchParams.get('orgId')
-    const agentEmail = searchParams.get('agentEmail')
+    let orgId = searchParams.get('orgId')
+    let agentEmail = searchParams.get('agentEmail')
     const excludeParam = searchParams.get('excludeEmails') || ''
     const excludeSet = new Set(
       excludeParam
@@ -32,7 +37,23 @@ export async function GET(request: Request) {
     )
     const limit = Math.min(100, Number(searchParams.get('limit') || 40))
 
-    const db = getAdminDb()
+    // Enforce strict tenant isolation for non-Super Admins
+    if (!isSuper) {
+      const [{ data: profile }, { data: staffRow }] = await Promise.all([
+        db.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+        db.from('staff_members').select('org_id, status').ilike('email', callerEmail).maybeSingle(),
+      ])
+      const isOrgAdmin =
+        isAdminAccount(callerEmail, profile?.role) ||
+        String(staffRow?.status || '').toLowerCase() === 'admin'
+
+      if (isOrgAdmin && staffRow?.org_id) {
+        orgId = staffRow.org_id
+      } else {
+        agentEmail = callerEmail
+      }
+    }
+
     let query = db
       .from('lead_activities')
       .select('*')
