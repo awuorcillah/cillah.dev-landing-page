@@ -1637,7 +1637,13 @@ export default function CRMPipelineBoard({
 
                         {/* Agent Assignment */}
                         <div className="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-900 flex items-center justify-between">
-                          <span>{lead.assigned_agent_email?.split('@')[0] || 'Unassigned'}</span>
+                          <span>
+                            {staffMembers.find(
+                              (s) => s.email?.toLowerCase() === lead.assigned_agent_email?.toLowerCase()
+                            )?.full_name ||
+                              lead.assigned_agent_email?.split('@')[0] ||
+                              'Unassigned'}
+                          </span>
                           <span className="text-[10px] text-slate-400">
                             {new Date(lead.created_at).toLocaleDateString()}
                           </span>
