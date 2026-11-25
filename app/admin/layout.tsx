@@ -10,22 +10,11 @@ import {
   ChevronRight,
   ChevronLeft,
   ChevronDown,
-  Calendar,
   Users,
   UserCheck,
-  BookOpen,
-  FolderOpen,
-  Bell,
-  LogOut,
-  User,
-  Shield,
-  Video,
-  Clock,
   Menu,
   X,
-  Sparkles,
   Layers,
-  Tag,
   TrendingUp,
   Building2,
   Megaphone,
@@ -35,13 +24,13 @@ import {
   Globe2,
   HeartPulse,
   Briefcase,
-  Cpu
+  Cpu,
+  Video,
+  ShieldCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-const SUPER_ADMIN_EMAILS = [
-  'awuorcillah@gmail.com',
-]
+const SUPER_ADMIN_EMAILS = ['awuorcillah@gmail.com']
 
 export function isSuperAdminEmail(email?: string | null): boolean {
   if (!email) return false
@@ -56,14 +45,9 @@ const SUPER_ADMIN_ONLY_PATHS = [
   '/admin/finance',
 ]
 
-const MOCK_NOTIFICATIONS = [
-  { id: '1', type: 'new_booking', title: 'New Lead Ingested', message: 'Daniel Kimani assigned via round-robin', time: '2m ago', read: false, url: '/admin/pipeline' },
-  { id: '2', type: 'payment_received', title: 'Follow-up Alert', message: 'Sarah Real Estate follow-up scheduled', time: '15m ago', read: false, url: '/admin/appointments' },
-]
-
 const PATH_LABELS: Record<string, string> = {
   admin: 'Admin',
-  dashboard: 'Dashboard',
+  dashboard: 'Sales Dashboard',
   pipeline: 'Sales CRM Pipeline',
   appointments: 'Upcoming Appointments',
   marketing: 'Marketing Department',
@@ -71,7 +55,10 @@ const PATH_LABELS: Record<string, string> = {
   sessions: 'Sessions',
   organizations: 'Organizations',
   sales: 'Sales Department',
-  'ndakala-advisory': 'Ndakala Advisory LLP',
+  users: 'Users & Access',
+  'cillah-dev': 'cillah.dev',
+  'rosy-realtors': 'Rosy Realtors Nairobi',
+  'stage-properties': 'Rosy Realtors Nairobi',
 }
 
 function getBreadcrumbs(pathname: string) {
@@ -86,7 +73,9 @@ function getBreadcrumbs(pathname: string) {
 }
 
 function navCls(active: boolean, sub = false) {
-  const base = `flex items-center gap-3 px-3 rounded-lg text-sm font-medium transition-all duration-150 border-l-2 ${sub ? 'py-2 text-xs' : 'py-2.5'}`
+  const base = `flex items-center gap-2.5 px-3 rounded-lg text-sm font-medium transition-all duration-150 border-l-2 ${
+    sub ? 'py-1.5 text-xs' : 'py-2 text-xs'
+  }`
   return active
     ? `${base} bg-[#C9A66B]/15 text-[#C9A66B] border-[#C9A66B]`
     : `${base} text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 border-transparent`
@@ -99,22 +88,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [cillahSalesExpanded, setCillahSalesExpanded] = useState(true)
-  const [stageSalesExpanded, setStageSalesExpanded] = useState(true)
-  const [chetuExpanded, setChetuExpanded] = useState(true)
-  const [dendriExpanded, setDendriExpanded] = useState(true)
-  const [orgsExpanded, setOrgsExpanded] = useState(true)
+
+  // cillah.dev department dropdown states
+  const [cillahSalesOpen, setCillahSalesOpen] = useState(true)
+  const [cillahMarketingOpen, setCillahMarketingOpen] = useState(false)
+  const [cillahFinanceOpen, setCillahFinanceOpen] = useState(false)
+
+  // Rosy Realtors Nairobi department dropdown states
+  const [rosySalesOpen, setRosySalesOpen] = useState(true)
+  const [rosyMarketingOpen, setRosyMarketingOpen] = useState(false)
+  const [rosyFinanceOpen, setRosyFinanceOpen] = useState(false)
+
   const [orgSwitcherOpen, setOrgSwitcherOpen] = useState(false)
   const [adminProfile, setAdminProfile] = useState<any>(null)
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS)
-  const [notifOpen, setNotifOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
 
-  const notifRef = useRef<HTMLDivElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
   const orgSwitcherRef = useRef<HTMLDivElement>(null)
-
-  const unreadCount = notifications.filter((n) => !n.read).length
   const breadcrumbs = getBreadcrumbs(pathname)
 
   useEffect(() => {
@@ -122,9 +112,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (saved !== null) setSidebarOpen(saved === 'true')
   }, [])
 
+  // Auto-open relevant dropdown based on active route
+  useEffect(() => {
+    if (pathname.includes('/cillah-dev/marketing') || pathname.startsWith('/admin/marketing')) {
+      setCillahMarketingOpen(true)
+    }
+    if (pathname.includes('/cillah-dev/finance') || pathname.startsWith('/admin/finance')) {
+      setCillahFinanceOpen(true)
+    }
+    if (pathname.includes('/rosy-realtors/marketing')) {
+      setRosyMarketingOpen(true)
+    }
+    if (pathname.includes('/rosy-realtors/finance')) {
+      setRosyFinanceOpen(true)
+    }
+  }, [pathname])
+
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false)
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false)
       if (orgSwitcherRef.current && !orgSwitcherRef.current.contains(e.target as Node)) setOrgSwitcherOpen(false)
     }
@@ -132,10 +137,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  // Check Role & Admin Email Rules
   useEffect(() => {
     const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       if (!user) {
         router.push('/login')
         return
@@ -160,20 +166,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         email: user.email,
         isSuperAdmin: isSuper,
         isSalesAdmin: !isSuper,
-        full_name: isSuper ? 'Cillah Awuor (CEO)' : (profile?.full_name || user.user_metadata?.full_name || email.split('@')[0] || 'Admin')
+        full_name: isSuper
+          ? 'Cillah Awuor (CEO)'
+          : profile?.full_name || user.user_metadata?.full_name || email.split('@')[0] || 'Admin',
       })
     }
 
     load()
   }, [router, supabase])
 
-  // Route Guard: Redirect non-super-admins trying to access Super Admin restricted pages
   useEffect(() => {
     if (adminProfile && !adminProfile.isSuperAdmin) {
       const isAccessingSuperAdminRoute = SUPER_ADMIN_ONLY_PATHS.some((path) => pathname.startsWith(path))
       if (isAccessingSuperAdminRoute) {
         toast.error('Access restricted to Super Admin only')
-        router.push('/admin/pipeline')
+        router.push('/admin/dashboard')
       }
     }
   }, [pathname, adminProfile, router])
@@ -197,104 +204,206 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }
 
-  const markAllRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-
+  const isExact = (href: string) => pathname === href
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
-
   const isSuperAdmin = adminProfile?.isSuperAdmin === true
 
   function SidebarContent({ mobile = false }: { mobile?: boolean }) {
     const expanded = sidebarOpen || mobile
 
     return (
-      <div className={`flex flex-col h-full bg-slate-900 border-r border-slate-800 transition-all duration-300 ${expanded ? 'w-60' : 'w-14'} overflow-hidden`}>
-        {/* Logo */}
+      <div
+        className={`flex flex-col h-full bg-slate-900 border-r border-slate-800 transition-all duration-300 ${
+          expanded ? 'w-64' : 'w-14'
+        } overflow-hidden`}
+      >
+        {/* Brand Header */}
         <div className="flex items-center gap-3 px-3 py-4 border-b border-slate-800 flex-shrink-0">
           <div className="w-8 h-8 rounded-full overflow-hidden border border-[#C9A66B]/40 flex-shrink-0">
             <img src="/images/cillah-emblem.png" alt="Logo" className="w-full h-full object-cover" />
           </div>
           {expanded && (
             <div className="overflow-hidden">
-              <p className="text-sm font-bold text-slate-100 leading-none">
-                {isSuperAdmin ? 'Cillah AI Automation' : 'Cillah'}
-              </p>
+              <p className="text-sm font-bold text-slate-100 leading-none">cillah.dev</p>
               <p className="text-[10px] text-[#C9A66B] mt-0.5 font-semibold">
-                {isSuperAdmin ? 'SaaS Platform Owner' : 'Organization Admin (Cillah)'}
+                {isSuperAdmin ? 'CEO / Platform Owner' : 'Organization Admin'}
               </p>
             </div>
           )}
         </div>
 
         {/* Nav Links */}
-        <nav className="flex-1 px-2 py-3 space-y-2 overflow-y-auto">
-          {/* Dashboard */}
-          <Link href="/admin/dashboard" className={navCls(isActive('/admin/dashboard'))}>
-            <LayoutDashboard className="w-4 h-4 flex-shrink-0 text-[#C9A66B]" />
-            {expanded && <span>Dashboard</span>}
-          </Link>
+        <nav className="flex-1 px-2 py-3 space-y-3 overflow-y-auto">
+          {/* ============================================================== */}
+          {/* PRIMARY ORGANIZATION: cillah.dev (100% REAL PRODUCTION DATA)   */}
+          {/* ============================================================== */}
+          <div className="space-y-2">
+            {expanded && (
+              <div className="px-2 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-white tracking-wide flex items-center gap-1.5">
+                    <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+                    cillah.dev
+                  </span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950/70 border border-cyan-500/30 text-cyan-300 font-bold uppercase">
+                    Live Org
+                  </span>
+                </div>
 
-          {/* CILLAH.DEV INTERNAL ORGANIZATION SECTION */}
-          <div className="pt-2 space-y-1">
-            <div className="px-3 flex items-center justify-between text-[11px] font-bold text-cyan-400 uppercase tracking-wider">
-              <span>Cillah Operations</span>
-              <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-950/60 border border-cyan-800/40 text-cyan-300">Internal Org</span>
-            </div>
+                {/* STANDOUT HEADING: DEPARTMENTS, USERS & ACCESS */}
+                <div className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#C9A66B]/20 via-[#C9A66B]/10 to-transparent border border-[#C9A66B]/35 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3 h-3 text-[#C9A66B] shrink-0" />
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#C9A66B]">
+                    Departments, Users &amp; Access
+                  </span>
+                </div>
+              </div>
+            )}
 
-            <div className="ml-2 pl-2 border-l border-cyan-500/40 space-y-1">
-              {/* 1. Teams & Roles */}
-              <Link href="/admin/organizations/cillah-dev/teams" className={navCls(isActive('/admin/organizations/cillah-dev/teams'), true)}>
-                <Users className="w-3.5 h-3.5 flex-shrink-0 text-cyan-400" />
-                {expanded && <span>Teams & Roles</span>}
-              </Link>
-
-              {/* 2. Sales Department Dropdown */}
+            <div className={expanded ? 'ml-2 pl-2 border-l border-cyan-500/35 space-y-1' : 'space-y-1'}>
+              {/* 1. Sales Department (Dashboard + Users) */}
               <div>
                 <button
-                  onClick={() => setCillahSalesExpanded((p) => !p)}
-                  className={`w-full ${navCls(false, true)} ${pathname.includes('/pipeline') || pathname.includes('/appointments') ? 'text-slate-200' : ''}`}
+                  type="button"
+                  onClick={() => setCillahSalesOpen((p) => !p)}
+                  className={`w-full ${navCls(false, true)} ${
+                    pathname === '/admin/dashboard' || pathname.includes('/cillah-dev/sales')
+                      ? 'text-slate-100'
+                      : ''
+                  } cursor-pointer`}
                 >
                   <BarChart3 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />
                   {expanded && (
                     <>
-                      <span className="flex-1 text-left font-semibold text-emerald-400">Sales Department</span>
-                      <ChevronDown className={`w-3 h-3 transition-transform ${cillahSalesExpanded ? 'rotate-180' : ''}`} />
+                      <span className="flex-1 text-left font-semibold text-emerald-400">
+                        Sales Department
+                      </span>
+                      <ChevronDown
+                        className={`w-3 h-3 transition-transform ${cillahSalesOpen ? 'rotate-180' : ''}`}
+                      />
                     </>
                   )}
                 </button>
 
-                {cillahSalesExpanded && expanded && (
-                  <div className="ml-3 mt-0.5 pl-2.5 border-l border-emerald-500/30 space-y-1">
-                    <Link href="/admin/pipeline" className={navCls(isActive('/admin/pipeline'), true)}>
-                      <TrendingUp className="w-3 h-3 flex-shrink-0 text-[#C9A66B]" />
-                      <span>Sales CRM Pipeline</span>
+                {cillahSalesOpen && expanded && (
+                  <div className="ml-3 mt-0.5 pl-2.5 border-l border-emerald-500/30 space-y-0.5">
+                    <Link
+                      href="/admin/dashboard"
+                      className={navCls(isExact('/admin/dashboard') || isExact('/admin/pipeline'), true)}
+                    >
+                      <LayoutDashboard className="w-3 h-3 flex-shrink-0 text-[#C9A66B]" />
+                      <span>Dashboard</span>
                     </Link>
-                    <Link href="/admin/appointments" className={navCls(isActive('/admin/appointments'), true)}>
-                      <Calendar className="w-3 h-3 flex-shrink-0 text-purple-400" />
-                      <span>Upcoming Appointments</span>
+                    <Link
+                      href="/admin/organizations/cillah-dev/sales/users"
+                      className={navCls(isActive('/admin/organizations/cillah-dev/sales/users'), true)}
+                    >
+                      <Users className="w-3 h-3 flex-shrink-0 text-cyan-400" />
+                      <span>Users</span>
                     </Link>
                   </div>
                 )}
               </div>
 
-              {/* 3. Marketing Department */}
-              <Link href="/admin/marketing" className={navCls(isActive('/admin/marketing'), true)}>
-                <Megaphone className="w-3.5 h-3.5 flex-shrink-0 text-purple-400" />
-                {expanded && <span>Marketing Department</span>}
+              {/* 2. Marketing Department (Dashboard + Users) */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setCillahMarketingOpen((p) => !p)}
+                  className={`w-full ${navCls(false, true)} ${
+                    pathname.startsWith('/admin/marketing') || pathname.includes('/cillah-dev/marketing')
+                      ? 'text-slate-100'
+                      : ''
+                  } cursor-pointer`}
+                >
+                  <Megaphone className="w-3.5 h-3.5 flex-shrink-0 text-purple-400" />
+                  {expanded && (
+                    <>
+                      <span className="flex-1 text-left font-semibold text-purple-300">
+                        Marketing Department
+                      </span>
+                      <ChevronDown
+                        className={`w-3 h-3 transition-transform ${cillahMarketingOpen ? 'rotate-180' : ''}`}
+                      />
+                    </>
+                  )}
+                </button>
+
+                {cillahMarketingOpen && expanded && (
+                  <div className="ml-3 mt-0.5 pl-2.5 border-l border-purple-500/30 space-y-0.5">
+                    <Link
+                      href="/admin/marketing"
+                      className={navCls(isExact('/admin/marketing'), true)}
+                    >
+                      <LayoutDashboard className="w-3 h-3 flex-shrink-0 text-purple-400" />
+                      <span>Dashboard</span>
+                    </Link>
+                    <Link
+                      href="/admin/organizations/cillah-dev/marketing/users"
+                      className={navCls(isActive('/admin/organizations/cillah-dev/marketing/users'), true)}
+                    >
+                      <Users className="w-3 h-3 flex-shrink-0 text-cyan-400" />
+                      <span>Users</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Finance Department (Dashboard + Users) */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setCillahFinanceOpen((p) => !p)}
+                  className={`w-full ${navCls(false, true)} ${
+                    pathname.startsWith('/admin/finance') || pathname.includes('/cillah-dev/finance')
+                      ? 'text-slate-100'
+                      : ''
+                  } cursor-pointer`}
+                >
+                  <DollarSign className="w-3.5 h-3.5 flex-shrink-0 text-sky-400" />
+                  {expanded && (
+                    <>
+                      <span className="flex-1 text-left font-semibold text-sky-300">
+                        Finance Department
+                      </span>
+                      <ChevronDown
+                        className={`w-3 h-3 transition-transform ${cillahFinanceOpen ? 'rotate-180' : ''}`}
+                      />
+                    </>
+                  )}
+                </button>
+
+                {cillahFinanceOpen && expanded && (
+                  <div className="ml-3 mt-0.5 pl-2.5 border-l border-sky-500/30 space-y-0.5">
+                    <Link href="/admin/finance" className={navCls(isExact('/admin/finance'), true)}>
+                      <LayoutDashboard className="w-3 h-3 flex-shrink-0 text-sky-400" />
+                      <span>Dashboard</span>
+                    </Link>
+                    <Link
+                      href="/admin/organizations/cillah-dev/finance/users"
+                      className={navCls(isActive('/admin/organizations/cillah-dev/finance/users'), true)}
+                    >
+                      <Users className="w-3 h-3 flex-shrink-0 text-cyan-400" />
+                      <span>Users</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* Other cillah.dev internal links */}
+              <Link
+                href="/admin/organizations/cillah-dev/teams"
+                className={navCls(isActive('/admin/organizations/cillah-dev/teams'), true)}
+              >
+                <Users className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
+                {expanded && <span>All Teams &amp; Roles</span>}
               </Link>
 
-              {/* 4. Finance Department */}
-              <Link href="/admin/finance" className={navCls(isActive('/admin/finance'), true)}>
-                <DollarSign className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />
-                {expanded && <span>Finance Department</span>}
-              </Link>
-
-              {/* 5. Sessions */}
               <Link href="/admin/sessions" className={navCls(isActive('/admin/sessions'), true)}>
                 <Video className="w-3.5 h-3.5 flex-shrink-0 text-sky-400" />
                 {expanded && <span>Sessions</span>}
               </Link>
 
-              {/* 6. Monthly Retainers */}
               <Link href="/admin/clients" className={navCls(isActive('/admin/clients'), true)}>
                 <UserCheck className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
                 {expanded && <span>Monthly Retainers</span>}
@@ -302,133 +411,211 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </div>
 
+          {/* ============================================================== */}
           {/* CLIENT ORGANIZATIONS (SUPER ADMIN ONLY: awuorcillah@gmail.com) */}
+          {/* ============================================================== */}
           {isSuperAdmin && (
             <div className="pt-3 space-y-3 border-t border-slate-800/80">
-              <div className="px-3 flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-3.5 h-3.5 text-sky-400" />
+              <div className="px-2 flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                <div className="flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-[#C9A66B]" />
                   {expanded && <span>Client Organizations</span>}
                 </div>
                 {expanded && (
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-950/60 border border-sky-800/40 text-sky-300">SaaS Multi-Tenant</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-950/60 border border-amber-500/30 text-amber-300">
+                    Multi-Tenant
+                  </span>
                 )}
               </div>
 
-              {/* CLIENT 0: NDAKALA ADVISORY LLP (EXECUTIVE & ROLES DEMO) */}
-              <div className="ml-2 pl-2 border-l border-[#C9A66B]/50 space-y-1 pt-2">
+              {/* CLIENT 1: ROSY REALTORS NAIROBI (ISOLATED DEMO ORGANIZATION) */}
+              <div className="ml-2 pl-2 border-l border-[#C9A66B]/50 space-y-1">
                 {expanded && (
-                  <p className="text-[11px] font-bold text-[#C9A66B] px-2 py-1 uppercase tracking-wider">
-                    Ndakala Advisory
-                  </p>
+                  <div className="flex items-center justify-between px-2 py-1">
+                    <p className="text-[11px] font-extrabold text-[#C9A66B] uppercase tracking-wider">
+                      Rosy Realtors Nairobi
+                    </p>
+                    <span className="text-[8px] px-1.5 py-0.5 rounded bg-[#C9A66B]/15 text-[#C9A66B] font-bold uppercase">
+                      Demo
+                    </span>
+                  </div>
                 )}
 
-                <Link href="/admin/organizations/ndakala-advisory" className={navCls(isActive('/admin/organizations/ndakala-advisory'), true)}>
-                  <TrendingUp className="w-3.5 h-3.5 flex-shrink-0 text-[#C9A66B]" />
-                  {expanded && <span>Executive & Pipeline</span>}
-                </Link>
-              </div>
-
-              {/* CLIENT 1: STAGE PROPERTIES BROKERS */}
-              <div className="ml-2 pl-2 border-l border-amber-500/40 space-y-1 pt-2">
-                {expanded && (
-                  <p className="text-[11px] font-bold text-amber-400 px-2 py-1 uppercase tracking-wider">
-                    Stage Properties
-                  </p>
-                )}
-
-                {/* 1. Teams & Roles */}
-                <Link href="/admin/organizations/stage-properties/teams" className={navCls(isActive('/admin/organizations/stage-properties/teams'), true)}>
-                  <Users className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
-                  {expanded && <span>Teams & Roles</span>}
-                </Link>
-
-                {/* 2. Sales Department Dropdown */}
+                {/* Sales Department (Executive & Pipeline + Users) */}
                 <div>
                   <button
-                    onClick={() => setStageSalesExpanded((p) => !p)}
-                    className={`w-full ${navCls(false, true)} ${pathname.includes('/stage-properties/pipeline') || pathname.includes('/stage-properties/appointments') ? 'text-slate-200' : ''}`}
+                    type="button"
+                    onClick={() => setRosySalesOpen((p) => !p)}
+                    className={`w-full ${navCls(false, true)} ${
+                      pathname.includes('/rosy-realtors/sales') ? 'text-slate-100' : ''
+                    } cursor-pointer`}
                   >
                     <BarChart3 className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
                     {expanded && (
                       <>
-                        <span className="flex-1 text-left font-semibold text-amber-400">Sales Department</span>
-                        <ChevronDown className={`w-3 h-3 transition-transform ${stageSalesExpanded ? 'rotate-180' : ''}`} />
+                        <span className="flex-1 text-left font-semibold text-amber-400">
+                          Sales Department
+                        </span>
+                        <ChevronDown
+                          className={`w-3 h-3 transition-transform ${rosySalesOpen ? 'rotate-180' : ''}`}
+                        />
                       </>
                     )}
                   </button>
 
-                  {stageSalesExpanded && expanded && (
-                    <div className="ml-3 mt-0.5 pl-2.5 border-l border-amber-500/30 space-y-1">
-                      <Link href="/admin/organizations/stage-properties/pipeline" className={navCls(isActive('/admin/organizations/stage-properties/pipeline'), true)}>
+                  {rosySalesOpen && expanded && (
+                    <div className="ml-3 mt-0.5 pl-2.5 border-l border-amber-500/30 space-y-0.5">
+                      <Link
+                        href="/admin/organizations/rosy-realtors/sales"
+                        className={navCls(isExact('/admin/organizations/rosy-realtors/sales'), true)}
+                      >
                         <TrendingUp className="w-3 h-3 flex-shrink-0 text-[#C9A66B]" />
-                        <span>Sales CRM Pipeline</span>
+                        <span>Executive &amp; Pipeline</span>
                       </Link>
-                      <Link href="/admin/organizations/stage-properties/appointments" className={navCls(isActive('/admin/organizations/stage-properties/appointments'), true)}>
-                        <Calendar className="w-3 h-3 flex-shrink-0 text-purple-400" />
-                        <span>Upcoming Appointments</span>
+                      <Link
+                        href="/admin/organizations/rosy-realtors/sales/users"
+                        className={navCls(isActive('/admin/organizations/rosy-realtors/sales/users'), true)}
+                      >
+                        <Users className="w-3 h-3 flex-shrink-0 text-cyan-400" />
+                        <span>Users</span>
                       </Link>
                     </div>
                   )}
                 </div>
 
-                {/* 3. Property Inventory */}
-                <Link href="/admin/organizations/stage-properties/inventory" className={navCls(isActive('/admin/organizations/stage-properties/inventory'), true)}>
-                  <Building2 className="w-3.5 h-3.5 flex-shrink-0 text-amber-300" />
-                  {expanded && <span>Property Inventory</span>}
-                </Link>
+                {/* Marketing Department (Dashboard + Users) */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setRosyMarketingOpen((p) => !p)}
+                    className={`w-full ${navCls(false, true)} ${
+                      pathname.includes('/rosy-realtors/marketing') ? 'text-slate-100' : ''
+                    } cursor-pointer`}
+                  >
+                    <Megaphone className="w-3.5 h-3.5 flex-shrink-0 text-purple-400" />
+                    {expanded && (
+                      <>
+                        <span className="flex-1 text-left font-semibold text-purple-300">
+                          Marketing Department
+                        </span>
+                        <ChevronDown
+                          className={`w-3 h-3 transition-transform ${rosyMarketingOpen ? 'rotate-180' : ''}`}
+                        />
+                      </>
+                    )}
+                  </button>
 
-                {/* 4. Marketing Department */}
-                <Link href="/admin/organizations/stage-properties/marketing" className={navCls(isActive('/admin/organizations/stage-properties/marketing'), true)}>
-                  <Megaphone className="w-3.5 h-3.5 flex-shrink-0 text-purple-400" />
-                  {expanded && <span>Marketing Campaign</span>}
-                </Link>
+                  {rosyMarketingOpen && expanded && (
+                    <div className="ml-3 mt-0.5 pl-2.5 border-l border-purple-500/30 space-y-0.5">
+                      <Link
+                        href="/admin/organizations/rosy-realtors/marketing"
+                        className={navCls(isExact('/admin/organizations/rosy-realtors/marketing'), true)}
+                      >
+                        <LayoutDashboard className="w-3 h-3 flex-shrink-0 text-purple-400" />
+                        <span>Dashboard</span>
+                      </Link>
+                      <Link
+                        href="/admin/organizations/rosy-realtors/marketing/users"
+                        className={navCls(isActive('/admin/organizations/rosy-realtors/marketing/users'), true)}
+                      >
+                        <Users className="w-3 h-3 flex-shrink-0 text-cyan-400" />
+                        <span>Users</span>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+
+                {/* Finance Department (Dashboard + Users) */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setRosyFinanceOpen((p) => !p)}
+                    className={`w-full ${navCls(false, true)} ${
+                      pathname.includes('/rosy-realtors/finance') ? 'text-slate-100' : ''
+                    } cursor-pointer`}
+                  >
+                    <DollarSign className="w-3.5 h-3.5 flex-shrink-0 text-sky-400" />
+                    {expanded && (
+                      <>
+                        <span className="flex-1 text-left font-semibold text-sky-300">
+                          Finance Department
+                        </span>
+                        <ChevronDown
+                          className={`w-3 h-3 transition-transform ${rosyFinanceOpen ? 'rotate-180' : ''}`}
+                        />
+                      </>
+                    )}
+                  </button>
+
+                  {rosyFinanceOpen && expanded && (
+                    <div className="ml-3 mt-0.5 pl-2.5 border-l border-sky-500/30 space-y-0.5">
+                      <Link
+                        href="/admin/organizations/rosy-realtors/finance"
+                        className={navCls(isExact('/admin/organizations/rosy-realtors/finance'), true)}
+                      >
+                        <LayoutDashboard className="w-3 h-3 flex-shrink-0 text-sky-400" />
+                        <span>Dashboard</span>
+                      </Link>
+                      <Link
+                        href="/admin/organizations/rosy-realtors/finance/users"
+                        className={navCls(isActive('/admin/organizations/rosy-realtors/finance/users'), true)}
+                      >
+                        <Users className="w-3 h-3 flex-shrink-0 text-cyan-400" />
+                        <span>Users</span>
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* ORGANIZATION 3: CHETU HEALTHCARE CLINIC */}
-              <div className="ml-2 pl-2 border-l border-emerald-500/40 space-y-1 pt-2">
+              {/* CLIENT 2: CHETU HEALTHCARE */}
+              <div className="ml-2 pl-2 border-l border-emerald-500/40 space-y-1 pt-1">
                 {expanded && (
                   <p className="text-[11px] font-bold text-emerald-400 px-2 py-1 uppercase tracking-wider">
                     Chetu Healthcare
                   </p>
                 )}
-
-                {/* 1. Clinical Dashboard */}
-                <Link href="/admin/organizations/chetu-healthcare" className={navCls(isActive('/admin/organizations/chetu-healthcare'), true)}>
+                <Link
+                  href="/admin/organizations/chetu-healthcare"
+                  className={navCls(isActive('/admin/organizations/chetu-healthcare'), true)}
+                >
                   <Stethoscope className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />
-                  {expanded && <span>Clinic & Patients</span>}
+                  {expanded && <span>Clinic &amp; Patients</span>}
                 </Link>
-
-                {/* 2. Medical Staff */}
-                <Link href="/admin/organizations/chetu-healthcare/teams" className={navCls(isActive('/admin/organizations/chetu-healthcare/teams'), true)}>
+                <Link
+                  href="/admin/organizations/chetu-healthcare/teams"
+                  className={navCls(isActive('/admin/organizations/chetu-healthcare/teams'), true)}
+                >
                   <HeartPulse className="w-3.5 h-3.5 flex-shrink-0 text-emerald-300" />
                   {expanded && <span>Medical Staff</span>}
                 </Link>
               </div>
 
-              {/* ORGANIZATION 4: DENDRI AFRICA */}
-              <div className="ml-2 pl-2 border-l border-purple-500/40 space-y-1 pt-2">
+              {/* CLIENT 3: DENDRI AFRICA */}
+              <div className="ml-2 pl-2 border-l border-purple-500/40 space-y-1 pt-1">
                 {expanded && (
                   <p className="text-[11px] font-bold text-purple-400 px-2 py-1 uppercase tracking-wider">
                     Dendri Africa
                   </p>
                 )}
-
-                {/* 1. Operations Dashboard */}
-                <Link href="/admin/organizations/dendri-africa" className={navCls(isActive('/admin/organizations/dendri-africa'), true)}>
+                <Link
+                  href="/admin/organizations/dendri-africa"
+                  className={navCls(isActive('/admin/organizations/dendri-africa'), true)}
+                >
                   <Globe2 className="w-3.5 h-3.5 flex-shrink-0 text-purple-400" />
-                  {expanded && <span>Operations & Trade</span>}
+                  {expanded && <span>Operations &amp; Trade</span>}
                 </Link>
-
-                {/* 2. Enterprise Team */}
-                <Link href="/admin/organizations/dendri-africa/teams" className={navCls(isActive('/admin/organizations/dendri-africa/teams'), true)}>
+                <Link
+                  href="/admin/organizations/dendri-africa/teams"
+                  className={navCls(isActive('/admin/organizations/dendri-africa/teams'), true)}
+                >
                   <Briefcase className="w-3.5 h-3.5 flex-shrink-0 text-purple-300" />
                   {expanded && <span>Partnerships Team</span>}
                 </Link>
               </div>
 
               {/* Master Organizations Hub */}
-              <div className="pt-2">
+              <div className="pt-1">
                 <Link href="/admin/organizations" className={navCls(pathname === '/admin/organizations')}>
                   <Layers className="w-4 h-4 flex-shrink-0 text-sky-400" />
                   {expanded && <span>All Organizations Hub</span>}
@@ -443,7 +630,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="p-2 border-t border-slate-800 flex-shrink-0">
             <button
               onClick={toggleSidebar}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-all"
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-all cursor-pointer"
             >
               {sidebarOpen ? (
                 <>
@@ -471,7 +658,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Mobile Sidebar Overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <div
+            className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+          />
           <div className="absolute left-0 top-0 bottom-0 flex shadow-2xl">
             <SidebarContent mobile />
             <button
@@ -512,27 +702,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </nav>
           </div>
 
-          {/* Profile & Switcher Area */}
+          {/* Org Switcher & Profile */}
           <div className="flex items-center gap-3">
-            {/* Organization Switcher Dropdown (Super Admin) */}
             {isSuperAdmin && (
               <div className="relative" ref={orgSwitcherRef}>
                 <button
                   onClick={() => setOrgSwitcherOpen((p) => !p)}
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-xs font-semibold text-slate-200 transition-all shadow-sm"
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-xs font-semibold text-slate-200 transition-all shadow-sm cursor-pointer"
                 >
                   <Building2 className="w-3.5 h-3.5 text-[#C9A66B]" />
                   <span className="hidden md:inline text-slate-400">Org:</span>
-                  <span className="text-[#C9A66B] max-w-[130px] truncate">
-                    {pathname.includes('ndakala-advisory')
-                      ? 'Ndakala Advisory'
+                  <span className="text-[#C9A66B] max-w-[150px] truncate">
+                    {pathname.includes('rosy-realtors') || pathname.includes('stage-properties')
+                      ? 'Rosy Realtors Nairobi'
                       : pathname.includes('chetu-healthcare')
                       ? 'Chetu Healthcare'
-                      : pathname.includes('stage-properties')
-                      ? 'Stage Properties'
                       : pathname.includes('dendri-africa')
                       ? 'Dendri Africa'
-                      : 'Cillah'}
+                      : 'cillah.dev'}
                   </span>
                   <ChevronDown className="w-3 h-3 text-slate-400" />
                 </button>
@@ -540,88 +727,57 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 {orgSwitcherOpen && (
                   <div className="absolute right-0 top-10 w-64 bg-slate-900 border border-slate-700/90 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-800">
                     <div className="px-3 py-2 bg-slate-950/60">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Client Organizations</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Switch Organization
+                      </p>
                     </div>
                     <div className="p-1 space-y-0.5">
                       <Link
-                        href="/admin/organizations/ndakala-advisory"
+                        href="/admin/dashboard"
                         onClick={() => setOrgSwitcherOpen(false)}
-                        className="flex items-center justify-between px-3 py-2 rounded-lg text-xs hover:bg-[#C9A66B]/15 text-slate-200 hover:text-[#C9A66B] transition-colors"
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs hover:bg-cyan-950/30 text-slate-200 hover:text-cyan-300 transition-colors"
                       >
-                        <div className="flex items-center gap-2.5">
-                          <Building2 className="w-4 h-4 text-[#C9A66B]" />
-                          <div>
-                            <p className="font-semibold text-white">Ndakala Advisory LLP</p>
-                            <p className="text-[10px] text-slate-400">Audit, Tax & Tenders CRM</p>
-                          </div>
+                        <Cpu className="w-4 h-4 text-cyan-400" />
+                        <div>
+                          <p className="font-semibold text-white">cillah.dev</p>
+                          <p className="text-[10px] text-slate-400">Live Production Organization</p>
                         </div>
                       </Link>
 
                       <Link
-                        href="/admin/organizations/stage-properties/pipeline"
+                        href="/admin/organizations/rosy-realtors/sales"
                         onClick={() => setOrgSwitcherOpen(false)}
-                        className="flex items-center justify-between px-3 py-2 rounded-lg text-xs hover:bg-amber-950/30 text-slate-200 hover:text-amber-300 transition-colors"
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs hover:bg-[#C9A66B]/15 text-slate-200 hover:text-[#C9A66B] transition-colors"
                       >
-                        <div className="flex items-center gap-2.5">
-                          <Building2 className="w-4 h-4 text-amber-400" />
-                          <div>
-                            <p className="font-semibold text-white">Stage Properties</p>
-                            <p className="text-[10px] text-slate-400">Real Estate CRM & Offplan</p>
-                          </div>
+                        <Building2 className="w-4 h-4 text-[#C9A66B]" />
+                        <div>
+                          <p className="font-semibold text-white">Rosy Realtors Nairobi</p>
+                          <p className="text-[10px] text-slate-400">Nairobi Real Estate Demo Org</p>
                         </div>
                       </Link>
 
                       <Link
                         href="/admin/organizations/chetu-healthcare"
                         onClick={() => setOrgSwitcherOpen(false)}
-                        className="flex items-center justify-between px-3 py-2 rounded-lg text-xs hover:bg-emerald-950/30 text-slate-200 hover:text-emerald-300 transition-colors"
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs hover:bg-emerald-950/30 text-slate-200 hover:text-emerald-300 transition-colors"
                       >
-                        <div className="flex items-center gap-2.5">
-                          <Stethoscope className="w-4 h-4 text-emerald-400" />
-                          <div>
-                            <p className="font-semibold text-white">Chetu Healthcare Clinic</p>
-                            <p className="text-[10px] text-slate-400">Patient Care & Triage</p>
-                          </div>
+                        <Stethoscope className="w-4 h-4 text-emerald-400" />
+                        <div>
+                          <p className="font-semibold text-white">Chetu Healthcare</p>
+                          <p className="text-[10px] text-slate-400">Patient Care &amp; Triage</p>
                         </div>
                       </Link>
 
                       <Link
                         href="/admin/organizations/dendri-africa"
                         onClick={() => setOrgSwitcherOpen(false)}
-                        className="flex items-center justify-between px-3 py-2 rounded-lg text-xs hover:bg-purple-950/30 text-slate-200 hover:text-purple-300 transition-colors"
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs hover:bg-purple-950/30 text-slate-200 hover:text-purple-300 transition-colors"
                       >
-                        <div className="flex items-center gap-2.5">
-                          <Globe2 className="w-4 h-4 text-purple-400" />
-                          <div>
-                            <p className="font-semibold text-white">Dendri Africa</p>
-                            <p className="text-[10px] text-slate-400">Agri-Tech & Logistics</p>
-                          </div>
+                        <Globe2 className="w-4 h-4 text-purple-400" />
+                        <div>
+                          <p className="font-semibold text-white">Dendri Africa</p>
+                          <p className="text-[10px] text-slate-400">Agri-Tech &amp; Logistics</p>
                         </div>
-                      </Link>
-
-                      <Link
-                        href="/admin/pipeline"
-                        onClick={() => setOrgSwitcherOpen(false)}
-                        className="flex items-center justify-between px-3 py-2 rounded-lg text-xs hover:bg-cyan-950/30 text-slate-200 hover:text-cyan-300 transition-colors"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Cpu className="w-4 h-4 text-cyan-400" />
-                          <div>
-                            <p className="font-semibold text-white">Cillah</p>
-                            <p className="text-[10px] text-slate-400">AI Automation Agency</p>
-                          </div>
-                        </div>
-                      </Link>
-                    </div>
-
-                    <div className="p-1 bg-slate-950/50">
-                      <Link
-                        href="/admin/organizations"
-                        onClick={() => setOrgSwitcherOpen(false)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-sky-400 hover:bg-slate-800 transition-colors"
-                      >
-                        <Layers className="w-3.5 h-3.5" />
-                        <span>Manage All 4 Organizations →</span>
                       </Link>
                     </div>
                   </div>
@@ -633,7 +789,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="relative" ref={profileRef}>
               <button
                 onClick={() => setProfileOpen((p) => !p)}
-                className="flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 rounded-lg hover:bg-slate-800 transition-all"
+                className="flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 rounded-lg hover:bg-slate-800 transition-all cursor-pointer"
               >
                 <div className="w-7 h-7 rounded-full bg-[#C9A66B]/20 border border-[#C9A66B]/40 flex items-center justify-center text-xs font-bold text-[#C9A66B]">
                   {initials}
@@ -663,21 +819,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       onClick={() => setProfileOpen(false)}
                       className="flex items-center gap-2 px-4 py-2.5 text-xs text-slate-300 hover:bg-slate-800"
                     >
-                      Dashboard
+                      cillah.dev Sales Dashboard
                     </Link>
                     <Link
-                      href="/admin/pipeline"
+                      href="/admin/organizations/rosy-realtors/sales"
                       onClick={() => setProfileOpen(false)}
                       className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#C9A66B] font-bold hover:bg-slate-800"
                     >
-                      Sales Pipeline
+                      Rosy Realtors Demo
                     </Link>
                   </div>
                   <div className="border-t border-slate-800" />
                   <div className="py-1">
                     <button
                       onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-red-400 hover:bg-red-500/10"
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-red-400 hover:bg-red-500/10 cursor-pointer"
                     >
                       Log Out
                     </button>

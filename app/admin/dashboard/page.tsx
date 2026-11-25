@@ -15,16 +15,28 @@ import {
   Users,
   TrendingUp,
   Trophy,
-  Flame,
   RefreshCw,
-  ArrowUpRight,
   Clock,
   Layers,
   X,
   Activity,
   Phone,
-  Bot
+  Bot,
+  Building2,
+  UserPlus,
 } from 'lucide-react'
+
+const CILLAH_ORG_ID = 'a1b2c3d4-e5f6-7890-abcd-222222222222'
+const EXCLUDED_DEMO_EMAILS = [
+  'cherrylatulah@gmail.com',
+  'cherrylatulah2000@gmail.com',
+  'kevin@ndakala-demo.co.ke',
+  'brenda@ndakala-demo.co.ke',
+  'kevin@rosyrealtors.co.ke',
+  'brenda@rosyrealtors.co.ke',
+  'tossie@cillah.dev',
+  'ador.ai815@gmail.com',
+]
 
 interface RawLead {
   id: string
@@ -58,13 +70,12 @@ interface PlatformMeta {
 }
 
 const PLATFORMS: PlatformMeta[] = [
-  { key: 'email', label: 'Email / Microsoft 365', shortLabel: 'Email', accent: 'text-sky-400', barColor: 'bg-sky-400' },
+  { key: 'email', label: 'Email', shortLabel: 'Email', accent: 'text-sky-400', barColor: 'bg-sky-400' },
   { key: 'whatsapp', label: 'WhatsApp', shortLabel: 'WhatsApp', accent: 'text-emerald-400', barColor: 'bg-emerald-400' },
   { key: 'facebook', label: 'Facebook', shortLabel: 'Facebook', accent: 'text-blue-400', barColor: 'bg-blue-400' },
-  { key: 'events', label: 'Events & Forums', shortLabel: 'Events', accent: 'text-amber-400', barColor: 'bg-amber-400' },
-  { key: 'tenders', label: 'Tenders & RFPs', shortLabel: 'Tenders', accent: 'text-violet-400', barColor: 'bg-violet-400' },
-  { key: 'website', label: 'Website', shortLabel: 'Website', accent: 'text-cyan-400', barColor: 'bg-cyan-400' },
   { key: 'instagram', label: 'Instagram', shortLabel: 'Instagram', accent: 'text-pink-400', barColor: 'bg-pink-400' },
+  { key: 'website', label: 'Website', shortLabel: 'Website', accent: 'text-cyan-400', barColor: 'bg-cyan-400' },
+  { key: 'events', label: 'Events', shortLabel: 'Events', accent: 'text-amber-400', barColor: 'bg-amber-400' },
 ]
 
 function classifyPlatform(source?: string | null): PlatformKey {
@@ -100,11 +111,11 @@ function PlatformIcon({ platform, className = 'w-4 h-4' }: { platform: PlatformK
   }
 }
 
-export default function SalesAdminDashboard() {
+export default function CillahSalesDashboardPage() {
   const supabase = createClient()
   const [adminEmail, setAdminEmail] = useState<string>('awuorcillah@gmail.com')
   const [leads, setLeads] = useState<RawLead[]>([])
-  const [staff, setStaff] = useState<StaffRow[]>([])
+  const [orgStaff, setOrgStaff] = useState<StaffRow[]>([])
   const [loading, setLoading] = useState(true)
 
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformKey | 'all'>('all')
@@ -115,28 +126,49 @@ export default function SalesAdminDashboard() {
   const fetchDashboardData = async () => {
     setLoading(true)
     try {
-      const [{ data: authData }, { data: leadsData }, { data: staffData }, actRes] = await Promise.all([
+      const [{ data: authData }, { data: staffData }, { data: leadsData }, actRes] = await Promise.all([
         supabase.auth.getUser(),
+        supabase
+          .from('staff_members')
+          .select('id, email, full_name, role, status, org_id')
+          .eq('org_id', CILLAH_ORG_ID)
+          .eq('is_active', true)
+          .order('full_name', { ascending: true }),
         supabase
           .from('sales_leads')
           .select('id, full_name, source, stage, assigned_agent_email, estimated_value, viewing_date, created_at, updated_at')
           .order('created_at', { ascending: false }),
-        supabase.from('staff_members').select('id, email, full_name, role, status, org_id').eq('is_active', true),
-        fetch('/api/leads/activity?limit=20').catch(() => null),
+        fetch(`/api/leads/activity?orgId=${CILLAH_ORG_ID}&excludeEmails=${EXCLUDED_DEMO_EMAILS.join(',')}&limit=25`).catch(() => null),
       ])
 
       if (authData?.user?.email) {
         setAdminEmail(authData.user.email.toLowerCase())
       }
+
       if (actRes && actRes.ok) {
         const actJson = await actRes.json()
         setRecentActivities(actJson.activities || [])
         setActivityByAgent(actJson.byAgent || {})
       }
-      setLeads((leadsData || []) as RawLead[])
-      setStaff((staffData || []) as StaffRow[])
+
+      // Strictly real cillah.dev sales team ONLY (zero fake/demo accounts)
+      const cillahSalesStaff = ((staffData || []) as StaffRow[]).filter((s) => {
+        const emailLower = (s.email || '').toLowerCase()
+        if (EXCLUDED_DEMO_EMAILS.includes(emailLower)) return false
+        const r = (s.role || '').toLowerCase()
+        return r.includes('sales') || r.includes('ceo') || s.status === 'admin'
+      })
+      setOrgStaff(cillahSalesStaff)
+
+      const allowedEmails = new Set(cillahSalesStaff.map((s) => s.email.toLowerCase()))
+      const cillahOnlyLeads = ((leadsData || []) as RawLead[]).filter((l) => {
+        const assigned = (l.assigned_agent_email || '').toLowerCase()
+        if (EXCLUDED_DEMO_EMAILS.includes(assigned)) return false
+        return allowedEmails.has(assigned)
+      })
+      setLeads(cillahOnlyLeads)
     } catch (err) {
-      console.error('Failed to load admin dashboard:', err)
+      console.error('Failed to load cillah.dev sales dashboard:', err)
     } finally {
       setLoading(false)
     }
@@ -146,7 +178,7 @@ export default function SalesAdminDashboard() {
     fetchDashboardData()
 
     const channel = supabase
-      .channel('admin_executive_dashboard')
+      .channel('cillah_sales_executive_live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sales_leads' }, () => {
         fetchDashboardData()
       })
@@ -162,31 +194,11 @@ export default function SalesAdminDashboard() {
     [leads]
   )
 
-  const staffByEmail = useMemo(() => {
-    const map: Record<string, StaffRow> = {}
-    staff.forEach((s) => {
-      if (s.email) map[s.email.toLowerCase()] = s
-    })
-    return map
-  }, [staff])
-
-  const assignableAgents = useMemo(() => {
-    return staff.filter((s) => {
-      const r = (s.role || '').toLowerCase()
-      return r.includes('sales') || r.includes('ceo') || s.status === 'admin'
-    })
-  }, [staff])
-
-  const getAgentDisplayName = (email?: string | null) => {
-    if (!email) return 'Unassigned'
-    return staffByEmail[email.toLowerCase()]?.full_name || email.split('@')[0]
-  }
-
   const kpis = useMemo(() => {
     let totalPipelineValue = 0
     let wonValue = 0
     let wonCount = 0
-    let hotAndConsultations = 0
+    let upcomingConsultations = 0
 
     activeLeads.forEach((l) => {
       const val = Number(l.estimated_value) || 0
@@ -195,8 +207,8 @@ export default function SalesAdminDashboard() {
         wonValue += val
         wonCount += 1
       }
-      if (l.stage === 'hot_lead' || l.stage === 'viewing' || Boolean(l.viewing_date)) {
-        hotAndConsultations += 1
+      if (l.stage === 'viewing' || Boolean(l.viewing_date)) {
+        upcomingConsultations += 1
       }
     })
 
@@ -208,7 +220,7 @@ export default function SalesAdminDashboard() {
       totalPipelineValue,
       wonValue,
       wonCount,
-      hotAndConsultations,
+      upcomingConsultations,
     }
   }, [activeLeads])
 
@@ -227,64 +239,38 @@ export default function SalesAdminDashboard() {
   }, [activeLeads])
 
   const agentStats = useMemo(() => {
-    const map: Record<
-      string,
-      {
-        email: string
-        name: string
-        totalLeads: number
-        wonCount: number
-        pipelineValue: number
-        speedMins: number[]
-      }
-    > = {}
+    return orgStaff
+      .map((ag) => {
+        const emailLower = ag.email.toLowerCase()
+        const agLeads = activeLeads.filter(
+          (l) => (l.assigned_agent_email || '').toLowerCase() === emailLower
+        )
+        const wonLeads = agLeads.filter((l) => l.stage === 'closed_won' || l.stage === 'closed')
+        const pipelineValue = agLeads.reduce((sum, l) => sum + (Number(l.estimated_value) || 0), 0)
+        const speedMins = agLeads.map((l) => {
+          const diffMs =
+            l.updated_at && l.created_at
+              ? Math.abs(new Date(l.updated_at).getTime() - new Date(l.created_at).getTime())
+              : 180000
+          return Math.min(18, Math.max(2, Math.round(diffMs / 60000)))
+        })
+        const avgSpeed =
+          speedMins.length > 0
+            ? Math.round(speedMins.reduce((a, b) => a + b, 0) / speedMins.length)
+            : 4
 
-    assignableAgents.forEach((s) => {
-      const key = s.email.toLowerCase()
-      map[key] = {
-        email: key,
-        name: s.full_name,
-        totalLeads: 0,
-        wonCount: 0,
-        pipelineValue: 0,
-        speedMins: [],
-      }
-    })
-
-    activeLeads.forEach((l) => {
-      const email = (l.assigned_agent_email || 'unassigned').toLowerCase()
-      if (!map[email]) {
-        map[email] = {
-          email,
-          name: getAgentDisplayName(l.assigned_agent_email),
-          totalLeads: 0,
-          wonCount: 0,
-          pipelineValue: 0,
-          speedMins: [],
+        return {
+          email: emailLower,
+          name: ag.full_name,
+          accessRole: ag.status === 'admin' || emailLower === 'awuorcillah@gmail.com' ? 'Admin' : 'User',
+          totalLeads: agLeads.length,
+          wonCount: wonLeads.length,
+          pipelineValue,
+          avgSpeed,
         }
-      }
-      const ag = map[email]
-      ag.totalLeads += 1
-      ag.pipelineValue += Number(l.estimated_value) || 0
-      if (l.stage === 'closed_won' || l.stage === 'closed') ag.wonCount += 1
-      const diffMs =
-        l.updated_at && l.created_at
-          ? Math.abs(new Date(l.updated_at).getTime() - new Date(l.created_at).getTime())
-          : 180000
-      ag.speedMins.push(Math.min(18, Math.max(2, Math.round(diffMs / 60000))))
-    })
-
-    return Object.values(map)
-      .filter((a) => a.totalLeads > 0)
-      .map((a) => ({
-        ...a,
-        avgSpeed:
-          a.speedMins.length > 0
-            ? Math.round(a.speedMins.reduce((x, y) => x + y, 0) / a.speedMins.length)
-            : 4,
-      }))
+      })
       .sort((a, b) => b.totalLeads - a.totalLeads)
-  }, [activeLeads, assignableAgents, staffByEmail])
+  }, [orgStaff, activeLeads])
 
   const formatKES = (amount: number) =>
     new Intl.NumberFormat('en-KE', {
@@ -295,32 +281,37 @@ export default function SalesAdminDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-6 space-y-6">
-      {/* Top Executive Bar */}
+      {/* Top Executive Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
         <div>
+          <div className="flex items-center gap-2 text-[11px] font-semibold text-cyan-400 uppercase tracking-wider mb-1">
+            <Building2 className="w-3.5 h-3.5" />
+            cillah.dev • Sales Department
+          </div>
           <h1 className="text-2xl font-bold tracking-tight text-white">
-            Lead Intake & Executive Overview
+            Sales Executive & Pipeline Dashboard
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Live omnichannel lead volume across Email, WhatsApp, Facebook, Events & Tenders — click any channel or agent to filter the pipeline below.
+            Live production sales metrics, team accountability, and online activity strictly for cillah.dev.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Link
+            href="/admin/organizations/cillah-dev/sales/users"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold rounded-xl border border-slate-800 transition-colors"
+          >
+            <UserPlus className="w-3.5 h-3.5 text-[#C9A66B]" />
+            Manage Sales Users
+          </Link>
           <button
+            type="button"
             onClick={fetchDashboardData}
-            className="flex items-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-medium rounded-xl border border-slate-800 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-medium rounded-xl border border-slate-800 transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#C9A66B]' : ''}`} />
             Refresh
           </button>
-          <Link
-            href="/admin/pipeline"
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#C9A66B] hover:bg-[#C9A66B]/90 text-slate-950 font-bold text-xs rounded-xl transition-colors"
-          >
-            Full Pipeline Board
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </Link>
         </div>
       </div>
 
@@ -328,12 +319,13 @@ export default function SalesAdminDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
           <div className="flex items-center justify-between text-xs text-slate-400">
-            <span className="font-medium">Total Active Leads</span>
+            <span className="font-medium">Total Firm Leads</span>
             <Layers className="w-4 h-4 text-[#C9A66B]" />
           </div>
           <div className="mt-2.5 text-2xl font-bold text-white">{kpis.totalLeads}</div>
           <p className="text-[11px] text-slate-400 mt-1">
-            Captured across <span className="text-slate-200 font-semibold">{kpis.activeChannels} channels</span>
+            Across <span className="text-slate-200 font-semibold">{kpis.activeChannels} channels</span> &{' '}
+            <span className="text-slate-200 font-semibold">{orgStaff.length} team members</span>
           </p>
         </div>
 
@@ -350,11 +342,11 @@ export default function SalesAdminDashboard() {
 
         <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
           <div className="flex items-center justify-between text-xs text-slate-400">
-            <span className="font-medium">Hot & Consultations</span>
-            <Flame className="w-4 h-4 text-amber-400" />
+            <span className="font-medium">Upcoming Consultations</span>
+            <Calendar className="w-4 h-4 text-purple-400" />
           </div>
-          <div className="mt-2.5 text-2xl font-bold text-white">{kpis.hotAndConsultations}</div>
-          <p className="text-[11px] text-slate-400 mt-1">High-priority deals & scheduled calls</p>
+          <div className="mt-2.5 text-2xl font-bold text-white">{kpis.upcomingConsultations}</div>
+          <p className="text-[11px] text-slate-400 mt-1">Scheduled discovery & strategy calls</p>
         </div>
 
         <div className="p-4 rounded-2xl bg-slate-900/80 border border-emerald-500/20">
@@ -373,7 +365,7 @@ export default function SalesAdminDashboard() {
           <div>
             <h2 className="text-sm font-bold text-white">Leads by Platform</h2>
             <p className="text-xs text-slate-400">
-              Click any platform card to filter the CRM Pipeline Board below.
+              Click any channel to filter the cillah.dev CRM Pipeline Board below.
             </p>
           </div>
           {selectedPlatform !== 'all' && (
@@ -382,12 +374,12 @@ export default function SalesAdminDashboard() {
               onClick={() => setSelectedPlatform('all')}
               className="inline-flex items-center gap-1.5 text-xs text-[#C9A66B] hover:underline cursor-pointer"
             >
-              <X className="w-3.5 h-3.5" /> Clear platform filter
+              <X className="w-3.5 h-3.5" /> Clear channel filter
             </button>
           )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {platformStats.map((p) => {
             const isSelected = selectedPlatform === p.key
             return (
@@ -408,9 +400,7 @@ export default function SalesAdminDashboard() {
                   <span className="text-[10px] font-semibold text-slate-400">{p.sharePct}%</span>
                 </div>
                 <div className="text-xl font-bold text-white leading-none">{p.count}</div>
-                <div className="text-[11px] text-slate-300 font-medium mt-1 truncate" title={p.label}>
-                  {p.shortLabel}
-                </div>
+                <div className="text-[11px] text-slate-300 font-medium mt-1 truncate">{p.shortLabel}</div>
                 <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden mt-2.5">
                   <div
                     className={`h-full rounded-full ${p.barColor}`}
@@ -426,17 +416,17 @@ export default function SalesAdminDashboard() {
         </div>
       </div>
 
-      {/* 2-COLUMN EXECUTIVE PULSE: AGENT ACCOUNTABILITY + LIVE FOLLOW-UP ACTIVITY LOG */}
+      {/* 2-COLUMN EXECUTIVE PULSE: SALES AGENT ACCOUNTABILITY + LIVE ACTIVITY LOG */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold text-white flex items-center gap-2">
                 <Users className="w-4 h-4 text-[#C9A66B]" />
-                Agent Accountability
+                cillah.dev Sales Team
               </h2>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Click an agent to filter the pipeline board below.
+                Click an agent to inspect their pipeline movements below.
               </p>
             </div>
             {selectedAgent !== 'all' && (
@@ -476,7 +466,12 @@ export default function SalesAdminDashboard() {
                         {initials}
                       </div>
                       <div className="min-w-0">
-                        <div className="text-xs font-bold text-white truncate">{ag.name}</div>
+                        <div className="text-xs font-bold text-white flex items-center gap-1.5 truncate">
+                          {ag.name}
+                          <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[9px] text-slate-300 uppercase">
+                            {ag.accessRole}
+                          </span>
+                        </div>
                         <div className="text-[10px] text-slate-400 truncate">{ag.email}</div>
                       </div>
                     </div>
@@ -493,7 +488,7 @@ export default function SalesAdminDashboard() {
                     <div>
                       <span className="text-slate-500 block text-[10px]">Pipeline</span>
                       <span className="font-semibold text-slate-200">
-                        {ag.pipelineValue > 0 ? `${(ag.pipelineValue / 1000000).toFixed(1)}M` : '—'}
+                        {ag.pipelineValue > 0 ? formatKES(ag.pipelineValue) : '—'}
                       </span>
                     </div>
                     <div>
@@ -520,10 +515,10 @@ export default function SalesAdminDashboard() {
             <div>
               <h2 className="text-sm font-bold text-white flex items-center gap-2">
                 <Activity className="w-4 h-4 text-cyan-400" />
-                Live Agent Follow-Up Activity Log
+                Live Online Activity Log
               </h2>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Every call, WhatsApp, Email, AI draft & follow-up date timestamped automatically.
+                Timestamped calls, messages, AI drafts & pipeline moves inside cillah.dev.
               </p>
             </div>
             <span className="text-[11px] text-slate-400 shrink-0">{recentActivities.length} logged</span>
@@ -531,7 +526,7 @@ export default function SalesAdminDashboard() {
 
           {recentActivities.length === 0 ? (
             <div className="text-xs text-slate-500 py-8 text-center">
-              No logged activities yet — interact with a lead below to see live timestamps here.
+              No online activities recorded yet for cillah.dev — actions on leads below will appear here live.
             </div>
           ) : (
             <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
@@ -569,13 +564,16 @@ export default function SalesAdminDashboard() {
         </div>
       </div>
 
-      {/* SINGLE UNIFIED CRM PIPELINE BOARD (Kanban + Table View) */}
+      {/* STRICTLY SCOPED cillah.dev CRM PIPELINE BOARD */}
       <div className="border-t border-slate-800/80 pt-6">
         <CRMPipelineBoard
           currentUserEmail={adminEmail}
           isStaffAdmin={true}
           forceUserOnly={false}
           embedded={true}
+          orgId={CILLAH_ORG_ID}
+          excludeEmails={EXCLUDED_DEMO_EMAILS}
+          currencyPrefix="KES "
           externalAgentFilter={selectedAgent}
           externalPlatformFilter={selectedPlatform}
         />
