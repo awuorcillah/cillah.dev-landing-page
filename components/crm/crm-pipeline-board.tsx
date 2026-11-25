@@ -103,6 +103,8 @@ interface CRMPipelineBoardProps {
   orgId?: string
   excludeEmails?: string[]
   currencyPrefix?: string
+  externalAgentFilter?: string
+  externalPlatformFilter?: string
 }
 
 export default function CRMPipelineBoard({
@@ -112,7 +114,9 @@ export default function CRMPipelineBoard({
   embedded = false,
   orgId,
   excludeEmails = [],
-  currencyPrefix = '$'
+  currencyPrefix = '$',
+  externalAgentFilter,
+  externalPlatformFilter = 'all'
 }: CRMPipelineBoardProps) {
   const supabase = createClient()
   const [leads, setLeads] = useState<SalesLead[]>([])
@@ -130,10 +134,16 @@ export default function CRMPipelineBoard({
   const [agentFilter, setAgentFilter] = useState<string>(effectiveIsAdmin ? 'all' : currentUserEmail)
   const [timeFilter, setTimeFilter] = useState<'24h' | '7d' | '30d' | 'all'>('all')
 
-  // Sync agent filter whenever role/view mode changes
+  // Sync agent filter whenever role/view mode or parent executive filter changes
   useEffect(() => {
-    setAgentFilter(effectiveIsAdmin ? 'all' : currentUserEmail)
-  }, [effectiveIsAdmin, currentUserEmail])
+    if (!effectiveIsAdmin) {
+      setAgentFilter(currentUserEmail)
+    } else if (externalAgentFilter !== undefined) {
+      setAgentFilter(externalAgentFilter)
+    } else {
+      setAgentFilter('all')
+    }
+  }, [effectiveIsAdmin, currentUserEmail, externalAgentFilter])
   const [selectedStages, setSelectedStages] = useState<string[]>([])
   const [stageMenuOpen, setStageMenuOpen] = useState(false)
   const stageMenuRef = useRef<HTMLDivElement>(null)
@@ -651,6 +661,27 @@ export default function CRMPipelineBoard({
         return false
       }
 
+      // External Platform Filter (from Executive Dashboard platform cards)
+      if (externalPlatformFilter && externalPlatformFilter !== 'all') {
+        const s = (lead.source || '').toLowerCase()
+        const bucket = s.includes('whatsapp')
+          ? 'whatsapp'
+          : s.includes('facebook') || s === 'fb'
+          ? 'facebook'
+          : s.includes('instagram') || s.includes('ig_')
+          ? 'instagram'
+          : s.includes('tender') || s.includes('rfp')
+          ? 'tenders'
+          : s.includes('event') || s.includes('forum')
+          ? 'events'
+          : s.includes('website') || s.includes('web_') || s.includes('landing')
+          ? 'website'
+          : s.includes('email') || s.includes('outlook') || s.includes('microsoft_365') || s.includes('gmail')
+          ? 'email'
+          : 'other'
+        if (bucket !== externalPlatformFilter) return false
+      }
+
       // Multi-Stage Filter
       if (selectedStages.length > 0 && !selectedStages.includes(lead.stage)) {
         return false
@@ -679,7 +710,7 @@ export default function CRMPipelineBoard({
 
       return true
     })
-  }, [leads, agentFilter, effectiveIsAdmin, selectedStages, timeFilter, searchQuery, currentUserEmail])
+  }, [leads, agentFilter, effectiveIsAdmin, selectedStages, timeFilter, searchQuery, currentUserEmail, externalPlatformFilter])
 
   const visibleKanbanStages = useMemo(() => {
     return selectedStages.length > 0
@@ -2076,7 +2107,60 @@ export default function CRMPipelineBoard({
                       ))}
                     </select>
                   </td>
-                  <td className="p-4 text-slate-300">{lead.assigned_agent_email || 'Unassigned'}</td>
+                  <td className="p-4 text-slate-300" onClick={(e) => e.stopPropagation()}>
+                    {effectiveIsAdmin ? (
+                      <select
+                        value={(lead.assigned_agent_email || '').toLowerCase()}
+                        onChange={async (e) => {
+                          const newEmail = e.target.value
+                          if (!newEmail || newEmail === (lead.assigned_agent_email || '').toLowerCase()) return
+                          const targetStaff = orgStaffMembers.find(
+                            (s) => s.email?.toLowerCase() === newEmail.toLowerCase()
+                          )
+                          const { error } = await supabase
+                            .from('sales_leads')
+                            .update({
+                              assigned_agent_email: newEmail,
+                              assigned_agent_id: targetStaff?.id || null,
+                              updated_at: new Date().toISOString(),
+                            })
+                            .eq('id', lead.id)
+                          if (!error) {
+                            setLeads((prev) =>
+                              prev.map((l) =>
+                                l.id === lead.id
+                                  ? { ...l, assigned_agent_email: newEmail, assigned_agent_id: targetStaff?.id || null }
+                                  : l
+                              )
+                            )
+                            logLeadActivity({
+                              lead_id: lead.id,
+                              lead_name: lead.full_name,
+                              activity_type: 'lead_reassigned',
+                              summary: `Reassigned "${lead.full_name}" to ${targetStaff?.full_name || newEmail}`,
+                            })
+                            toast.success(`Assigned "${lead.full_name}" to ${targetStaff?.full_name || newEmail}`)
+                          }
+                        }}
+                        className="bg-slate-950 border border-slate-700 text-slate-200 rounded-lg px-2 py-1 text-xs cursor-pointer focus:outline-none focus:border-[#C9A66B]"
+                      >
+                        {!lead.assigned_agent_email && <option value="">Unassigned</option>}
+                        {orgStaffMembers.map((ag) => (
+                          <option key={ag.id} value={ag.email.toLowerCase()}>
+                            {ag.full_name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span>
+                        {staffMembers.find(
+                          (s) => s.email?.toLowerCase() === lead.assigned_agent_email?.toLowerCase()
+                        )?.full_name ||
+                          lead.assigned_agent_email?.split('@')[0] ||
+                          'Unassigned'}
+                      </span>
+                    )}
+                  </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
                       {lead.phone_number && (
