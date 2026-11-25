@@ -2036,13 +2036,15 @@ export default function CRMPipelineBoard({
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
+                        </div>
 
-                          {/* Quick Stage Move Dropdown */}
+                        {/* Quick Stage Move Dropdown (Clean full-width row below icons — zero column overlap) */}
+                        <div className="mt-2">
                           <select
                             value={lead.stage}
                             onClick={(e) => e.stopPropagation()}
                             onChange={(e) => handleStageChange(lead.id, e.target.value)}
-                            className="ml-auto bg-slate-900 border border-slate-800 text-[10px] text-slate-300 rounded-lg px-1.5 py-1 focus:outline-none cursor-pointer"
+                            className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 text-[11px] text-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#C9A66B] cursor-pointer"
                           >
                             {STAGES.map((st) => (
                               <option key={st.id} value={st.id}>

@@ -118,6 +118,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [orgSwitcherOpen, setOrgSwitcherOpen] = useState(false)
   const [adminProfile, setAdminProfile] = useState<AdminProfileState | null>(null)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [extraOrgs, setExtraOrgs] = useState<Array<{ id: string; name: string; slug: string }>>([])
+  const [openExtraOrgs, setOpenExtraOrgs] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    supabase
+      .from('organizations')
+      .select('id, name, slug')
+      .order('name', { ascending: true })
+      .then(({ data }) => {
+        if (!data) return
+        const builtins = new Set(['cillah-dev', 'rosy-realtors', 'stage-properties', 'chetu-healthcare', 'dendri-africa'])
+        setExtraOrgs(data.filter((o: any) => !builtins.has(String(o.slug || '').toLowerCase())))
+      })
+  }, [supabase, pathname])
 
   const profileRef = useRef<HTMLDivElement>(null)
   const orgSwitcherRef = useRef<HTMLDivElement>(null)
@@ -849,6 +863,76 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   )}
                 </div>
               )}
+
+              {/* DYNAMICALLY ADDED CLIENT ORGANIZATIONS (from All Organizations Hub) */}
+              {extraOrgs
+                .filter((o) => isSuperAdmin || adminProfile?.orgSlug === o.slug)
+                .map((org) => {
+                  const isOpen = Boolean(openExtraOrgs[org.slug] || pathname.includes(`/organizations/${org.slug}`))
+                  return (
+                    <div key={org.id} className="space-y-1">
+                      {expanded && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOpenExtraOrgs((prev) => ({ ...prev, [org.slug]: !isOpen }))
+                          }
+                          className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-800/70 transition-colors cursor-pointer"
+                        >
+                          <span className="text-[11px] font-bold text-sky-400 uppercase tracking-wider truncate">
+                            {org.name}
+                          </span>
+                          <ChevronDown
+                            className={`w-3.5 h-3.5 text-sky-400/80 transition-transform shrink-0 ${
+                              isOpen ? 'rotate-180' : ''
+                            }`}
+                          />
+                        </button>
+                      )}
+
+                      {(isOpen || !expanded) && (
+                        <div className={expanded ? 'ml-2 pl-2 border-l border-sky-500/40 space-y-0.5' : 'space-y-0.5'}>
+                          {hasDept('sales') && (
+                            <>
+                              <Link
+                                href={`/admin/organizations/${org.slug}/sales`}
+                                className={navCls(isExact(`/admin/organizations/${org.slug}/sales`), true)}
+                              >
+                                <TrendingUp className="w-3 h-3 flex-shrink-0 text-[#C9A66B]" />
+                                {expanded && <span>Sales Dashboard</span>}
+                              </Link>
+                              <Link
+                                href={`/admin/organizations/${org.slug}/sales/users`}
+                                className={navCls(isActive(`/admin/organizations/${org.slug}/sales/users`), true)}
+                              >
+                                <Users className="w-3 h-3 flex-shrink-0 text-cyan-400" />
+                                {expanded && <span>Sales Users</span>}
+                              </Link>
+                            </>
+                          )}
+                          {hasDept('marketing') && (
+                            <Link
+                              href={`/admin/organizations/${org.slug}/marketing`}
+                              className={navCls(isExact(`/admin/organizations/${org.slug}/marketing`), true)}
+                            >
+                              <Megaphone className="w-3 h-3 flex-shrink-0 text-purple-400" />
+                              {expanded && <span>Marketing</span>}
+                            </Link>
+                          )}
+                          {hasDept('finance') && (
+                            <Link
+                              href={`/admin/organizations/${org.slug}/finance`}
+                              className={navCls(isExact(`/admin/organizations/${org.slug}/finance`), true)}
+                            >
+                              <DollarSign className="w-3 h-3 flex-shrink-0 text-sky-400" />
+                              {expanded && <span>Finance</span>}
+                            </Link>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
 
               {/* Master Organizations Hub — Super Admin ONLY */}
               {isSuperAdmin && (
