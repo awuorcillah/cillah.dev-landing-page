@@ -225,8 +225,10 @@ export default function CRMPipelineBoard({
   // Agents strictly within our organization
   const orgStaffMembers = useMemo(() => {
     return staffMembers.filter((s) => {
-      const inOrg = s.org_id === currentOrgId
-      const isSalesRole = s.role === 'sales' || s.role === 'ceo' || s.status === 'admin'
+      const inOrg = !s.org_id || s.org_id === currentOrgId
+      const r = (s.role || '').toLowerCase()
+      const isSalesRole =
+        r.includes('sales') || r.includes('ceo') || s.status === 'admin'
       return inOrg && isSalesRole
     })
   }, [staffMembers, currentOrgId])
@@ -1582,7 +1584,7 @@ export default function CRMPipelineBoard({
                         {/* Header Badges */}
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-[#C9A66B] bg-[#C9A66B]/10 px-2 py-0.5 rounded-md border border-[#C9A66B]/20">
-                            {lead.source?.replace('_', ' ')}
+                            {lead.source?.replace(/_/g, ' ')}
                           </span>
                           {overdue && (
                             <span className="text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-md border border-red-500/30 flex items-center gap-1 animate-pulse">
@@ -2525,6 +2527,9 @@ export default function CRMPipelineBoard({
                     onChange={(e) => setAddSource(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#C9A66B] cursor-pointer"
                   >
+                    <option value="microsoft_365_email">Microsoft 365 Email</option>
+                    <option value="event_forum">Event / Forum</option>
+                    <option value="tender_rfp">Tender / RFP</option>
                     <option value="email_campaign">Email Campaign</option>
                     <option value="website_enquiry">Website Enquiry</option>
                     <option value="whatsapp">WhatsApp Inbound</option>
