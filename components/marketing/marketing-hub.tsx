@@ -282,120 +282,68 @@ export default function MarketingHub({
   const CurrentIcon = currentOption.icon
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
-      {/* MARKETING DEPARTMENT HEADER + INTERACTIVE ACTION DROPDOWN */}
-      <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border border-slate-800 p-5 sm:p-6 shadow-2xl space-y-5">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-1.5">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-[#C9A66B]/15 text-[#E5C992] border border-[#C9A66B]/30">
-                <Megaphone className="w-3 h-3" /> {organizationName} &bull; Marketing Department
-              </span>
-              <span
-                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${permissions.badgeClass}`}
-              >
-                <Shield className="w-3 h-3" /> {permissions.label}
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Omnichannel Marketing Hub
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              Publish &amp; schedule across Instagram, Facebook, TikTok, LinkedIn, WhatsApp Status, YouTube, and Website — with unified insights.
-            </p>
-          </div>
-
-          {/* INTERACTIVE FORM-STYLE ACTION DROPDOWN (Post vs Insights vs Roles) */}
-          <div className="w-full lg:w-80 relative" ref={dropdownRef}>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-              Choose Marketing Action
-            </label>
-            <button
-              type="button"
-              onClick={() => setDropdownOpen((o) => !o)}
-              className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-950 border border-[#C9A66B]/50 hover:border-[#C9A66B] text-left transition-all shadow-lg cursor-pointer"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-lg bg-[#C9A66B]/15 border border-[#C9A66B]/30 flex items-center justify-center text-[#C9A66B] shrink-0">
-                  <CurrentIcon className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-white truncate">{currentOption.label}</p>
-                  <p className="text-[11px] text-slate-400 truncate">{currentOption.subtitle}</p>
-                </div>
-              </div>
-              <ChevronDown
-                className={`w-4 h-4 text-[#C9A66B] shrink-0 transition-transform ${
-                  dropdownOpen ? 'rotate-180' : ''
-                }`}
-              />
-            </button>
-
-            {dropdownOpen && (
-              <div className="absolute right-0 left-0 top-[76px] z-40 rounded-xl bg-slate-950 border border-[#C9A66B]/40 shadow-2xl overflow-hidden divide-y divide-slate-800/80">
-                {visibleActions.map((opt) => {
-                  const Icon = opt.icon
-                  const selected = opt.id === activeAction
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveAction(opt.id)
-                        setDropdownOpen(false)
-                      }}
-                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors cursor-pointer ${
-                        selected ? 'bg-[#C9A66B]/15' : 'hover:bg-slate-900'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <Icon
-                          className={`w-4 h-4 shrink-0 ${
-                            selected ? 'text-[#C9A66B]' : 'text-slate-400'
-                          }`}
-                        />
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-white">{opt.label}</p>
-                          <p className="text-[11px] text-slate-400 truncate">{opt.subtitle}</p>
-                        </div>
-                      </div>
-                      {selected && <Check className="w-4 h-4 text-[#C9A66B] shrink-0" />}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 space-y-5">
+      {/* MINIMALIST FUNCTIONAL ACTION BAR */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800/80">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-[#C9A66B]/15 text-[#E5C992] border border-[#C9A66B]/30">
+            <Megaphone className="w-3 h-3" /> {organizationName} &bull; Marketing
+          </span>
+          <span
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${permissions.badgeClass}`}
+          >
+            <Shield className="w-3 h-3" /> {permissions.label}
+          </span>
         </div>
 
-        {/* Quick 1-Click Mode Pills */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-800/80">
-          <div className="flex flex-wrap items-center gap-2">
-            {visibleActions.map((opt) => {
-              const Icon = opt.icon
-              const active = activeAction === opt.id
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setActiveAction(opt.id)}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    active
-                      ? 'bg-[#C9A66B] text-slate-950 shadow-md shadow-[#C9A66B]/20'
-                      : 'bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  <span>{opt.label}</span>
-                </button>
-              )
-            })}
-          </div>
+        {/* SINGLE FUNCTIONAL ACTION DROPDOWN */}
+        <div className="w-full sm:w-72 relative" ref={dropdownRef}>
+          <button
+            type="button"
+            onClick={() => setDropdownOpen((o) => !o)}
+            className="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-slate-900 border border-[#C9A66B]/45 hover:border-[#C9A66B] text-left transition-all shadow-sm cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <CurrentIcon className="w-4 h-4 text-[#C9A66B] shrink-0" />
+              <span className="text-sm font-bold text-white truncate">{currentOption.label}</span>
+            </div>
+            <ChevronDown
+              className={`w-4 h-4 text-[#C9A66B] shrink-0 transition-transform ${
+                dropdownOpen ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
 
-          {currentUserEmail && (
-            <span className="text-[11px] text-slate-500">
-              Signed in as <strong className="text-slate-300">{currentUserEmail}</strong>
-            </span>
+          {dropdownOpen && (
+            <div className="absolute right-0 left-0 top-12 z-40 rounded-xl bg-slate-950 border border-[#C9A66B]/40 shadow-2xl overflow-hidden divide-y divide-slate-800/80">
+              {visibleActions.map((opt) => {
+                const Icon = opt.icon
+                const selected = opt.id === activeAction
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveAction(opt.id)
+                      setDropdownOpen(false)
+                    }}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors cursor-pointer ${
+                      selected ? 'bg-[#C9A66B]/15' : 'hover:bg-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon
+                        className={`w-4 h-4 shrink-0 ${
+                          selected ? 'text-[#C9A66B]' : 'text-slate-400'
+                        }`}
+                      />
+                      <span className="text-xs font-bold text-white truncate">{opt.label}</span>
+                    </div>
+                    {selected && <Check className="w-4 h-4 text-[#C9A66B] shrink-0" />}
+                  </button>
+                )
+              })}
+            </div>
           )}
         </div>
       </div>
