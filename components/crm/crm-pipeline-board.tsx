@@ -97,13 +97,19 @@ interface CRMPipelineBoardProps {
   isStaffAdmin?: boolean
   forceUserOnly?: boolean
   embedded?: boolean
+  orgId?: string
+  excludeEmails?: string[]
+  currencyPrefix?: string
 }
 
 export default function CRMPipelineBoard({
   currentUserEmail = 'atulah@cillah.dev',
   isStaffAdmin = true,
   forceUserOnly = false,
-  embedded = false
+  embedded = false,
+  orgId,
+  excludeEmails = [],
+  currencyPrefix = '$'
 }: CRMPipelineBoardProps) {
   const supabase = createClient()
   const [leads, setLeads] = useState<SalesLead[]>([])
@@ -112,10 +118,19 @@ export default function CRMPipelineBoard({
   const [loading, setLoading] = useState(true)
 
   const effectiveIsAdmin = isStaffAdmin && !forceUserOnly
+  const normalizedExcludeEmails = useMemo(
+    () => excludeEmails.map((e) => e.toLowerCase().trim()),
+    [excludeEmails]
+  )
 
   // Filters & State
   const [agentFilter, setAgentFilter] = useState<string>(effectiveIsAdmin ? 'all' : currentUserEmail)
   const [timeFilter, setTimeFilter] = useState<'24h' | '7d' | '30d' | 'all'>('all')
+
+  // Sync agent filter whenever role/view mode changes
+  useEffect(() => {
+    setAgentFilter(effectiveIsAdmin ? 'all' : currentUserEmail)
+  }, [effectiveIsAdmin, currentUserEmail])
   const [selectedStages, setSelectedStages] = useState<string[]>([])
   const [stageMenuOpen, setStageMenuOpen] = useState(false)
   const stageMenuRef = useRef<HTMLDivElement>(null)
@@ -202,6 +217,7 @@ export default function CRMPipelineBoard({
   }, [staffMembers, currentUserEmail])
 
   const currentOrgId = useMemo(() => {
+    if (orgId) return orgId
     if (currentStaff?.org_id) return currentStaff.org_id
     if (selectedLead?.assigned_agent_email) {
       const leadAgent = staffMembers.find(
@@ -210,7 +226,7 @@ export default function CRMPipelineBoard({
       if (leadAgent?.org_id) return leadAgent.org_id
     }
     return 'a1b2c3d4-e5f6-7890-abcd-222222222222' // cillah.dev default organization
-  }, [currentStaff, selectedLead, staffMembers])
+  }, [orgId, currentStaff, selectedLead, staffMembers])
 
   const currentOrg = useMemo(() => {
     return (
@@ -225,13 +241,15 @@ export default function CRMPipelineBoard({
   // Agents strictly within our organization
   const orgStaffMembers = useMemo(() => {
     return staffMembers.filter((s) => {
-      const inOrg = !s.org_id || s.org_id === currentOrgId
+      const emailLower = (s.email || '').toLowerCase()
+      if (normalizedExcludeEmails.includes(emailLower)) return false
+      const inOrg = orgId ? s.org_id === orgId : !s.org_id || s.org_id === currentOrgId
       const r = (s.role || '').toLowerCase()
       const isSalesRole =
         r.includes('sales') || r.includes('ceo') || s.status === 'admin'
       return inOrg && isSalesRole
     })
-  }, [staffMembers, currentOrgId])
+  }, [staffMembers, currentOrgId, orgId, normalizedExcludeEmails])
 
   // Populate edit fields & viewing date on lead selection
   useEffect(() => {
@@ -352,80 +370,97 @@ export default function CRMPipelineBoard({
       }
 
       const { data: leadsData } = await query
+      const allowedOrgEmails = orgId
+        ? new Set(
+            (staffData || [])
+              .filter((s: any) => s.org_id === orgId)
+              .map((s: any) => (s.email || '').toLowerCase())
+          )
+        : null
+
       let combinedLeads: SalesLead[] = leadsData
-        ? leadsData.map((l: any) => {
-            const cleanName = l.full_name && l.full_name !== 'Valued Lead' && l.full_name !== 'Valued Customer' ? l.full_name : 'Cheryl Atulah'
-            const cleanPhone = l.phone_number && l.phone_number !== 'N/A' ? l.phone_number : '+254 794 357 912'
-            
-            // Auto-heal legacy test leads in DB
-            if (l.full_name === 'Valued Lead' || l.phone_number === 'N/A') {
-              supabase.from('sales_leads').update({ full_name: cleanName, phone_number: cleanPhone }).eq('id', l.id)
-            }
-            
-            return {
-              ...l,
-              full_name: cleanName,
-              phone_number: cleanPhone
-            }
-          })
+        ? leadsData
+            .filter((l: any) => {
+              const assignedLower = (l.assigned_agent_email || '').toLowerCase()
+              if (normalizedExcludeEmails.includes(assignedLower)) return false
+              if (allowedOrgEmails && !allowedOrgEmails.has(assignedLower)) return false
+              return true
+            })
+            .map((l: any) => {
+              const cleanName = l.full_name && l.full_name !== 'Valued Lead' && l.full_name !== 'Valued Customer' ? l.full_name : 'Cheryl Atulah'
+              const cleanPhone = l.phone_number && l.phone_number !== 'N/A' ? l.phone_number : '+254 794 357 912'
+
+              // Auto-heal legacy test leads in DB
+              if (l.full_name === 'Valued Lead' || l.phone_number === 'N/A') {
+                supabase.from('sales_leads').update({ full_name: cleanName, phone_number: cleanPhone }).eq('id', l.id)
+              }
+
+              return {
+                ...l,
+                full_name: cleanName,
+                phone_number: cleanPhone
+              }
+            })
         : []
 
-      // Also Fetch Stage Properties organization leads assigned to this agent
-      try {
-        let stageQuery = supabase.from('stage_leads').select('*').order('created_at', { ascending: false })
-        if (!effectiveIsAdmin) {
-          const matchingStaff = staffData?.find((s: any) => s.email?.toLowerCase() === currentUserEmail.toLowerCase())
-          const agentName = matchingStaff?.full_name || currentUserEmail.split('@')[0]
-          stageQuery = stageQuery.or(`assigned_agent_email.eq.${currentUserEmail},assigned_agent_name.ilike.%${agentName}%`)
-        } else if (agentFilter !== 'all') {
-          const matchingStaff = staffData?.find((s: any) => s.email?.toLowerCase() === agentFilter.toLowerCase())
-          const agentName = matchingStaff?.full_name || agentFilter.split('@')[0]
-          stageQuery = stageQuery.or(`assigned_agent_email.eq.${agentFilter},assigned_agent_name.ilike.%${agentName}%`)
+      // Also Fetch Stage Properties organization leads assigned to this agent (skipped when scoped to another orgId)
+      if (!orgId) {
+        try {
+          let stageQuery = supabase.from('stage_leads').select('*').order('created_at', { ascending: false })
+          if (!effectiveIsAdmin) {
+            const matchingStaff = staffData?.find((s: any) => s.email?.toLowerCase() === currentUserEmail.toLowerCase())
+            const agentName = matchingStaff?.full_name || currentUserEmail.split('@')[0]
+            stageQuery = stageQuery.or(`assigned_agent_email.eq.${currentUserEmail},assigned_agent_name.ilike.%${agentName}%`)
+          } else if (agentFilter !== 'all') {
+            const matchingStaff = staffData?.find((s: any) => s.email?.toLowerCase() === agentFilter.toLowerCase())
+            const agentName = matchingStaff?.full_name || agentFilter.split('@')[0]
+            stageQuery = stageQuery.or(`assigned_agent_email.eq.${agentFilter},assigned_agent_name.ilike.%${agentName}%`)
+          }
+
+          const { data: stageLeadsData } = await stageQuery
+          if (stageLeadsData && stageLeadsData.length > 0) {
+            stageLeadsData.forEach((sl: any) => {
+              // Only add if not already in combinedLeads (by phone or id)
+              const exists = combinedLeads.some(
+                (cl) => cl.id === sl.id || (sl.phone_number && cl.phone_number === sl.phone_number)
+              )
+              if (!exists) {
+                const mappedStatus =
+                  sl.status === 'new_inquiry' || sl.status === 'new_enquiry'
+                    ? 'new_lead'
+                    : sl.status === 'repeat_user' || sl.status === 'repeat_lead'
+                    ? 'repeat_lead'
+                    : sl.status || 'new_lead'
+
+                const cleanName = sl.full_name && sl.full_name !== 'Valued Lead' && sl.full_name !== 'Valued Customer' ? sl.full_name : 'Cheryl Atulah'
+                const cleanPhone = sl.phone_number && sl.phone_number !== 'N/A' ? sl.phone_number : '+254 794 357 912'
+
+                combinedLeads.push({
+                  id: sl.id,
+                  full_name: cleanName,
+                  email: sl.email || 'cheryl@cillah.dev',
+                  phone_number: cleanPhone,
+                  company_name: sl.property_interest || 'Sobha Hartland',
+                  source: 'stage_properties_dm',
+                  stage: mappedStatus,
+                  assigned_agent_email: sl.assigned_agent_email || currentUserEmail,
+                  assigned_agent_id: sl.assigned_agent_id || null,
+                  is_qualified: true,
+                  estimated_value: 1500000,
+                  last_interaction_at: sl.created_at,
+                  created_at: sl.created_at,
+                  updated_at: sl.created_at,
+                  followup_status: 'active',
+                  next_followup_at: null,
+                  followup_title: null,
+                  initial_note: sl.chat_history || `Instagram DM Lead: ${cleanName} interested in ${sl.property_interest || 'Sobha Hartland'} (${sl.intent || 'BUY'}). Verified buyer assigned to ${sl.assigned_agent_name || 'Ador'}.`
+                })
+              }
+            })
+          }
+        } catch (err) {
+          console.error('Error fetching stage_leads for CRM:', err)
         }
-
-        const { data: stageLeadsData } = await stageQuery
-        if (stageLeadsData && stageLeadsData.length > 0) {
-          stageLeadsData.forEach((sl: any) => {
-            // Only add if not already in combinedLeads (by phone or id)
-            const exists = combinedLeads.some(
-              (cl) => cl.id === sl.id || (sl.phone_number && cl.phone_number === sl.phone_number)
-            )
-            if (!exists) {
-              const mappedStatus =
-                sl.status === 'new_inquiry' || sl.status === 'new_enquiry'
-                  ? 'new_lead'
-                  : sl.status === 'repeat_user' || sl.status === 'repeat_lead'
-                  ? 'repeat_lead'
-                  : sl.status || 'new_lead'
-
-              const cleanName = sl.full_name && sl.full_name !== 'Valued Lead' && sl.full_name !== 'Valued Customer' ? sl.full_name : 'Cheryl Atulah'
-              const cleanPhone = sl.phone_number && sl.phone_number !== 'N/A' ? sl.phone_number : '+254 794 357 912'
-
-              combinedLeads.push({
-                id: sl.id,
-                full_name: cleanName,
-                email: sl.email || 'cheryl@cillah.dev',
-                phone_number: cleanPhone,
-                company_name: sl.property_interest || 'Sobha Hartland',
-                source: 'stage_properties_dm',
-                stage: mappedStatus,
-                assigned_agent_email: sl.assigned_agent_email || currentUserEmail,
-                assigned_agent_id: sl.assigned_agent_id || null,
-                is_qualified: true,
-                estimated_value: 1500000,
-                last_interaction_at: sl.created_at,
-                created_at: sl.created_at,
-                updated_at: sl.created_at,
-                followup_status: 'active',
-                next_followup_at: null,
-                followup_title: null,
-                initial_note: sl.chat_history || `Instagram DM Lead: ${cleanName} interested in ${sl.property_interest || 'Sobha Hartland'} (${sl.intent || 'BUY'}). Verified buyer assigned to ${sl.assigned_agent_name || 'Ador'}.`
-              })
-            }
-          })
-        }
-      } catch (err) {
-        console.error('Error fetching stage_leads for CRM:', err)
       }
 
       setLeads(combinedLeads)
@@ -436,13 +471,22 @@ export default function CRMPipelineBoard({
 
     // 2. Realtime Subscriptions
     const channel = supabase
-      .channel('public:sales_leads')
+      .channel(`public:sales_leads:${orgId || 'default'}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sales_leads' }, (payload) => {
         if (payload.eventType === 'INSERT') {
-          setLeads((prev) => [payload.new as SalesLead, ...prev])
+          const incoming = payload.new as SalesLead
+          const assignedLower = (incoming.assigned_agent_email || '').toLowerCase()
+          if (normalizedExcludeEmails.includes(assignedLower)) return
+          if (!effectiveIsAdmin && assignedLower !== currentUserEmail.toLowerCase()) return
+          setLeads((prev) => [incoming, ...prev])
         } else if (payload.eventType === 'UPDATE') {
           const oldLead = payload.old as SalesLead
           const newLead = payload.new as SalesLead
+          const assignedLower = (newLead.assigned_agent_email || '').toLowerCase()
+          if (normalizedExcludeEmails.includes(assignedLower)) {
+            setLeads((prev) => prev.filter((l) => l.id !== newLead.id))
+            return
+          }
 
           setLeads((prev) =>
             prev.map((l) => (l.id === payload.new.id ? (payload.new as SalesLead) : l))
@@ -452,7 +496,7 @@ export default function CRMPipelineBoard({
           // 1. Victory Deal Closed Alert
           if (oldLead?.stage !== 'closed_won' && newLead?.stage === 'closed_won') {
             const agentName = newLead.assigned_agent_email?.split('@')[0] || 'Sales Agent'
-            const valStr = newLead.estimated_value ? ` for $${Number(newLead.estimated_value).toLocaleString()}` : ''
+            const valStr = newLead.estimated_value ? ` for ${currencyPrefix}${Number(newLead.estimated_value).toLocaleString()}` : ''
             toast.success(`🎉 VICTORY DEAL WON! ${agentName} just closed a deal${valStr} with ${newLead.full_name}!`, {
               duration: 7000
             })
@@ -476,7 +520,7 @@ export default function CRMPipelineBoard({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [agentFilter, effectiveIsAdmin, currentUserEmail, forceUserOnly])
+  }, [agentFilter, effectiveIsAdmin, currentUserEmail, forceUserOnly, orgId])
 
   // Fetch Notes when a lead is selected
   useEffect(() => {
@@ -702,8 +746,12 @@ export default function CRMPipelineBoard({
     setSavingContact(false)
   }
 
-  // Soft Delete Lead -> Move to Recycle Bin (Trash)
+  // Soft Delete Lead -> Move to Recycle Bin (Trash) — ADMIN ONLY
   const handleDeleteLead = async (leadId: string, leadName?: string) => {
+    if (!effectiveIsAdmin) {
+      toast.error('Permission denied: Only Admins can delete leads.')
+      return
+    }
     const targetLead = leads.find((l) => l.id === leadId)
     if (!targetLead) return
 
@@ -787,8 +835,12 @@ export default function CRMPipelineBoard({
     toast.success(`"${targetLead.full_name}" restored to ${stageName}!`)
   }
 
-  // Permanently Delete Lead from Database
+  // Permanently Delete Lead from Database — ADMIN ONLY
   const handlePermanentDelete = async (leadId: string) => {
+    if (!effectiveIsAdmin) {
+      toast.error('Permission denied: Only Admins can permanently delete leads.')
+      return
+    }
     const targetLead = leads.find((l) => l.id === leadId)
     if (!confirm(`Are you sure you want to permanently delete "${targetLead?.full_name || 'this contact'}"? This action cannot be undone.`)) {
       return
@@ -806,8 +858,12 @@ export default function CRMPipelineBoard({
     toast.success('Contact permanently removed.')
   }
 
-  // Empty Recycle Bin
+  // Empty Recycle Bin — ADMIN ONLY
   const handleEmptyBin = async () => {
+    if (!effectiveIsAdmin) {
+      toast.error('Permission denied: Only Admins can empty the Recycle Bin.')
+      return
+    }
     if (trashLeads.length === 0) return
     if (!confirm(`Are you sure you want to permanently delete all ${trashLeads.length} leads in the Recycle Bin? This action CANNOT be undone.`)) {
       return
@@ -1196,7 +1252,7 @@ export default function CRMPipelineBoard({
               <span>{forceUserOnly ? 'My Sales Pipeline' : 'Sales Engine & CRM Pipeline'}</span>
             </h1>
             <span className="px-2.5 py-0.5 sm:px-3 sm:py-1 bg-[#C9A66B]/20 text-[#C9A66B] text-[10px] sm:text-xs font-semibold rounded-full border border-[#C9A66B]/30 uppercase whitespace-nowrap">
-              {forceUserOnly ? 'Personal Pipeline' : effectiveIsAdmin ? 'Admin Control (All Agents)' : 'Sales Workspace'}
+              {effectiveIsAdmin ? 'Admin Control · Full Access' : 'Sales Agent · Delete Restricted to Admin'}
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
@@ -1238,24 +1294,26 @@ export default function CRMPipelineBoard({
             <Plus className="w-4 h-4" /> Add Lead
           </button>
 
-          {/* Recycle Bin (Trash) Button */}
-          <button
-            onClick={() => setShowBinModal(true)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-              trashLeads.length > 0
-                ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30'
-                : 'bg-slate-900 hover:bg-slate-800 text-slate-400 border-slate-700/80 hover:text-white'
-            }`}
-            title="Recycle Bin (Deleted Contacts)"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Bin</span>
-            {trashLeads.length > 0 && (
-              <span className="px-1.5 py-0.5 bg-rose-500 text-white rounded-full text-[10px] font-bold">
-                {trashLeads.length}
-              </span>
-            )}
-          </button>
+          {/* Recycle Bin (Trash) Button — ADMIN ONLY */}
+          {effectiveIsAdmin && (
+            <button
+              onClick={() => setShowBinModal(true)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                trashLeads.length > 0
+                  ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30'
+                  : 'bg-slate-900 hover:bg-slate-800 text-slate-400 border-slate-700/80 hover:text-white'
+              }`}
+              title="Recycle Bin (Deleted Contacts — Admin Only)"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Bin</span>
+              {trashLeads.length > 0 && (
+                <span className="px-1.5 py-0.5 bg-rose-500 text-white rounded-full text-[10px] font-bold">
+                  {trashLeads.length}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* View Mode Toggle */}
           <div className="flex items-center bg-slate-900 border border-slate-700/80 rounded-xl p-1">
@@ -1374,7 +1432,7 @@ export default function CRMPipelineBoard({
           </div>
           <div>
             <div className="text-xl sm:text-2xl font-black text-emerald-400">
-              ${metrics.wonDealsValue.toLocaleString()}
+              {currencyPrefix}{metrics.wonDealsValue.toLocaleString()}
             </div>
             <div className="text-[11px] sm:text-xs text-slate-400 font-medium">
               Won Deals ({metrics.wonDealsCount})
@@ -1631,7 +1689,7 @@ export default function CRMPipelineBoard({
                         {/* Estimated Value */}
                         {lead.estimated_value > 0 && (
                           <div className="text-xs font-semibold text-emerald-400 mt-2">
-                            ${lead.estimated_value.toLocaleString()}
+                            {currencyPrefix}{lead.estimated_value.toLocaleString()}
                           </div>
                         )}
 
@@ -1702,18 +1760,20 @@ export default function CRMPipelineBoard({
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
 
-                          {/* Move to Recycle Bin */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleDeleteLead(lead.id, lead.full_name)
-                            }}
-                            title="Move to Recycle Bin"
-                            className="p-1.5 bg-slate-900 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-800 rounded-lg transition-colors cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {/* Move to Recycle Bin — ADMIN ONLY */}
+                          {effectiveIsAdmin && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteLead(lead.id, lead.full_name)
+                              }}
+                              title="Move to Recycle Bin (Admin Only)"
+                              className="p-1.5 bg-slate-900 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-800 rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
 
                           {/* Quick Stage Move Dropdown */}
                           <select
@@ -1832,17 +1892,19 @@ export default function CRMPipelineBoard({
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDeleteLead(lead.id, lead.full_name)
-                        }}
-                        title="Move to Recycle Bin"
-                        className="p-1.5 bg-slate-950 text-slate-400 hover:text-rose-400 hover:bg-rose-500/15 border border-slate-800 rounded-lg transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {effectiveIsAdmin && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteLead(lead.id, lead.full_name)
+                          }}
+                          title="Move to Recycle Bin (Admin Only)"
+                          className="p-1.5 bg-slate-950 text-slate-400 hover:text-rose-400 hover:bg-rose-500/15 border border-slate-800 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -2177,10 +2239,12 @@ export default function CRMPipelineBoard({
                 </div>
               </div>
 
-              {/* SUPER ADMIN DELETE BUTTON */}
-              {isSuperAdmin && (
+              {/* ADMIN-ONLY DELETE CONTROL / ROLE ACCESS NOTICE */}
+              {effectiveIsAdmin ? (
                 <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between">
-                  <span className="text-xs text-red-400 font-medium">Super Admin Actions</span>
+                  <span className="text-xs text-red-400 font-medium flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Admin Actions (Delete Enabled)
+                  </span>
                   <button
                     type="button"
                     onClick={() => selectedLead && handleDeleteLead(selectedLead.id, selectedLead.full_name)}
@@ -2188,6 +2252,16 @@ export default function CRMPipelineBoard({
                   >
                     Move to Bin
                   </button>
+                </div>
+              ) : (
+                <div className="mb-6 p-3 bg-slate-900/90 border border-slate-800 rounded-xl flex items-center justify-between gap-2">
+                  <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#C9A66B]" />
+                    Lead deletion is restricted to Admins / Managing Partners.
+                  </span>
+                  <span className="px-2 py-0.5 bg-slate-800 text-slate-300 text-[10px] font-semibold uppercase rounded-md border border-slate-700 shrink-0">
+                    Protected
+                  </span>
                 </div>
               )}
 

@@ -71,6 +71,7 @@ const PATH_LABELS: Record<string, string> = {
   sessions: 'Sessions',
   organizations: 'Organizations',
   sales: 'Sales Department',
+  'ndakala-advisory': 'Ndakala Advisory LLP',
 }
 
 function getBreadcrumbs(pathname: string) {
@@ -314,6 +315,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 )}
               </div>
 
+              {/* CLIENT 0: NDAKALA ADVISORY LLP (EXECUTIVE & ROLES DEMO) */}
+              <div className="ml-2 pl-2 border-l border-[#C9A66B]/50 space-y-1 pt-2">
+                {expanded && (
+                  <p className="text-[11px] font-bold text-[#C9A66B] px-2 py-1 uppercase tracking-wider">
+                    Ndakala Advisory
+                  </p>
+                )}
+
+                <Link href="/admin/organizations/ndakala-advisory" className={navCls(isActive('/admin/organizations/ndakala-advisory'), true)}>
+                  <TrendingUp className="w-3.5 h-3.5 flex-shrink-0 text-[#C9A66B]" />
+                  {expanded && <span>Executive & Pipeline</span>}
+                </Link>
+              </div>
+
               {/* CLIENT 1: STAGE PROPERTIES BROKERS */}
               <div className="ml-2 pl-2 border-l border-amber-500/40 space-y-1 pt-2">
                 {expanded && (
@@ -509,7 +524,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <Building2 className="w-3.5 h-3.5 text-[#C9A66B]" />
                   <span className="hidden md:inline text-slate-400">Org:</span>
                   <span className="text-[#C9A66B] max-w-[130px] truncate">
-                    {pathname.includes('chetu-healthcare')
+                    {pathname.includes('ndakala-advisory')
+                      ? 'Ndakala Advisory'
+                      : pathname.includes('chetu-healthcare')
                       ? 'Chetu Healthcare'
                       : pathname.includes('stage-properties')
                       ? 'Stage Properties'
@@ -526,6 +543,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Client Organizations</p>
                     </div>
                     <div className="p-1 space-y-0.5">
+                      <Link
+                        href="/admin/organizations/ndakala-advisory"
+                        onClick={() => setOrgSwitcherOpen(false)}
+                        className="flex items-center justify-between px-3 py-2 rounded-lg text-xs hover:bg-[#C9A66B]/15 text-slate-200 hover:text-[#C9A66B] transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Building2 className="w-4 h-4 text-[#C9A66B]" />
+                          <div>
+                            <p className="font-semibold text-white">Ndakala Advisory LLP</p>
+                            <p className="text-[10px] text-slate-400">Audit, Tax & Tenders CRM</p>
+                          </div>
+                        </div>
+                      </Link>
+
                       <Link
                         href="/admin/organizations/stage-properties/pipeline"
                         onClick={() => setOrgSwitcherOpen(false)}
