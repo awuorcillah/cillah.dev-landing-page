@@ -24,7 +24,10 @@ import {
   Clock,
   Layers,
   Filter,
-  X
+  X,
+  Activity,
+  Phone,
+  Bot
 } from 'lucide-react'
 
 interface RawLead {
@@ -189,15 +192,22 @@ export default function SalesAdminDashboard() {
   const [selectedAgent, setSelectedAgent] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [reassigningId, setReassigningId] = useState<string | null>(null)
+  const [recentActivities, setRecentActivities] = useState<any[]>([])
 
   const fetchDashboardData = async () => {
     setLoading(true)
     try {
-      const [{ data: authData }, { data: leadsData }, { data: staffData }] = await Promise.all([
+      const [{ data: authData }, { data: leadsData }, { data: staffData }, actRes] = await Promise.all([
         supabase.auth.getUser(),
         supabase.from('sales_leads').select('*').order('created_at', { ascending: false }),
         supabase.from('staff_members').select('id, email, full_name, role, status, org_id').eq('is_active', true),
+        fetch('/api/leads/activity?limit=18').catch(() => null),
       ])
+
+      if (actRes && actRes.ok) {
+        const actJson = await actRes.json()
+        setRecentActivities(actJson.activities || [])
+      }
 
       if (authData?.user?.email) {
         setAdminEmail(authData.user.email.toLowerCase())
@@ -824,6 +834,50 @@ export default function SalesAdminDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Live Agent Follow-Up Activity Log */}
+      {recentActivities.length > 0 && (
+        <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <Activity className="w-4 h-4 text-cyan-400" />
+              Live Agent Follow-Up Activity Log
+            </h2>
+            <span className="text-[11px] text-slate-400">{recentActivities.length} recent actions</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {recentActivities.slice(0, 6).map((act) => (
+              <div
+                key={act.id}
+                className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start gap-2.5 text-xs"
+              >
+                <div className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 shrink-0 mt-0.5">
+                  {act.activity_type === 'call_logged' || act.activity_type === 'voip_call' ? (
+                    <Phone className="w-3.5 h-3.5 text-sky-400" />
+                  ) : act.activity_type === 'ai_draft' || act.activity_type === 'ai_pipeline_query' ? (
+                    <Bot className="w-3.5 h-3.5 text-cyan-400" />
+                  ) : (
+                    <Clock className="w-3.5 h-3.5 text-amber-400" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-white truncate">
+                      {act.agent_name || act.agent_email?.split('@')[0]}
+                    </span>
+                    <span className="text-[10px] text-slate-500 shrink-0">
+                      {new Date(act.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 mt-0.5 line-clamp-2">
+                    {act.summary || act.activity_type}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Embedded Full CRM Pipeline Board (All Agents / Per-Agent Filtering) */}
       <div className="border-t border-slate-800/80 pt-6">

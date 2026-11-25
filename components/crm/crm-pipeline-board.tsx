@@ -4,7 +4,10 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import SalesAiAssistantDrawer from '@/components/crm/sales-ai-assistant-drawer'
 import {
+  Bot,
+  BellRing,
   MessageCircle,
   Phone,
   Mail,
@@ -180,6 +183,84 @@ export default function CRMPipelineBoard({
   // Recycle Bin (Trash) Modal State
   const [showBinModal, setShowBinModal] = useState(false)
   const [binSearchQuery, setBinSearchQuery] = useState('')
+
+  // Personal AI Assistant Drawer State
+  const [aiDrawerOpen, setAiDrawerOpen] = useState(false)
+  const [aiDrawerMode, setAiDrawerMode] = useState<'lead_draft' | 'pipeline_chat'>('lead_draft')
+  const [aiTargetLead, setAiTargetLead] = useState<SalesLead | null>(null)
+
+  // Individualized AI Follow-Up Scanner State
+  const [followupScan, setFollowupScan] = useState<{
+    overdue: any[]
+    dueToday: any[]
+    upcoming48h: any[]
+    counts: { overdue: number; dueToday: number; upcoming48h: number; totalAttention: number }
+  } | null>(null)
+  const [scanExpanded, setScanExpanded] = useState(false)
+
+  // Non-blocking activity timestamp logger for Admin Accountability Dashboard
+  const logLeadActivity = (payload: {
+    lead_id?: string | null
+    lead_name?: string | null
+    activity_type: string
+    summary: string
+    duration_seconds?: number | null
+  }) => {
+    const activeStaff = staffMembers.find(
+      (s) => s.email?.toLowerCase() === currentUserEmail.toLowerCase()
+    )
+    fetch('/api/leads/activity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lead_id: payload.lead_id || null,
+        org_id: orgId || activeStaff?.org_id || currentOrgId,
+        agent_email: currentUserEmail,
+        agent_name: activeStaff?.full_name || currentUserEmail.split('@')[0],
+        lead_name: payload.lead_name || null,
+        activity_type: payload.activity_type,
+        summary: payload.summary,
+        duration_seconds: payload.duration_seconds || null,
+      }),
+    }).catch(() => {})
+  }
+
+  const openLeadAiAssistant = (lead: SalesLead) => {
+    setAiTargetLead(lead)
+    setAiDrawerMode('lead_draft')
+    setAiDrawerOpen(true)
+  }
+
+  const openPipelineAiAssistant = () => {
+    setAiTargetLead(null)
+    setAiDrawerMode('pipeline_chat')
+    setAiDrawerOpen(true)
+  }
+
+  // Auto-scan individualized upcoming/overdue follow-ups
+  useEffect(() => {
+    if (!currentUserEmail) return
+    let active = true
+    const qs = new URLSearchParams()
+    if (!effectiveIsAdmin) {
+      qs.set('agentEmail', currentUserEmail)
+    } else if (agentFilter !== 'all') {
+      qs.set('agentEmail', agentFilter)
+    } else if (orgId) {
+      qs.set('orgId', orgId)
+    }
+    fetch(`/api/leads/followup-scan?${qs.toString()}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (active && data?.success) {
+          setFollowupScan(data)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [currentUserEmail, effectiveIsAdmin, agentFilter, orgId, leads.length])
 
   // Lead Transfer State
   const [targetAgentEmail, setTargetAgentEmail] = useState('')
@@ -673,6 +754,15 @@ export default function CRMPipelineBoard({
     if (selectedLead?.id === leadId) {
       setSelectedLead((prev) => (prev ? { ...prev, stage: newStage } : null))
     }
+
+    const movedLead = leads.find((l) => l.id === leadId)
+    const stageName = STAGES.find((s) => s.id === newStage)?.name || newStage
+    logLeadActivity({
+      lead_id: leadId,
+      lead_name: movedLead?.full_name || null,
+      activity_type: 'stage_changed',
+      summary: `Moved "${movedLead?.full_name || 'lead'}" to ${stageName}`,
+    })
   }
 
   // Save Contact Details with Audit Trail Log
@@ -1136,6 +1226,12 @@ export default function CRMPipelineBoard({
 
     if (!error && newNote) {
       setNotes((prev) => [newNote, ...prev])
+      logLeadActivity({
+        lead_id: selectedLead.id,
+        lead_name: selectedLead.full_name,
+        activity_type: 'note_added',
+        summary: `Added follow-up note: "${newNoteText.trim().slice(0, 90)}"`,
+      })
       setNewNoteText('')
     }
     setAddingNote(false)
@@ -1282,6 +1378,16 @@ export default function CRMPipelineBoard({
             </div>
           )}
 
+          {/* Personal AI Assistant Button (Reads Individualized Pipeline & Prompt Settings) */}
+          <button
+            type="button"
+            onClick={openPipelineAiAssistant}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/35 font-bold rounded-xl text-xs transition-all cursor-pointer"
+            title="Open Personal Sales AI Assistant (Read Pipeline & Prompt Settings)"
+          >
+            <Bot className="w-4 h-4" /> Personal AI
+          </button>
+
           {/* Add Lead Quick Button */}
           <button
             onClick={() => {
@@ -1393,6 +1499,94 @@ export default function CRMPipelineBoard({
           )}
         </div>
       </div>
+
+      {/* INDIVIDUALIZED AI FOLLOW-UP SCANNER BANNER */}
+      {followupScan && followupScan.counts.totalAttention > 0 && (
+        <div className="mb-6 rounded-2xl bg-slate-900/80 border border-cyan-500/25 px-4 py-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 text-xs">
+              <div className="p-1.5 rounded-lg bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 shrink-0">
+                <BellRing className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="font-bold text-white">AI Follow-Up Scanner: </span>
+                <span className="text-slate-300">
+                  {followupScan.counts.overdue > 0 && (
+                    <strong className="text-rose-400">{followupScan.counts.overdue} overdue · </strong>
+                  )}
+                  {followupScan.counts.dueToday > 0 && (
+                    <strong className="text-amber-400">{followupScan.counts.dueToday} due today · </strong>
+                  )}
+                  <strong className="text-cyan-300">{followupScan.counts.upcoming48h} due within 48h</strong>
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setScanExpanded((p) => !p)}
+                className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-300 hover:text-white cursor-pointer"
+              >
+                {scanExpanded ? 'Hide List' : 'View Reminders'}
+              </button>
+              <button
+                type="button"
+                onClick={openPipelineAiAssistant}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/35 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-500/25 cursor-pointer"
+              >
+                <Bot className="w-3.5 h-3.5" /> Ask AI to Prioritize
+              </button>
+            </div>
+          </div>
+
+          {scanExpanded && (
+            <div className="mt-3 pt-3 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {[...followupScan.overdue, ...followupScan.dueToday, ...followupScan.upcoming48h]
+                .slice(0, 6)
+                .map((item: any) => {
+                  const isLate = new Date(item.next_followup_at).getTime() < Date.now()
+                  const fullLead = leads.find((l) => l.id === item.id)
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 flex items-center justify-between gap-2 text-xs"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => fullLead && setSelectedLead(fullLead)}
+                        className="text-left min-w-0 flex-1 cursor-pointer"
+                      >
+                        <div className="font-semibold text-white truncate">{item.full_name}</div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          {item.followup_title || item.company_name || 'Scheduled Follow-up'}
+                        </div>
+                        <div className={`text-[10px] font-semibold mt-0.5 ${isLate ? 'text-rose-400' : 'text-amber-400'}`}>
+                          {isLate ? 'Overdue: ' : 'Due: '}
+                          {new Date(item.next_followup_at).toLocaleString([], {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </div>
+                      </button>
+                      {fullLead && (
+                        <button
+                          type="button"
+                          onClick={() => openLeadAiAssistant(fullLead)}
+                          title="Draft follow-up with Personal AI"
+                          className="p-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 shrink-0 cursor-pointer"
+                        >
+                          <Bot className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* METRICS ROW - HORIZONTAL SWIPEABLE ON MOBILE */}
       <div className="flex overflow-x-auto pb-3 pt-1 -mx-3 px-3 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 md:mb-8 scrollbar-none snap-x snap-mandatory">
@@ -1708,13 +1902,21 @@ export default function CRMPipelineBoard({
                         </div>
 
                         {/* 1-CLICK QUICK ACTION COMMUNICATION ICONS */}
-                        <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-900">
+                        <div className="flex items-center gap-1.5 mt-3 pt-2 border-t border-slate-900">
                           {lead.phone_number && (
                             <a
                               href={getWhatsAppLink(lead.phone_number, lead)}
                               target="_blank"
                               rel="noreferrer"
-                              onClick={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                logLeadActivity({
+                                  lead_id: lead.id,
+                                  lead_name: lead.full_name,
+                                  activity_type: 'whatsapp_click',
+                                  summary: `Initiated WhatsApp follow-up with ${lead.full_name}`,
+                                })
+                              }}
                               title="Chat on WhatsApp"
                               className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg transition-colors"
                             >
@@ -1725,7 +1927,15 @@ export default function CRMPipelineBoard({
                           {lead.phone_number && (
                             <a
                               href={`tel:${lead.phone_number}`}
-                              onClick={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                logLeadActivity({
+                                  lead_id: lead.id,
+                                  lead_name: lead.full_name,
+                                  activity_type: 'call_logged',
+                                  summary: `Placed follow-up call to ${lead.full_name} (${lead.phone_number})`,
+                                })
+                              }}
                               title="Call Lead"
                               className="p-1.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded-lg transition-colors"
                             >
@@ -1738,13 +1948,34 @@ export default function CRMPipelineBoard({
                               href={getEmailComposeLink(lead)}
                               target="_blank"
                               rel="noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              title="Compose Email in Gmail"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                logLeadActivity({
+                                  lead_id: lead.id,
+                                  lead_name: lead.full_name,
+                                  activity_type: 'email_click',
+                                  summary: `Opened Email compose for ${lead.full_name}`,
+                                })
+                              }}
+                              title="Compose Email"
                               className="p-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-lg transition-colors"
                             >
                               <Mail className="w-3.5 h-3.5" />
                             </a>
                           )}
+
+                          {/* Mini Robot AI Drafting Assistant Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openLeadAiAssistant(lead)
+                            }}
+                            title="Draft Message with Personal AI Assistant"
+                            className="p-1.5 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/35 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <Bot className="w-3.5 h-3.5" />
+                          </button>
 
                           {/* Quick Edit Contact Details */}
                           <button
@@ -1884,6 +2115,17 @@ export default function CRMPipelineBoard({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation()
+                          openLeadAiAssistant(lead)
+                        }}
+                        title="Draft with Personal AI Assistant"
+                        className="p-1.5 bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25 border border-cyan-500/35 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Bot className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
                           setSelectedLead(lead)
                           setIsEditingContact(true)
                         }}
@@ -1984,13 +2226,21 @@ export default function CRMPipelineBoard({
               )}
 
               {/* 1-CLICK QUICK ACTION BAR IN MODAL */}
-              <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-6">
                 {selectedLead.phone_number ? (
                   <a
                     href={getWhatsAppLink(selectedLead.phone_number, selectedLead)}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center justify-center gap-2 py-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 rounded-xl text-xs font-bold transition-all"
+                    onClick={() =>
+                      logLeadActivity({
+                        lead_id: selectedLead.id,
+                        lead_name: selectedLead.full_name,
+                        activity_type: 'whatsapp_click',
+                        summary: `Initiated WhatsApp chat with ${selectedLead.full_name}`,
+                      })
+                    }
+                    className="flex items-center justify-center gap-1.5 py-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 rounded-xl text-xs font-bold transition-all"
                   >
                     <MessageCircle className="w-4 h-4" /> WhatsApp
                   </a>
@@ -2003,7 +2253,15 @@ export default function CRMPipelineBoard({
                 {selectedLead.phone_number ? (
                   <a
                     href={`tel:${selectedLead.phone_number}`}
-                    className="flex items-center justify-center gap-2 py-2.5 bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-400 rounded-xl text-xs font-bold transition-all"
+                    onClick={() =>
+                      logLeadActivity({
+                        lead_id: selectedLead.id,
+                        lead_name: selectedLead.full_name,
+                        activity_type: 'call_logged',
+                        summary: `Placed follow-up call to ${selectedLead.full_name} (${selectedLead.phone_number})`,
+                      })
+                    }
+                    className="flex items-center justify-center gap-1.5 py-2.5 bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-400 rounded-xl text-xs font-bold transition-all"
                   >
                     <Phone className="w-4 h-4" /> Direct Call
                   </a>
@@ -2018,7 +2276,15 @@ export default function CRMPipelineBoard({
                     href={getEmailComposeLink(selectedLead)}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center justify-center gap-2 py-2.5 bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-400 rounded-xl text-xs font-bold transition-all"
+                    onClick={() =>
+                      logLeadActivity({
+                        lead_id: selectedLead.id,
+                        lead_name: selectedLead.full_name,
+                        activity_type: 'email_click',
+                        summary: `Opened Email compose for ${selectedLead.full_name}`,
+                      })
+                    }
+                    className="flex items-center justify-center gap-1.5 py-2.5 bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-400 rounded-xl text-xs font-bold transition-all"
                   >
                     <Mail className="w-4 h-4" /> Send Email
                   </a>
@@ -2027,6 +2293,14 @@ export default function CRMPipelineBoard({
                     No Email
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => openLeadAiAssistant(selectedLead)}
+                  className="flex items-center justify-center gap-1.5 py-2.5 bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/35 text-cyan-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  <Bot className="w-4 h-4" /> AI Assistant
+                </button>
               </div>
 
               {/* EDIT CONTACT DETAILS SECTION (NAME, EMAIL, PHONE, WHATSAPP, COMPANY, VALUE, STAGE, AGENT) */}
@@ -2820,6 +3094,19 @@ export default function CRMPipelineBoard({
           </div>
         </div>
       )}
+
+      {/* PERSONAL AI SALES ASSISTANT DRAWER */}
+      <SalesAiAssistantDrawer
+        open={aiDrawerOpen}
+        onClose={() => setAiDrawerOpen(false)}
+        agentEmail={currentUserEmail}
+        orgId={orgId || currentOrgId}
+        isAdminView={effectiveIsAdmin}
+        excludeEmails={normalizedExcludeEmails}
+        initialMode={aiDrawerMode}
+        lead={aiTargetLead}
+        onLogActivity={logLeadActivity}
+      />
     </div>
   )
 }

@@ -25,7 +25,10 @@ import {
   ShieldCheck,
   Lock,
   Trash2,
-  Building2
+  Building2,
+  Activity,
+  Phone,
+  Bot
 } from 'lucide-react'
 
 const NDAKALA_ORG_ID = 'a1b2c3d4-e5f6-7890-abcd-555555555555'
@@ -177,11 +180,13 @@ export default function NdakalaAdvisoryDashboardPage() {
   const [selectedAgent, setSelectedAgent] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [reassigningId, setReassigningId] = useState<string | null>(null)
+  const [recentActivities, setRecentActivities] = useState<any[]>([])
+  const [activityByAgent, setActivityByAgent] = useState<Record<string, any>>({})
 
   const fetchOrgData = async () => {
     setLoading(true)
     try {
-      const [{ data: authData }, { data: staffData }, { data: leadsData }] = await Promise.all([
+      const [{ data: authData }, { data: staffData }, { data: leadsData }, actRes] = await Promise.all([
         supabase.auth.getUser(),
         supabase
           .from('staff_members')
@@ -190,7 +195,14 @@ export default function NdakalaAdvisoryDashboardPage() {
           .eq('is_active', true)
           .order('full_name', { ascending: true }),
         supabase.from('sales_leads').select('*').order('created_at', { ascending: false }),
+        fetch(`/api/leads/activity?orgId=${NDAKALA_ORG_ID}&excludeEmails=${EXCLUDED_REAL_EMAILS.join(',')}&limit=25`).catch(() => null),
       ])
+
+      if (actRes && actRes.ok) {
+        const actJson = await actRes.json()
+        setRecentActivities(actJson.activities || [])
+        setActivityByAgent(actJson.byAgent || {})
+      }
 
       if (authData?.user?.email) {
         setAdminEmail(authData.user.email.toLowerCase())
@@ -816,9 +828,9 @@ export default function NdakalaAdvisoryDashboardPage() {
                           <span className="font-bold text-emerald-400">{ag.wonCount}</span>
                         </div>
                         <div>
-                          <span className="text-slate-500 block text-[10px]">Pipeline</span>
-                          <span className="font-semibold text-slate-200 truncate block">
-                            {ag.pipelineValue > 0 ? `KES ${(ag.pipelineValue / 1000000).toFixed(1)}M` : '—'}
+                          <span className="text-slate-500 block text-[10px]">Actions</span>
+                          <span className="font-semibold text-cyan-300">
+                            {activityByAgent[ag.email]?.totalActions || 0} logged
                           </span>
                         </div>
                         <div className="text-right">
@@ -833,6 +845,92 @@ export default function NdakalaAdvisoryDashboardPage() {
                 })}
               </div>
             </div>
+          </div>
+
+          {/* LIVE AGENT FOLLOW-UP ACTIVITY LOG (TIMESTAMPS & CALL RECORDING READY) */}
+          <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+              <div>
+                <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-cyan-400" />
+                  Live Agent Follow-Up Activity Log
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Every call, WhatsApp, Email, AI draft, stage move, and follow-up date is timestamped automatically for management visibility.
+                </p>
+              </div>
+              <span className="text-[11px] text-slate-400">
+                {recentActivities.length} recorded touchpoints
+              </span>
+            </div>
+
+            {recentActivities.length === 0 ? (
+              <div className="text-xs text-slate-500 py-6 text-center">
+                No logged activities yet — run <code className="text-slate-300">ai_assistant_and_activity_schema.sql</code> or log a call, message, or AI draft below to see live timestamps here.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {recentActivities.slice(0, 9).map((act) => {
+                  const icon =
+                    act.activity_type === 'call_logged' || act.activity_type === 'voip_call' ? (
+                      <Phone className="w-3.5 h-3.5 text-sky-400" />
+                    ) : act.activity_type === 'whatsapp_click' ? (
+                      <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                    ) : act.activity_type === 'email_click' ? (
+                      <Mail className="w-3.5 h-3.5 text-purple-400" />
+                    ) : act.activity_type === 'ai_draft' || act.activity_type === 'ai_pipeline_query' ? (
+                      <Bot className="w-3.5 h-3.5 text-cyan-400" />
+                    ) : (
+                      <Clock className="w-3.5 h-3.5 text-amber-400" />
+                    )
+
+                  return (
+                    <div
+                      key={act.id}
+                      className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start gap-3 text-xs"
+                    >
+                      <div className="p-2 rounded-lg bg-slate-900 border border-slate-800 shrink-0 mt-0.5">
+                        {icon}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-white truncate">
+                            {act.agent_name || act.agent_email?.split('@')[0]}
+                          </span>
+                          <span className="text-[10px] text-slate-500 shrink-0">
+                            {new Date(act.created_at).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-300 mt-0.5 line-clamp-2">
+                          {act.summary || act.activity_type.replace(/_/g, ' ')}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-500">
+                          {act.lead_name && <span className="text-slate-400">{act.lead_name}</span>}
+                          {act.duration_seconds && (
+                            <span className="px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-300 border border-sky-500/20 font-semibold">
+                              {Math.floor(act.duration_seconds / 60)}m {act.duration_seconds % 60}s call
+                            </span>
+                          )}
+                          {act.recording_url && (
+                            <a
+                              href={act.recording_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-cyan-400 hover:underline font-semibold"
+                            >
+                              Play Recording
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </>
       )}

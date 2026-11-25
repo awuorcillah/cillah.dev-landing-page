@@ -67,6 +67,7 @@ export async function POST(request: Request) {
         followup_status: followupStatus,
         next_followup_at: nextFollowupAt ? nextFollowupAt.toISOString() : null,
         followup_title: followup_title || null,
+        last_interaction_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('id', lead_id)
@@ -111,6 +112,28 @@ export async function POST(request: Request) {
       source: 'sales_agent',
       note_text: `Follow-up set: ${choiceLabelMap[followup_choice] || followup_choice}${titleSuffix}${nextFollowupAt ? ` (Scheduled for ${nextFollowupAt.toLocaleString()})` : ''}`
     });
+
+    // 4. Record timestamped follow-up activity for Admin Dashboard accountability
+    try {
+      const resolvedEmail = (agent_email || updatedLead.assigned_agent_email || 'system@cillah.dev').toLowerCase();
+      const { data: staffRow } = await supabase
+        .from('staff_members')
+        .select('org_id, full_name')
+        .ilike('email', resolvedEmail)
+        .maybeSingle();
+
+      await supabase.from('lead_activities').insert({
+        lead_id,
+        org_id: staffRow?.org_id || null,
+        agent_email: resolvedEmail,
+        agent_name: staffRow?.full_name || resolvedEmail.split('@')[0],
+        lead_name: updatedLead.full_name,
+        activity_type: 'followup_scheduled',
+        summary: `${choiceLabelMap[followup_choice] || 'Updated follow-up'}${titleSuffix}`,
+      });
+    } catch {
+      // Non-blocking if lead_activities table isn't migrated yet
+    }
 
     return NextResponse.json({
       success: true,
