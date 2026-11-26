@@ -342,7 +342,7 @@ export default function CillahSalesDashboardPage() {
     }).format(amount)
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-6 space-y-6">
+    <div className="min-h-screen bg-[#090B12] text-slate-100 p-3 sm:p-5 md:p-6 space-y-5 min-w-0 overflow-x-hidden">
       {/* Top Executive Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
         <div>

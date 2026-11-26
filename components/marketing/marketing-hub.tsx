@@ -509,31 +509,24 @@ export default function MarketingHub({
           </div>
         </div>
 
-        {/* Admin-only Agent filter + Access indicator */}
+        {/* Admin-only Agent filter (Access badge lives cleanly under Profile Avatar) */}
         {isAdminView && (
-          <div className="flex items-center gap-2">
-            <span
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${permissions.badgeClass}`}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0F1422] border border-white/10 text-xs">
+            <span className="text-slate-400">Agent:</span>
+            <select
+              value={selectedMemberFilter}
+              onChange={(e) => setSelectedMemberFilter(e.target.value)}
+              className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
             >
-              <Shield className="w-3 h-3" /> {permissions.label}
-            </span>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs">
-              <span className="text-slate-400">Agent:</span>
-              <select
-                value={selectedMemberFilter}
-                onChange={(e) => setSelectedMemberFilter(e.target.value)}
-                className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
-              >
-                <option value="all" className="bg-slate-900 text-white">
-                  All ({posts.length})
+              <option value="all" className="bg-[#0E131F] text-white">
+                All ({posts.length})
+              </option>
+              {memberOptions.map((m) => (
+                <option key={m.email} value={m.email} className="bg-[#0E131F] text-white">
+                  {m.label}
                 </option>
-                {memberOptions.map((m) => (
-                  <option key={m.email} value={m.email} className="bg-slate-900 text-white">
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+              ))}
+            </select>
           </div>
         )}
       </div>

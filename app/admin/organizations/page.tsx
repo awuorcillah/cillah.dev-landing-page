@@ -198,8 +198,6 @@ export default function AdminOrganizationsHubPage() {
 
   const getSalesHref = (org: LiveOrganization) => {
     if (org.slug === 'cillah-dev') return '/admin/dashboard'
-    if (org.slug === 'chetu-healthcare') return '/admin/organizations/chetu-healthcare'
-    if (org.slug === 'dendri-africa') return '/admin/organizations/dendri-africa'
     return `/admin/organizations/${org.slug}/sales`
   }
 
@@ -213,7 +211,7 @@ export default function AdminOrganizationsHubPage() {
   const totalLeads = orgs.reduce((sum, o) => sum + o.lead_count, 0)
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-6 space-y-6">
+    <div className="min-h-screen bg-[#090B12] text-slate-100 p-3 sm:p-5 md:p-6 space-y-5 min-w-0 overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
         <div>

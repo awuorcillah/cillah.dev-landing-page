@@ -245,11 +245,9 @@ export default function RosyRealtorsSalesDashboardPage() {
       const val = Number(l.estimated_value) || 0
       totalPipelineValue += val
       if (
-        l.stage === 'closed_won' ||
-        l.stage === 'closed' ||
-        l.stage === 'ongoing_project' ||
         l.stage === 'done_delivered' ||
-        l.stage === 'full_payment_made'
+        l.stage === 'closed_won' ||
+        l.stage === 'closed'
       ) {
         wonValue += val
         wonCount += 1
@@ -294,11 +292,9 @@ export default function RosyRealtorsSalesDashboardPage() {
         )
         const wonLeads = agLeads.filter(
           (l) =>
-            l.stage === 'closed_won' ||
-            l.stage === 'closed' ||
-            l.stage === 'ongoing_project' ||
             l.stage === 'done_delivered' ||
-            l.stage === 'full_payment_made'
+            l.stage === 'closed_won' ||
+            l.stage === 'closed'
         )
         const pipelineValue = agLeads.reduce((sum, l) => sum + (Number(l.estimated_value) || 0), 0)
         const speedMins = agLeads.map((l) => {
@@ -333,7 +329,7 @@ export default function RosyRealtorsSalesDashboardPage() {
     }).format(amount)
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-6 space-y-6">
+    <div className="min-h-screen bg-[#090B12] text-slate-100 p-3 sm:p-5 md:p-6 space-y-5 min-w-0 overflow-x-hidden">
       {/* Executive Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
         <div>
