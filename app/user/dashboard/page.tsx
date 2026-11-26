@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import CRMPipelineBoard from '@/components/crm/crm-pipeline-board'
 import MarketingHub from '@/components/marketing/marketing-hub'
+import FinanceDepartmentHub from '@/components/finance/finance-department-hub'
 import {
   parseAssignedWorkspaces,
   type UserWorkspaceRole,
@@ -57,6 +58,7 @@ export default function UserDashboardPage() {
   const supabase = createClient()
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('')
   const [displayName, setDisplayName] = useState<string>('')
+  const [organizationId, setOrganizationId] = useState<string>('a1b2c3d4-e5f6-7890-abcd-222222222222')
   const [organizationSlug, setOrganizationSlug] = useState<string>('cillah-dev')
   const [organizationName, setOrganizationName] = useState<string>('Cillah')
   const [assignedWorkspaces, setAssignedWorkspaces] = useState<UserWorkspaceRole[]>([
@@ -107,6 +109,7 @@ export default function UserDashboardPage() {
       ])
 
       if (staff?.org_id) {
+        setOrganizationId(staff.org_id)
         const { data: org } = await supabase
           .from('organizations')
           .select('slug, name')
@@ -331,6 +334,8 @@ export default function UserDashboardPage() {
             currentUserEmail={currentUserEmail}
             isStaffAdmin={false}
             forceUserOnly={true}
+            orgId={organizationId}
+            currencyPrefix="KES "
           />
         )}
 
@@ -344,85 +349,12 @@ export default function UserDashboardPage() {
         )}
 
         {activeWorkspace === 'finance' && (
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-6">
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <DollarSign className="w-6 h-6 text-sky-400" />
-                  <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                    Finance Department
-                  </h1>
-                </div>
-                <p className="text-sm text-slate-400 mt-1">
-                  Cillah Organization &bull; Next Department Build Phase
-                </p>
-              </div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-300 text-xs font-semibold uppercase tracking-wider self-start sm:self-auto">
-                Up Next
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-6 space-y-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 flex items-center justify-center">
-                  <Wallet className="w-5 h-5" />
-                </div>
-                <h2 className="text-base font-bold text-white">M-Pesa &amp; Bank Reconciliation</h2>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Automatic matching of Safaricom Daraja STK callbacks, consultation fees, and monthly retainer payments.
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-6 space-y-3">
-                <div className="w-10 h-10 rounded-xl bg-[#C9A66B]/15 border border-[#C9A66B]/30 text-[#C9A66B] flex items-center justify-center">
-                  <Receipt className="w-5 h-5" />
-                </div>
-                <h2 className="text-base font-bold text-white">Client Invoices &amp; Retainers</h2>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Generate branded KES/USD invoices, track due dates, and send automated WhatsApp &amp; email payment reminders.
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-6 space-y-3">
-                <div className="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-300 flex items-center justify-center">
-                  <FileSpreadsheet className="w-5 h-5" />
-                </div>
-                <h2 className="text-base font-bold text-white">Cashflow &amp; Expense Ledger</h2>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Department budgets, ad-spend ROI from Marketing, and export-ready monthly financial reports.
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-slate-900/60 border border-[#C9A66B]/25 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold text-[#C9A66B]">
-                  Finance Workspace is queued for our next build step
-                </p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Use the Department selector above anytime to switch between Sales, Marketing, and Finance.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => selectDepartment('marketing')}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#C9A66B] text-slate-950 font-bold text-xs hover:bg-[#d6b67d] transition-colors cursor-pointer"
-                >
-                  <Megaphone className="w-3.5 h-3.5" />
-                  <span>Open Marketing</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => selectDepartment('sales')}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 text-white font-bold text-xs hover:bg-slate-700 transition-colors cursor-pointer"
-                >
-                  <TrendingUp className="w-3.5 h-3.5" />
-                  <span>Open Sales</span>
-                </button>
-              </div>
-            </div>
-          </div>
+          <FinanceDepartmentHub
+            orgSlug={organizationSlug}
+            orgName={organizationName}
+            isDemoOrg={organizationSlug === 'rosy-realtors'}
+            showManageUsersLink={false}
+          />
         )}
       </main>
     </div>

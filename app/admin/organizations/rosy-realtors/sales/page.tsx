@@ -244,7 +244,13 @@ export default function RosyRealtorsSalesDashboardPage() {
     scopedLeads.forEach((l) => {
       const val = Number(l.estimated_value) || 0
       totalPipelineValue += val
-      if (l.stage === 'closed_won' || l.stage === 'closed') {
+      if (
+        l.stage === 'closed_won' ||
+        l.stage === 'closed' ||
+        l.stage === 'ongoing_project' ||
+        l.stage === 'done_delivered' ||
+        l.stage === 'full_payment_made'
+      ) {
         wonValue += val
         wonCount += 1
       }
@@ -286,7 +292,14 @@ export default function RosyRealtorsSalesDashboardPage() {
         const agLeads = activeLeads.filter(
           (l) => (l.assigned_agent_email || '').toLowerCase() === emailLower
         )
-        const wonLeads = agLeads.filter((l) => l.stage === 'closed_won' || l.stage === 'closed')
+        const wonLeads = agLeads.filter(
+          (l) =>
+            l.stage === 'closed_won' ||
+            l.stage === 'closed' ||
+            l.stage === 'ongoing_project' ||
+            l.stage === 'done_delivered' ||
+            l.stage === 'full_payment_made'
+        )
         const pipelineValue = agLeads.reduce((sum, l) => sum + (Number(l.estimated_value) || 0), 0)
         const speedMins = agLeads.map((l) => {
           const diffMs =

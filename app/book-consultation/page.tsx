@@ -16,6 +16,8 @@ import {
   ExternalLink,
   AlertCircle,
   RefreshCw,
+  CreditCard,
+  Smartphone,
 } from "lucide-react"
 import { toast } from "sonner"
 import { trackMetaEvent } from "@/components/meta-pixel-tracker"
@@ -234,10 +236,15 @@ export default function BookConsultationPage() {
   const [hasNoWebsite, setHasNoWebsite] = useState(false)
   const [bottlenecks, setBottlenecks] = useState("")
 
-  // Step 3: Verified M-Pesa Payment State
+  // Step 3: Payment Method (M-Pesa Express OR Card via Paystack)
+  const [paymentMethod, setPaymentMethod] = useState<"mpesa" | "card">("mpesa")
   const [mpesaPhone, setMpesaPhone] = useState("")
   const [mpesaPhase, setMpesaPhase] = useState<MpesaPhase>("idle")
   const [mpesaError, setMpesaError] = useState("")
+  const [cardLoading, setCardLoading] = useState(false)
+  const [cardError, setCardError] = useState("")
+  const [verifyingPaystackReturn, setVerifyingPaystackReturn] = useState(false)
+  const [confirmedMethodLabel, setConfirmedMethodLabel] = useState<"M-Pesa" | "Card">("M-Pesa")
   const [pendingBookingId, setPendingBookingId] = useState<string | null>(null)
   const [checkingManual, setCheckingManual] = useState(false)
   const pollIntervalRef = useRef<number | null>(null)
@@ -259,6 +266,79 @@ export default function BookConsultationPage() {
   useEffect(() => {
     return () => stopPolling()
   }, [stopPolling])
+
+  // Verify Paystack Card return (?paystack_ref=...&bookingId=...)
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const params = new URLSearchParams(window.location.search)
+    const paystackRef = params.get("paystack_ref") || params.get("reference") || params.get("trxref")
+    const bookingId = params.get("bookingId") || ""
+    if (!paystackRef) return
+
+    let active = true
+    async function verifyCardReturn() {
+      setVerifyingPaystackReturn(true)
+      setPaymentMethod("card")
+      setStep(3)
+      try {
+        const res = await fetch(
+          `/api/consultation/paystack-verify?reference=${encodeURIComponent(
+            paystackRef!
+          )}&bookingId=${encodeURIComponent(bookingId)}`,
+          { cache: "no-store" }
+        )
+        const data = await res.json()
+        if (!active) return
+
+        if (res.ok && data.status === "paid") {
+          setConfirmedMethodLabel("Card")
+          setMpesaReceipt(data.receipt || paystackRef!)
+          setGoogleMeetUrl(data.googleMeetUrl || "")
+          setCalendarEventUrl(data.calendarEventUrl || "")
+          if (data.fullName) setFullName(data.fullName)
+          setStep(4)
+          trackMetaEvent(
+            "Schedule",
+            {
+              content_name: "60-Minute Deep Dive Consultation",
+              value: CONSULTATION_PRICE_USD,
+              currency: "USD",
+            },
+            `consult-schedule-${data.bookingId || bookingId}`
+          )
+          trackMetaEvent(
+            "Purchase",
+            {
+              content_name: "60-Minute Deep Dive Consultation",
+              value: CONSULTATION_PRICE_USD,
+              currency: "USD",
+            },
+            `consult-purchase-${data.bookingId || bookingId}`
+          )
+          toast.success("Card payment verified! Your strategy session is confirmed.")
+          // Clean query params without reload
+          window.history.replaceState({}, "", "/book-consultation")
+        } else {
+          const msg =
+            data.resultDesc ||
+            data.error ||
+            "Card payment was not completed. Please try again."
+          setCardError(msg)
+          toast.error(msg)
+        }
+      } catch (err: any) {
+        if (!active) return
+        setCardError(err?.message || "Could not verify card payment.")
+      } finally {
+        if (active) setVerifyingPaystackReturn(false)
+      }
+    }
+
+    verifyCardReturn()
+    return () => {
+      active = false
+    }
+  }, [])
 
   // 1. Fetch live slots from Google Calendar API (strictly Wed, Fri, Sun 8am-9pm EAT)
   useEffect(() => {
@@ -545,6 +625,38 @@ export default function BookConsultationPage() {
     setCheckingManual(false)
     if (!finished) {
       toast.info("Still waiting for Safaricom confirmation. Please check again in a few seconds.")
+    }
+  }
+
+  // Initialize Paystack Card Checkout (Visa / Mastercard / Apple Pay — Local & International)
+  const handlePayWithCard = async () => {
+    setCardError("")
+    setCardLoading(true)
+    try {
+      const scheduledAt = buildScheduledAtIso()
+      const res = await fetch("/api/consultation/paystack-initialize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: fullName.trim(),
+          email: email.trim(),
+          phone: `${countryCode}${phoneNumber}`.trim(),
+          agencyName: agencyName.trim(),
+          websiteUrl: hasNoWebsite ? "N/A" : websiteUrl.trim() || "N/A",
+          bottlenecks: bottlenecks.trim(),
+          scheduledAt,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.authorizationUrl) {
+        throw new Error(data.error || "Could not start Paystack card checkout")
+      }
+      window.location.href = data.authorizationUrl
+    } catch (err: any) {
+      const msg = err?.message || "Card checkout could not be started"
+      setCardError(msg)
+      toast.error(msg)
+      setCardLoading(false)
     }
   }
 
@@ -973,23 +1085,24 @@ export default function BookConsultationPage() {
             </div>
           )}
 
-          {/* STEP 3: VERIFIED M-PESA PAYMENT (Card & Bitcoin temporarily hidden until live gateways are integrated) */}
+          {/* STEP 3: VERIFIED PAYMENT (M-Pesa Express + Card via Paystack) */}
           {step === 3 && (
             <div className="rounded-[22px] bg-[#0D0F18]/80 border border-white/10 backdrop-blur-xl p-5 sm:p-7 shadow-2xl space-y-5 animate-in fade-in duration-200">
               <div className="flex items-center justify-between border-b border-white/10 pb-3">
                 <div>
                   <span className="text-xs text-white/60">Pay for 60-min Strategy Session:</span>
                   <p className="text-sm font-semibold text-[#C9A66B] font-mono">
-                    {CONSULTATION_PRICE_KES_FORMATTED}
+                    {CONSULTATION_PRICE_DISPLAY}
                   </p>
                 </div>
                 <button
                   type="button"
-                  disabled={mpesaPhase === "sending" || mpesaPhase === "waiting"}
+                  disabled={mpesaPhase === "sending" || mpesaPhase === "waiting" || cardLoading || verifyingPaystackReturn}
                   onClick={() => {
                     stopPolling()
                     setMpesaPhase("idle")
                     setMpesaError("")
+                    setCardError("")
                     setStep(2)
                   }}
                   className="text-xs text-white/50 hover:text-white flex items-center gap-1 disabled:opacity-40"
@@ -998,118 +1111,242 @@ export default function BookConsultationPage() {
                 </button>
               </div>
 
-              {/* Active M-Pesa Verified Payment Box */}
-              <div className="p-4 sm:p-5 rounded-xl bg-white/[0.02] border border-emerald-500/35 space-y-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                    <span className="text-xs font-heading font-semibold uppercase tracking-wider text-emerald-300">
-                      M-Pesa Express (STK Push)
-                    </span>
-                  </div>
-                  <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400/90">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Verified by Safaricom
-                  </span>
+              {verifyingPaystackReturn ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-3 text-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-[#C9A66B]" />
+                  <p className="text-sm font-semibold text-white">Verifying your Card payment...</p>
+                  <p className="text-xs text-white/60">
+                    Confirming with Paystack and generating your Google Meet session link.
+                  </p>
                 </div>
-
-                <p className="text-xs text-white/75 leading-relaxed">
-                  Enter your M-Pesa phone number below. You will receive a PIN prompt on your phone for{" "}
-                  <strong className="text-white">{CONSULTATION_PRICE_KES_FORMATTED}</strong>. Your
-                  slot and Google Meet link unlock automatically as soon as Safaricom confirms your
-                  payment.
-                </p>
-
-                <div className="space-y-3">
-                  <div>
-                    <label
-                      htmlFor="mpesa-phone"
-                      className="block text-[11px] uppercase tracking-wider text-white/55 mb-1.5"
-                    >
-                      M-Pesa Phone Number
-                    </label>
-                    <input
-                      id="mpesa-phone"
-                      type="tel"
-                      autoComplete="tel"
-                      disabled={mpesaPhase === "sending" || mpesaPhase === "waiting"}
-                      value={mpesaPhone}
-                      onChange={(e) => setMpesaPhone(e.target.value.replace(/[^0-9]/g, ""))}
-                      placeholder="0712345678"
-                      className="w-full bg-white/[0.05] border border-white/15 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-emerald-500 disabled:opacity-50"
-                    />
-                  </div>
-
-                  {mpesaPhase !== "waiting" && (
+              ) : (
+                <>
+                  {/* Payment Method Selector */}
+                  <div className="grid grid-cols-2 gap-2.5">
                     <button
                       type="button"
-                      disabled={mpesaPhase === "sending" || !mpesaPhone.trim()}
-                      onClick={handleTriggerMpesaStk}
-                      className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-heading font-semibold text-xs tracking-wide transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.25)] disabled:opacity-45 cursor-pointer"
+                      disabled={mpesaPhase === "sending" || mpesaPhase === "waiting" || cardLoading}
+                      onClick={() => {
+                        setPaymentMethod("mpesa")
+                        setCardError("")
+                      }}
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        paymentMethod === "mpesa"
+                          ? "bg-emerald-500/15 border-emerald-400/70 text-white shadow-[0_0_20px_rgba(16,185,129,0.12)]"
+                          : "bg-white/[0.02] border-white/10 text-white/65 hover:border-white/25"
+                      }`}
                     >
-                      {mpesaPhase === "sending" ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Sending M-Pesa PIN Prompt...
-                        </>
-                      ) : (
-                        <>
-                          Pay {CONSULTATION_PRICE_KES_FORMATTED} via M-Pesa
-                          <ArrowRight className="w-4 h-4" />
-                        </>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Smartphone className="w-4 h-4 text-emerald-400" />
+                        <span className="text-xs font-heading font-semibold uppercase tracking-wider">
+                          M-Pesa
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-white/60">Instant STK Push (Kenya)</p>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={mpesaPhase === "sending" || mpesaPhase === "waiting" || cardLoading}
+                      onClick={() => {
+                        stopPolling()
+                        setMpesaPhase("idle")
+                        setMpesaError("")
+                        setPaymentMethod("card")
+                      }}
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        paymentMethod === "card"
+                          ? "bg-[#C9A66B]/15 border-[#C9A66B] text-white shadow-[0_0_20px_rgba(201,166,107,0.18)]"
+                          : "bg-white/[0.02] border-white/10 text-white/65 hover:border-white/25"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <CreditCard className="w-4 h-4 text-[#C9A66B]" />
+                        <span className="text-xs font-heading font-semibold uppercase tracking-wider">
+                          Card
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-white/60">Visa, Mastercard &bull; Global</p>
+                    </button>
+                  </div>
+
+                  {/* OPTION 1: M-PESA EXPRESS (SAFARICOM DARAJA) */}
+                  {paymentMethod === "mpesa" && (
+                    <div className="p-4 sm:p-5 rounded-xl bg-white/[0.02] border border-emerald-500/35 space-y-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                          <span className="text-xs font-heading font-semibold uppercase tracking-wider text-emerald-300">
+                            M-Pesa Express (STK Push)
+                          </span>
+                        </div>
+                        <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400/90">
+                          <ShieldCheck className="w-3.5 h-3.5" /> Verified by Safaricom
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-white/75 leading-relaxed">
+                        Enter your M-Pesa phone number below. You will receive a PIN prompt on your phone for{" "}
+                        <strong className="text-white">{CONSULTATION_PRICE_KES_FORMATTED}</strong>. Your
+                        slot and Google Meet link unlock automatically as soon as Safaricom confirms your
+                        payment.
+                      </p>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label
+                            htmlFor="mpesa-phone"
+                            className="block text-[11px] uppercase tracking-wider text-white/55 mb-1.5"
+                          >
+                            M-Pesa Phone Number
+                          </label>
+                          <input
+                            id="mpesa-phone"
+                            type="tel"
+                            autoComplete="tel"
+                            disabled={mpesaPhase === "sending" || mpesaPhase === "waiting"}
+                            value={mpesaPhone}
+                            onChange={(e) => setMpesaPhone(e.target.value.replace(/[^0-9]/g, ""))}
+                            placeholder="0712345678"
+                            className="w-full bg-white/[0.05] border border-white/15 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-emerald-500 disabled:opacity-50"
+                          />
+                        </div>
+
+                        {mpesaPhase !== "waiting" && (
+                          <button
+                            type="button"
+                            disabled={mpesaPhase === "sending" || !mpesaPhone.trim()}
+                            onClick={handleTriggerMpesaStk}
+                            className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-heading font-semibold text-xs tracking-wide transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.25)] disabled:opacity-45 cursor-pointer"
+                          >
+                            {mpesaPhase === "sending" ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Sending M-Pesa PIN Prompt...
+                              </>
+                            ) : (
+                              <>
+                                Pay {CONSULTATION_PRICE_KES_FORMATTED} via M-Pesa
+                                <ArrowRight className="w-4 h-4" />
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+
+                      {mpesaPhase === "waiting" && (
+                        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-400/40 space-y-2">
+                          <div className="flex items-center gap-2.5 text-emerald-300 text-xs font-medium">
+                            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                            <span>Waiting for M-Pesa confirmation on your phone...</span>
+                          </div>
+                          <p className="text-[11px] text-white/65 leading-relaxed">
+                            Enter your M-Pesa PIN on your phone. Do not close this page — your booking
+                            will confirm automatically within a few seconds after Safaricom verifies
+                            payment.
+                          </p>
+                        </div>
                       )}
-                    </button>
+
+                      {mpesaPhase === "failed" && mpesaError && (
+                        <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-400/40 flex items-start gap-2.5 text-red-200 text-xs">
+                          <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-medium text-red-300">Payment not confirmed</p>
+                            <p className="text-red-200/80 mt-0.5">{mpesaError}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {mpesaPhase === "timeout" && (
+                        <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-400/40 space-y-2.5 text-xs">
+                          <p className="text-amber-200 leading-relaxed">
+                            We haven&apos;t received Safaricom&apos;s confirmation yet. If money was
+                            deducted, click below to check again (no need to pay twice).
+                          </p>
+                          <button
+                            type="button"
+                            disabled={checkingManual}
+                            onClick={handleManualStatusRecheck}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-500/20 border border-amber-400/50 text-amber-200 hover:bg-amber-500/30 font-medium text-xs transition-colors"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${checkingManual ? "animate-spin" : ""}`} />
+                            {checkingManual ? "Checking..." : "Check Payment Status Again"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
-                </div>
 
-                {/* Live Waiting State */}
-                {mpesaPhase === "waiting" && (
-                  <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-400/40 space-y-2">
-                    <div className="flex items-center gap-2.5 text-emerald-300 text-xs font-medium">
-                      <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                      <span>Waiting for M-Pesa confirmation on your phone...</span>
+                  {/* OPTION 2: CARD CHECKOUT (PAYSTACK — LOCAL & INTERNATIONAL CARDS) */}
+                  {paymentMethod === "card" && (
+                    <div className="p-4 sm:p-5 rounded-xl bg-white/[0.02] border border-[#C9A66B]/45 space-y-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="w-4 h-4 text-[#C9A66B]" />
+                          <span className="text-xs font-heading font-semibold uppercase tracking-wider text-[#E5C687]">
+                            Card Checkout (Visa / Mastercard / Apple Pay)
+                          </span>
+                        </div>
+                        <span className="inline-flex items-center gap-1 text-[11px] text-[#C9A66B]">
+                          <ShieldCheck className="w-3.5 h-3.5" /> Secured by Paystack
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-white/75 leading-relaxed">
+                        Pay securely using any Kenyan or International debit/credit card (Visa, Mastercard,
+                        or Apple Pay) for{" "}
+                        <strong className="text-white">{CONSULTATION_PRICE_DISPLAY}</strong>. You will
+                        return here automatically with your confirmed Google Meet link immediately after
+                        payment.
+                      </p>
+
+                      <div className="p-3 rounded-xl bg-black/35 border border-white/10 text-[11px] text-white/70 space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-white/50">Billed Amount:</span>
+                          <span className="font-mono text-[#E5C687] font-semibold">
+                            {CONSULTATION_PRICE_KES_FORMATTED} (~${CONSULTATION_PRICE_USD} USD)
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-white/50">Receipt Email:</span>
+                          <span className="text-white truncate max-w-[220px]">{email}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={cardLoading}
+                        onClick={handlePayWithCard}
+                        className="w-full py-3.5 rounded-xl bg-[#C9A66B] hover:bg-[#d8b77c] text-[#07070B] font-heading font-bold text-xs tracking-wide transition-all flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(201,166,107,0.28)] disabled:opacity-45 cursor-pointer"
+                      >
+                        {cardLoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Opening Secure Card Checkout...
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard className="w-4 h-4" />
+                            Pay {CONSULTATION_PRICE_KES_FORMATTED} with Card
+                            <ArrowRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+
+                      {cardError && (
+                        <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-400/40 flex items-start gap-2.5 text-red-200 text-xs">
+                          <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-medium text-red-300">Card checkout notice</p>
+                            <p className="text-red-200/80 mt-0.5">{cardError}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-[11px] text-white/65 leading-relaxed">
-                      Enter your M-Pesa PIN on your phone. Do not close this page — your booking
-                      will confirm automatically within a few seconds after Safaricom verifies
-                      payment.
-                    </p>
-                  </div>
-                )}
-
-                {/* Failed / Cancelled State */}
-                {mpesaPhase === "failed" && mpesaError && (
-                  <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-400/40 flex items-start gap-2.5 text-red-200 text-xs">
-                    <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-red-300">Payment not confirmed</p>
-                      <p className="text-red-200/80 mt-0.5">{mpesaError}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Timeout State — allow manual re-check without paying twice */}
-                {mpesaPhase === "timeout" && (
-                  <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-400/40 space-y-2.5 text-xs">
-                    <p className="text-amber-200 leading-relaxed">
-                      We haven&apos;t received Safaricom&apos;s confirmation yet. If money was
-                      deducted, click below to check again (no need to pay twice).
-                    </p>
-                    <button
-                      type="button"
-                      disabled={checkingManual}
-                      onClick={handleManualStatusRecheck}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-500/20 border border-amber-400/50 text-amber-200 hover:bg-amber-500/30 font-medium text-xs transition-colors"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${checkingManual ? "animate-spin" : ""}`} />
-                      {checkingManual ? "Checking..." : "Check Payment Status Again"}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <p className="text-center text-[11px] text-white/45">
-                Card &amp; international payment options coming soon.
-              </p>
+                  )}
+                </>
+              )}
             </div>
           )}
 
@@ -1125,7 +1362,7 @@ export default function BookConsultationPage() {
                   Strategy Session Confirmed
                 </h2>
                 <p className="text-xs text-white/60">
-                  M-Pesa payment verified and your appointment has been added to Google Calendar.
+                  {confirmedMethodLabel} payment verified and your appointment has been added to Google Calendar.
                 </p>
               </div>
 
@@ -1162,7 +1399,9 @@ export default function BookConsultationPage() {
                 </div>
                 {mpesaReceipt && (
                   <div className="flex justify-between gap-2">
-                    <span className="text-white/50">M-Pesa Receipt:</span>
+                    <span className="text-white/50">
+                      {confirmedMethodLabel === "Card" ? "Payment Reference:" : "M-Pesa Receipt:"}
+                    </span>
                     <span className="text-emerald-400 font-semibold">{mpesaReceipt}</span>
                   </div>
                 )}

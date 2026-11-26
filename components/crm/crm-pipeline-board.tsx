@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import SalesAiAssistantDrawer from '@/components/crm/sales-ai-assistant-drawer'
+import LeadDocumentsAndBilling from '@/components/crm/lead-documents-and-billing'
 import {
   Bot,
   BellRing,
@@ -93,8 +94,13 @@ const STAGES = [
   { id: 'viewing', name: 'Booked Consultations', color: 'bg-purple-500/10 border-purple-500/30 text-purple-400', badge: 'bg-purple-500' },
   { id: 'cold_lead', name: 'Cold Lead', color: 'bg-slate-500/10 border-slate-500/30 text-slate-400', badge: 'bg-slate-500' },
   { id: 'spam', name: 'Spam', color: 'bg-red-500/10 border-red-500/30 text-red-400', badge: 'bg-red-500' },
-  { id: 'closed_won', name: 'Won Deals', color: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400', badge: 'bg-emerald-500' }
+  { id: 'closed_won', name: 'Won Deals', color: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400', badge: 'bg-emerald-500' },
+  { id: 'ongoing_project', name: 'Ongoing Project', color: 'bg-cyan-500/15 border-cyan-500/45 text-cyan-300', badge: 'bg-cyan-500' },
+  { id: 'done_delivered', name: 'Done & Delivered', color: 'bg-indigo-500/15 border-indigo-500/45 text-indigo-300', badge: 'bg-indigo-500' },
+  { id: 'full_payment_made', name: 'Full Payment Made', color: 'bg-[#C9A66B]/20 border-[#C9A66B]/60 text-[#E5C687]', badge: 'bg-[#C9A66B]' }
 ]
+
+const WON_STAGES = new Set(['closed_won', 'ongoing_project', 'done_delivered', 'full_payment_made'])
 
 interface CRMPipelineBoardProps {
   currentUserEmail?: string
@@ -612,11 +618,15 @@ export default function CRMPipelineBoard({
           )
           setSelectedLead((prev) => (prev?.id === payload.new.id ? (payload.new as SalesLead) : prev))
 
-          // 1. Victory Deal Closed Alert
-          if (oldLead?.stage !== 'closed_won' && newLead?.stage === 'closed_won') {
+          // 1. Victory Deal / Payment Made Alert
+          if (
+            !WON_STAGES.has(oldLead?.stage) &&
+            WON_STAGES.has(newLead?.stage)
+          ) {
             const agentName = newLead.assigned_agent_email?.split('@')[0] || 'Sales Agent'
             const valStr = newLead.estimated_value ? ` for ${currencyPrefix}${Number(newLead.estimated_value).toLocaleString()}` : ''
-            toast.success(`🎉 VICTORY DEAL WON! ${agentName} just closed a deal${valStr} with ${newLead.full_name}!`, {
+            const stageLabel = STAGES.find((s) => s.id === newLead.stage)?.name || 'Won Deals'
+            toast.success(`🎉 PAYMENT / DEAL WON! ${newLead.full_name} moved to "${stageLabel}"${valStr} (${agentName})`, {
               duration: 7000
             })
             playVictorySound()
@@ -675,7 +685,7 @@ export default function CRMPipelineBoard({
 
   // Helper: Check whether an active lead belongs in the "Due Follow-Ups" column
   const isLeadDueFollowup = (lead: SalesLead) => {
-    if (lead.stage === 'closed_won' || lead.stage === 'spam' || lead.stage === 'trash') return false
+    if (WON_STAGES.has(lead.stage) || lead.stage === 'spam' || lead.stage === 'trash') return false
     if (lead.stage === 'due_followup') return true
     const dt = lead.next_followup_at || lead.viewing_date
     if (!dt) return false
@@ -805,10 +815,10 @@ export default function CRMPipelineBoard({
     const upcomingAppointments = activeLeads.filter(
       (l) => l.next_followup_at && new Date(l.next_followup_at) > now
     ).length
-    const wonDealsCount = activeLeads.filter((l) => l.stage === 'closed_won').length
+    const wonDealsCount = activeLeads.filter((l) => WON_STAGES.has(l.stage)).length
     const wonDealsValue = activeLeads
-      .filter((l) => l.stage === 'closed_won')
-      .reduce((sum, l) => sum + (l.estimated_value || 0), 0)
+      .filter((l) => WON_STAGES.has(l.stage))
+      .reduce((sum, l) => sum + (Number(l.estimated_value) || 0), 0)
 
     return { newToday, hotLeads, upcomingAppointments, wonDealsCount, wonDealsValue }
   }, [leads])
@@ -874,7 +884,7 @@ export default function CRMPipelineBoard({
     if ((editEmail.trim() || '') !== (selectedLead.email || '')) changes.push(`Email to "${editEmail.trim() || 'none'}"`)
     if ((editPhone.trim() || '') !== (selectedLead.phone_number || '')) changes.push(`Phone to "${editPhone.trim() || 'none'}"`)
     if ((editCompany.trim() || '') !== (selectedLead.company_name || '')) changes.push(`Company to "${editCompany.trim() || 'none'}"`)
-    if (valNum !== (selectedLead.estimated_value || 0)) changes.push(`Value to $${valNum.toLocaleString()}`)
+    if (valNum !== (selectedLead.estimated_value || 0)) changes.push(`Value to ${currencyPrefix}${valNum.toLocaleString()}`)
     if (editStage && editStage !== selectedLead.stage) changes.push(`Stage moved to "${STAGES.find((s) => s.id === editStage)?.name || editStage}"`)
     if (editAssignedAgentEmail && editAssignedAgentEmail !== selectedLead.assigned_agent_email) changes.push(`Assigned to ${editAssignedAgentEmail.split('@')[0]}`)
 
@@ -2671,7 +2681,7 @@ export default function CRMPipelineBoard({
                     </div>
                     <div>
                       <span className="text-slate-500 block text-[11px]">Deal Value:</span>
-                      <span className="text-emerald-400 font-bold block">${(selectedLead.estimated_value || 0).toLocaleString()}</span>
+                      <span className="text-emerald-400 font-bold block">{currencyPrefix}{(selectedLead.estimated_value || 0).toLocaleString()}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-[11px]">Current Stage:</span>
@@ -2900,6 +2910,25 @@ export default function CRMPipelineBoard({
                   {updatingFollowup ? 'Scheduling...' : 'Schedule Follow-Up'}
                 </button>
               </div>
+
+              {/* DOCUMENTS, CONTRACTS & DIRECT CLIENT BILLING */}
+              <LeadDocumentsAndBilling
+                lead={selectedLead}
+                orgId={currentOrgId}
+                orgSlug={currentOrg.slug}
+                orgName={currentOrg.name}
+                onActivityUpdated={() => {
+                  // Reload notes so newly logged invoice/document notes appear immediately
+                  supabase
+                    .from('lead_notes')
+                    .select('*')
+                    .eq('lead_id', selectedLead.id)
+                    .order('created_at', { ascending: false })
+                    .then(({ data }) => {
+                      if (data) setNotes(data)
+                    })
+                }}
+              />
 
               {/* MULTI-SOURCE NOTES & EDIT HISTORY TIMELINE */}
               <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
