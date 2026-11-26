@@ -85,6 +85,7 @@ export interface Organization {
 }
 
 const STAGES = [
+  { id: 'due_followup', name: 'Due Follow-Ups', color: 'bg-rose-500/15 border-rose-500/50 text-rose-300', badge: 'bg-rose-500' },
   { id: 'new_lead', name: 'New Inquiry', color: 'bg-sky-500/10 border-sky-500/30 text-sky-400', badge: 'bg-sky-500' },
   { id: 'repeat_lead', name: 'Repeat Inquiries', color: 'bg-violet-500/10 border-violet-500/30 text-violet-400', badge: 'bg-violet-500' },
   { id: 'hot_lead', name: 'Hot Lead', color: 'bg-amber-500/10 border-amber-500/30 text-amber-400', badge: 'bg-amber-500' },
@@ -105,6 +106,7 @@ interface CRMPipelineBoardProps {
   currencyPrefix?: string
   externalAgentFilter?: string
   externalPlatformFilter?: string
+  externalDateRange?: { start: string | null; end: string | null }
 }
 
 export default function CRMPipelineBoard({
@@ -116,7 +118,8 @@ export default function CRMPipelineBoard({
   excludeEmails = [],
   currencyPrefix = '$',
   externalAgentFilter,
-  externalPlatformFilter = 'all'
+  externalPlatformFilter = 'all',
+  externalDateRange
 }: CRMPipelineBoardProps) {
   const supabase = createClient()
   const [leads, setLeads] = useState<SalesLead[]>([])
@@ -281,9 +284,10 @@ export default function CRMPipelineBoard({
   const [savingViewingDate, setSavingViewingDate] = useState(false)
 
   // Followup Form State inside Modal
-  const [followupChoice, setFollowupChoice] = useState<'1_month' | '3_months' | '1_year' | 'forever' | 'custom'>('1_month')
+  const [followupChoice, setFollowupChoice] = useState<'1_month' | '3_months' | '1_year' | 'forever' | 'custom'>('custom')
   const [customDate, setCustomDate] = useState('')
   const [customTitle, setCustomTitle] = useState('')
+  const [followupNote, setFollowupNote] = useState('')
   const [updatingFollowup, setUpdatingFollowup] = useState(false)
   const [actionSuccessMsg, setActionSuccessMsg] = useState('')
 
@@ -355,20 +359,21 @@ export default function CRMPipelineBoard({
       setTargetAgentEmail(selectedLead.assigned_agent_email || '')
       setIsEditingContact(false)
 
-      const chosenDate = selectedLead.viewing_date || selectedLead.next_followup_at
+      const chosenDate = selectedLead.next_followup_at || selectedLead.viewing_date
+      setFollowupNote('')
       if (chosenDate) {
         const dt = new Date(chosenDate)
         const tzOffset = dt.getTimezoneOffset() * 60000
         const localISOTime = new Date(dt.getTime() - tzOffset).toISOString().slice(0, 16)
         setViewingDateInput(localISOTime)
         setCustomDate(localISOTime)
-        setCustomTitle(selectedLead.followup_title || 'Booked Consultation Reminder')
+        setCustomTitle(selectedLead.followup_title || '')
         setFollowupChoice('custom')
       } else {
         setViewingDateInput('')
         setCustomDate('')
         setCustomTitle('')
-        setFollowupChoice('1_month')
+        setFollowupChoice('custom')
       }
     }
   }, [selectedLead])
@@ -668,6 +673,18 @@ export default function CRMPipelineBoard({
     fetchNotes()
   }, [selectedLead])
 
+  // Helper: Check whether an active lead belongs in the "Due Follow-Ups" column
+  const isLeadDueFollowup = (lead: SalesLead) => {
+    if (lead.stage === 'closed_won' || lead.stage === 'spam' || lead.stage === 'trash') return false
+    if (lead.stage === 'due_followup') return true
+    const dt = lead.next_followup_at || lead.viewing_date
+    if (!dt) return false
+    return new Date(dt).getTime() <= Date.now()
+  }
+
+  const getEffectiveStage = (lead: SalesLead) =>
+    isLeadDueFollowup(lead) ? 'due_followup' : lead.stage
+
   // Filtered Leads Calculation (Excludes Recycle Bin leads)
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {
@@ -682,6 +699,17 @@ export default function CRMPipelineBoard({
       }
       if (!effectiveIsAdmin && lead.assigned_agent_email !== currentUserEmail) {
         return false
+      }
+
+      // External Date Range Filter (from Executive Dashboard date dropdown)
+      if (externalDateRange?.start || externalDateRange?.end) {
+        const createdMs = new Date(lead.created_at).getTime()
+        if (externalDateRange.start && createdMs < new Date(externalDateRange.start).getTime()) {
+          return false
+        }
+        if (externalDateRange.end && createdMs > new Date(externalDateRange.end).getTime()) {
+          return false
+        }
       }
 
       // External Platform Filter (from Executive Dashboard platform cards)
@@ -706,7 +734,7 @@ export default function CRMPipelineBoard({
       }
 
       // Multi-Stage Filter
-      if (selectedStages.length > 0 && !selectedStages.includes(lead.stage)) {
+      if (selectedStages.length > 0 && !selectedStages.includes(getEffectiveStage(lead))) {
         return false
       }
 
@@ -733,7 +761,7 @@ export default function CRMPipelineBoard({
 
       return true
     })
-  }, [leads, agentFilter, effectiveIsAdmin, selectedStages, timeFilter, searchQuery, currentUserEmail, externalPlatformFilter])
+  }, [leads, agentFilter, effectiveIsAdmin, selectedStages, timeFilter, searchQuery, currentUserEmail, externalPlatformFilter, externalDateRange])
 
   const visibleKanbanStages = useMemo(() => {
     return selectedStages.length > 0
@@ -1310,6 +1338,7 @@ export default function CRMPipelineBoard({
           followup_choice: 'custom',
           custom_date: customDate,
           followup_title: customTitle.trim() || 'Scheduled Follow-Up',
+          followup_note: followupNote.trim() || null,
           agent_email: currentUserEmail
         })
       })
@@ -1320,8 +1349,18 @@ export default function CRMPipelineBoard({
       }
 
       const isoNext = new Date(customDate).toISOString()
+      const nextStage =
+        selectedLead.stage === 'due_followup' && new Date(isoNext).getTime() > Date.now()
+          ? 'warm_lead'
+          : selectedLead.stage
+
+      if (nextStage !== selectedLead.stage) {
+        await supabase.from('sales_leads').update({ stage: nextStage }).eq('id', selectedLead.id)
+      }
+
       const updatedLead: SalesLead = {
         ...selectedLead,
+        stage: nextStage,
         next_followup_at: isoNext,
         viewing_date: isoNext,
         followup_status: 'custom_date',
@@ -1334,6 +1373,10 @@ export default function CRMPipelineBoard({
       setLeads((prev) => prev.map((l) => (l.id === selectedLead.id ? updatedLead : l)))
       setViewingDateInput(customDate)
 
+      const noteBody = `Follow-up scheduled for ${new Date(customDate).toLocaleString()}${
+        customTitle.trim() ? ` — ${customTitle.trim()}` : ''
+      }${followupNote.trim() ? `\nNotes: ${followupNote.trim()}` : ''}`
+
       setNotes((prev) => [
         {
           id: `fu-${Date.now()}`,
@@ -1341,14 +1384,13 @@ export default function CRMPipelineBoard({
           author_email: currentUserEmail,
           author_name: currentUserEmail.split('@')[0],
           source: 'sales_agent',
-          note_text: `Follow-up scheduled for ${new Date(customDate).toLocaleString()}${
-            customTitle.trim() ? ` — ${customTitle.trim()}` : ''
-          }`,
+          note_text: noteBody,
           created_at: new Date().toISOString(),
         },
         ...prev,
       ])
 
+      setFollowupNote('')
       toast.success(`Follow-up scheduled for ${new Date(customDate).toLocaleString()}`)
       setActionSuccessMsg('Follow-up scheduled successfully!')
       setTimeout(() => setActionSuccessMsg(''), 4000)
@@ -1800,7 +1842,8 @@ export default function CRMPipelineBoard({
                 {STAGES.map((st) => {
                   const isChecked = selectedStages.includes(st.id)
                   const stageCount = leads.filter((l) => {
-                    if (l.stage !== st.id) return false
+                    if (l.stage === 'trash') return false
+                    if (getEffectiveStage(l) !== st.id) return false
                     if (!effectiveIsAdmin && l.assigned_agent_email !== currentUserEmail) return false
                     if (effectiveIsAdmin && agentFilter !== 'all' && l.assigned_agent_email !== agentFilter) return false
                     return true
@@ -1875,12 +1918,16 @@ export default function CRMPipelineBoard({
       {viewMode === 'kanban' && (
         <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-8 -mx-3 px-3 sm:mx-0 sm:px-0 items-start snap-x snap-mandatory scrollbar-thin">
           {visibleKanbanStages.map((stage) => {
-            const stageLeads = filteredLeads.filter((l) => l.stage === stage.id)
+            const stageLeads = filteredLeads.filter((l) => getEffectiveStage(l) === stage.id)
 
             return (
               <div
                 key={stage.id}
-                className="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-3.5 sm:p-4 flex flex-col min-h-[500px] w-[84vw] max-w-[320px] sm:w-[290px] sm:max-w-none flex-shrink-0 snap-center sm:snap-align-none"
+                className={`border rounded-2xl p-3.5 sm:p-4 flex flex-col min-h-[500px] w-[84vw] max-w-[320px] sm:w-[290px] sm:max-w-none flex-shrink-0 snap-center sm:snap-align-none ${
+                  stage.id === 'due_followup' && stageLeads.length > 0
+                    ? 'bg-rose-950/20 border-rose-500/40'
+                    : 'bg-slate-900/80 border-slate-800/80'
+                }`}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault()
@@ -1889,8 +1936,17 @@ export default function CRMPipelineBoard({
                 }}
               >
                 {/* Column Header */}
-                <div className={`p-3 rounded-xl border ${stage.color} mb-4 flex items-center justify-between`}>
-                  <span className="font-bold text-xs uppercase tracking-wider">{stage.name}</span>
+                <div
+                  className={`p-3 rounded-xl border ${stage.color} mb-4 flex items-center justify-between ${
+                    stage.id === 'due_followup' && stageLeads.length > 0 ? 'animate-pulse' : ''
+                  }`}
+                >
+                  <span className="font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    {stage.id === 'due_followup' && stageLeads.length > 0 && (
+                      <span className="w-2 h-2 rounded-full bg-rose-400" />
+                    )}
+                    {stage.name}
+                  </span>
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-black px-2 py-0.5 rounded-full bg-slate-950/80">
                       {stageLeads.length}
@@ -2676,9 +2732,6 @@ export default function CRMPipelineBoard({
                       </button>
                     )}
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    Restricted to members of <span className="text-slate-300 font-medium">{currentOrg.name}</span>. Transferring sets Lead Source to <span className="text-[#C9A66B] font-semibold">{currentUserEmail}</span>.
-                  </p>
                 </div>
               </div>
 
@@ -2821,6 +2874,18 @@ export default function CRMPipelineBoard({
                       value={customTitle}
                       onChange={(e) => setCustomTitle(e.target.value)}
                       className="w-full bg-slate-900 border border-slate-700 text-xs text-white rounded-lg p-2.5 focus:outline-none focus:border-[#C9A66B]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-300 font-medium block mb-1.5">
+                      Follow-Up Notes (Saved to Lead Timeline)
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="Write any details from your call or what to cover next..."
+                      value={followupNote}
+                      onChange={(e) => setFollowupNote(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 text-xs text-white rounded-lg p-2.5 focus:outline-none focus:border-[#C9A66B] resize-none"
                     />
                   </div>
                 </div>

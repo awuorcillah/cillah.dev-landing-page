@@ -9,7 +9,7 @@ const supabase = createClient(supabaseUrl, serviceRoleKey);
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { lead_id, followup_choice, custom_date, followup_title, agent_email } = body;
+    const { lead_id, followup_choice, custom_date, followup_title, followup_note, agent_email } = body;
 
     if (!lead_id || !followup_choice) {
       return NextResponse.json(
@@ -104,13 +104,14 @@ export async function POST(request: Request) {
     };
 
     const titleSuffix = followup_title ? ` - "${followup_title}"` : '';
+    const noteSuffix = followup_note && String(followup_note).trim() ? `\nNotes: ${String(followup_note).trim()}` : '';
 
     await supabase.from('lead_notes').insert({
       lead_id,
       author_email: agent_email || 'system@cillah.dev',
       author_name: agent_email ? agent_email.split('@')[0] : 'Sales Agent',
       source: 'sales_agent',
-      note_text: `Follow-up set: ${choiceLabelMap[followup_choice] || followup_choice}${titleSuffix}${nextFollowupAt ? ` (Scheduled for ${nextFollowupAt.toLocaleString()})` : ''}`
+      note_text: `Follow-up set: ${choiceLabelMap[followup_choice] || followup_choice}${titleSuffix}${nextFollowupAt ? ` (Scheduled for ${nextFollowupAt.toLocaleString()})` : ''}${noteSuffix}`
     });
 
     // 4. Record timestamped follow-up activity for Admin Dashboard accountability

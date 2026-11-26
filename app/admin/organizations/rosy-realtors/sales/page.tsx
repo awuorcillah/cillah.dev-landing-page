@@ -108,11 +108,11 @@ export default function RosyRealtorsSalesDashboardPage() {
   const [orgStaff, setOrgStaff] = useState<StaffRow[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Live Role Demo Switcher: CEO/Admin vs Restricted Sales Agent (Tossie)
-  const [viewRole, setViewRole] = useState<'ceo_admin' | 'sales_agent'>('ceo_admin')
-
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformKey | 'all'>('all')
   const [selectedAgent, setSelectedAgent] = useState<string>('all')
+  const [datePreset, setDatePreset] = useState<'all' | 'today' | '7d' | '30d' | 'custom'>('all')
+  const [customStart, setCustomStart] = useState<string>('')
+  const [customEnd, setCustomEnd] = useState<string>('')
   const [recentActivities, setRecentActivities] = useState<any[]>([])
   const [activityByAgent, setActivityByAgent] = useState<Record<string, any>>({})
 
@@ -181,24 +181,59 @@ export default function RosyRealtorsSalesDashboardPage() {
     }
   }, [])
 
+  const activeDateRange = useMemo(() => {
+    const now = new Date()
+    if (datePreset === 'today') {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+      return { start, end: null as string | null }
+    }
+    if (datePreset === '7d') {
+      return { start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), end: null as string | null }
+    }
+    if (datePreset === '30d') {
+      return { start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), end: null as string | null }
+    }
+    if (datePreset === 'custom') {
+      return {
+        start: customStart ? new Date(customStart).toISOString() : null,
+        end: customEnd ? new Date(`${customEnd}T23:59:59`).toISOString() : null,
+      }
+    }
+    return { start: null as string | null, end: null as string | null }
+  }, [datePreset, customStart, customEnd])
+
   const activeLeads = useMemo(
     () => leads.filter((l) => l.stage !== 'trash' && l.stage !== 'spam'),
     [leads]
   )
 
   const scopedLeads = useMemo(() => {
-    if (selectedAgent === 'all') return activeLeads
-    return activeLeads.filter(
-      (l) => (l.assigned_agent_email || '').toLowerCase() === selectedAgent.toLowerCase()
-    )
-  }, [activeLeads, selectedAgent])
+    return activeLeads.filter((l) => {
+      if (selectedAgent !== 'all' && (l.assigned_agent_email || '').toLowerCase() !== selectedAgent.toLowerCase()) {
+        return false
+      }
+      if (activeDateRange.start || activeDateRange.end) {
+        const ms = new Date(l.created_at).getTime()
+        if (activeDateRange.start && ms < new Date(activeDateRange.start).getTime()) return false
+        if (activeDateRange.end && ms > new Date(activeDateRange.end).getTime()) return false
+      }
+      return true
+    })
+  }, [activeLeads, selectedAgent, activeDateRange])
 
   const filteredActivities = useMemo(() => {
-    if (selectedAgent === 'all') return recentActivities
-    return recentActivities.filter(
-      (a) => (a.agent_email || '').toLowerCase() === selectedAgent.toLowerCase()
-    )
-  }, [recentActivities, selectedAgent])
+    return recentActivities.filter((a) => {
+      if (selectedAgent !== 'all' && (a.agent_email || '').toLowerCase() !== selectedAgent.toLowerCase()) {
+        return false
+      }
+      if (activeDateRange.start || activeDateRange.end) {
+        const ms = new Date(a.created_at).getTime()
+        if (activeDateRange.start && ms < new Date(activeDateRange.start).getTime()) return false
+        if (activeDateRange.end && ms > new Date(activeDateRange.end).getTime()) return false
+      }
+      return true
+    })
+  }, [recentActivities, selectedAgent, activeDateRange])
 
   const kpis = useMemo(() => {
     let totalPipelineValue = 0
@@ -286,73 +321,56 @@ export default function RosyRealtorsSalesDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-6 space-y-6">
-      {/* Executive Header & Role Access Preview Switcher */}
+      {/* Executive Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
         <div>
           <div className="flex items-center gap-2 text-[11px] font-semibold text-[#C9A66B] uppercase tracking-wider mb-1">
             <Building2 className="w-3.5 h-3.5" />
-            Rosy Realtors Nairobi • Sales Executive & Pipeline
+            Rosy Realtors Nairobi • Sales Executive &amp; Pipeline
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white">
-            {viewRole === 'ceo_admin'
-              ? 'Executive & Pipeline Dashboard'
-              : 'Sales Agent View — Tossie (Restricted Access)'}
+            Executive &amp; Pipeline Dashboard
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            {viewRole === 'ceo_admin'
-              ? 'Full visibility across all Nairobi real estate desks, lead channels, activity timestamps, and Admin-only deletion.'
-              : 'Agents see only their own assigned buyers, can update stages & draft with AI, and cannot delete leads.'}
+            Full visibility across all Nairobi real estate desks, lead channels, activity timestamps, and Admin-only deletion.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Executive Agent Filter Dropdown (CEO / Admin View) */}
-          {viewRole === 'ceo_admin' && (
-            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs">
-              <Users className="w-3.5 h-3.5 text-[#C9A66B]" />
-              <span className="text-slate-400">Agent:</span>
-              <select
-                value={selectedAgent}
-                onChange={(e) => setSelectedAgent(e.target.value)}
-                className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
-              >
-                <option value="all" className="bg-slate-900 text-white">
-                  All Agents ({activeLeads.length})
+          {/* Executive Agent Filter Dropdown */}
+          <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs">
+            <Users className="w-3.5 h-3.5 text-[#C9A66B]" />
+            <span className="text-slate-400">Agent:</span>
+            <select
+              value={selectedAgent}
+              onChange={(e) => setSelectedAgent(e.target.value)}
+              className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
+            >
+              <option value="all" className="bg-slate-900 text-white">
+                All Agents ({activeLeads.length})
+              </option>
+              {agentStats.map((ag) => (
+                <option key={ag.email} value={ag.email} className="bg-slate-900 text-white">
+                  {ag.name} ({ag.totalLeads})
                 </option>
-                {agentStats.map((ag) => (
-                  <option key={ag.email} value={ag.email} className="bg-slate-900 text-white">
-                    {ag.name} ({ag.totalLeads})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+              ))}
+            </select>
+          </div>
 
-          <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs">
-            <button
-              type="button"
-              onClick={() => setViewRole('ceo_admin')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
-                viewRole === 'ceo_admin'
-                  ? 'bg-[#C9A66B] text-slate-950 shadow'
-                  : 'text-slate-400 hover:text-white'
-              }`}
+          {/* Executive Date Range Filter Dropdown */}
+          <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs">
+            <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+            <select
+              value={datePreset}
+              onChange={(e) => setDatePreset(e.target.value as any)}
+              className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
             >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              CEO / Admin View
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewRole('sales_agent')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
-                viewRole === 'sales_agent'
-                  ? 'bg-sky-500 text-slate-950 shadow'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Lock className="w-3.5 h-3.5" />
-              Agent View (Tossie)
-            </button>
+              <option value="all" className="bg-slate-900 text-white">All Time</option>
+              <option value="today" className="bg-slate-900 text-white">Today</option>
+              <option value="7d" className="bg-slate-900 text-white">1 Week</option>
+              <option value="30d" className="bg-slate-900 text-white">30 Days</option>
+              <option value="custom" className="bg-slate-900 text-white">Custom Range</option>
+            </select>
           </div>
 
           <Link
@@ -374,41 +392,39 @@ export default function RosyRealtorsSalesDashboardPage() {
         </div>
       </div>
 
-      {/* Role Access Governance Banner */}
-      <div
-        className={`rounded-xl px-4 py-3 border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
-          viewRole === 'ceo_admin'
-            ? 'bg-[#C9A66B]/10 border-[#C9A66B]/30 text-slate-200'
-            : 'bg-sky-500/10 border-sky-500/30 text-slate-200'
-        }`}
-      >
-        <div className="flex items-center gap-2">
-          {viewRole === 'ceo_admin' ? (
-            <ShieldCheck className="w-4 h-4 text-[#C9A66B] shrink-0" />
-          ) : (
-            <Lock className="w-4 h-4 text-sky-400 shrink-0" />
+      {/* Custom Date Range Pickers */}
+      {datePreset === 'custom' && (
+        <div className="flex flex-wrap items-center gap-3 p-3.5 rounded-xl bg-slate-900/70 border border-slate-800 text-xs">
+          <span className="text-slate-400 font-medium">Custom Date Range:</span>
+          <input
+            type="date"
+            value={customStart}
+            onChange={(e) => setCustomStart(e.target.value)}
+            className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white [color-scheme:dark] focus:outline-none focus:border-[#C9A66B]"
+          />
+          <span className="text-slate-500">to</span>
+          <input
+            type="date"
+            value={customEnd}
+            onChange={(e) => setCustomEnd(e.target.value)}
+            className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white [color-scheme:dark] focus:outline-none focus:border-[#C9A66B]"
+          />
+          {(customStart || customEnd) && (
+            <button
+              type="button"
+              onClick={() => {
+                setCustomStart('')
+                setCustomEnd('')
+              }}
+              className="text-[#C9A66B] hover:underline cursor-pointer"
+            >
+              Clear
+            </button>
           )}
-          <span>
-            {viewRole === 'ceo_admin' ? (
-              <>
-                <strong className="text-white">Admin Governance Active:</strong> Inspect all {orgStaff.length} Nairobi
-                sales desks, add or remove agents under Users with lead transfer, and delete/restore via Recycle Bin.
-              </>
-            ) : (
-              <>
-                <strong className="text-white">Sales Agent Permissions Active (Tossie):</strong> Scoped strictly to own
-                buyers. Stage movement & Personal AI enabled — <strong className="text-sky-300">deletion locked to Admins</strong>.
-              </>
-            )}
-          </span>
         </div>
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0">
-          {viewRole === 'ceo_admin' ? 'Delete: Enabled' : 'Delete: Locked'}
-        </span>
-      </div>
+      )}
 
-      {viewRole === 'ceo_admin' && (
-        <>
+      <>
           {/* 4 Executive KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
@@ -670,20 +686,20 @@ export default function RosyRealtorsSalesDashboardPage() {
             </div>
           </div>
         </>
-      )}
 
       {/* SINGLE UNIFIED MULTI-AGENT CRM PIPELINE BOARD */}
       <div className="border-t border-slate-800/80 pt-6">
         <CRMPipelineBoard
-          currentUserEmail={viewRole === 'ceo_admin' ? adminEmail : TOSSIE_EMAIL}
-          isStaffAdmin={viewRole === 'ceo_admin'}
-          forceUserOnly={viewRole === 'sales_agent'}
+          currentUserEmail={adminEmail}
+          isStaffAdmin={true}
+          forceUserOnly={false}
           embedded={true}
           orgId={ROSY_ORG_ID}
           excludeEmails={EXCLUDED_REAL_EMAILS}
           currencyPrefix="KES "
           externalAgentFilter={selectedAgent}
           externalPlatformFilter={selectedPlatform}
+          externalDateRange={activeDateRange}
         />
       </div>
     </div>

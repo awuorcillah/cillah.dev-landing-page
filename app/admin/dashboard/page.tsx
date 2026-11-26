@@ -120,6 +120,9 @@ export default function CillahSalesDashboardPage() {
 
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformKey | 'all'>('all')
   const [selectedAgent, setSelectedAgent] = useState<string>('all')
+  const [datePreset, setDatePreset] = useState<'all' | 'today' | '7d' | '30d' | 'custom'>('all')
+  const [customStart, setCustomStart] = useState<string>('')
+  const [customEnd, setCustomEnd] = useState<string>('')
   const [recentActivities, setRecentActivities] = useState<any[]>([])
   const [activityByAgent, setActivityByAgent] = useState<Record<string, any>>({})
 
@@ -189,24 +192,59 @@ export default function CillahSalesDashboardPage() {
     }
   }, [])
 
+  const activeDateRange = useMemo(() => {
+    const now = new Date()
+    if (datePreset === 'today') {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+      return { start, end: null as string | null }
+    }
+    if (datePreset === '7d') {
+      return { start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), end: null as string | null }
+    }
+    if (datePreset === '30d') {
+      return { start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), end: null as string | null }
+    }
+    if (datePreset === 'custom') {
+      return {
+        start: customStart ? new Date(customStart).toISOString() : null,
+        end: customEnd ? new Date(`${customEnd}T23:59:59`).toISOString() : null,
+      }
+    }
+    return { start: null as string | null, end: null as string | null }
+  }, [datePreset, customStart, customEnd])
+
   const activeLeads = useMemo(
     () => leads.filter((l) => l.stage !== 'trash' && l.stage !== 'spam'),
     [leads]
   )
 
   const scopedLeads = useMemo(() => {
-    if (selectedAgent === 'all') return activeLeads
-    return activeLeads.filter(
-      (l) => (l.assigned_agent_email || '').toLowerCase() === selectedAgent.toLowerCase()
-    )
-  }, [activeLeads, selectedAgent])
+    return activeLeads.filter((l) => {
+      if (selectedAgent !== 'all' && (l.assigned_agent_email || '').toLowerCase() !== selectedAgent.toLowerCase()) {
+        return false
+      }
+      if (activeDateRange.start || activeDateRange.end) {
+        const ms = new Date(l.created_at).getTime()
+        if (activeDateRange.start && ms < new Date(activeDateRange.start).getTime()) return false
+        if (activeDateRange.end && ms > new Date(activeDateRange.end).getTime()) return false
+      }
+      return true
+    })
+  }, [activeLeads, selectedAgent, activeDateRange])
 
   const filteredActivities = useMemo(() => {
-    if (selectedAgent === 'all') return recentActivities
-    return recentActivities.filter(
-      (a) => (a.agent_email || '').toLowerCase() === selectedAgent.toLowerCase()
-    )
-  }, [recentActivities, selectedAgent])
+    return recentActivities.filter((a) => {
+      if (selectedAgent !== 'all' && (a.agent_email || '').toLowerCase() !== selectedAgent.toLowerCase()) {
+        return false
+      }
+      if (activeDateRange.start || activeDateRange.end) {
+        const ms = new Date(a.created_at).getTime()
+        if (activeDateRange.start && ms < new Date(activeDateRange.start).getTime()) return false
+        if (activeDateRange.end && ms > new Date(activeDateRange.end).getTime()) return false
+      }
+      return true
+    })
+  }, [recentActivities, selectedAgent, activeDateRange])
 
   const kpis = useMemo(() => {
     let totalPipelineValue = 0
@@ -331,6 +369,22 @@ export default function CillahSalesDashboardPage() {
             </select>
           </div>
 
+          {/* Executive Date Range Filter Dropdown */}
+          <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs">
+            <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+            <select
+              value={datePreset}
+              onChange={(e) => setDatePreset(e.target.value as any)}
+              className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
+            >
+              <option value="all" className="bg-slate-900 text-white">All Time</option>
+              <option value="today" className="bg-slate-900 text-white">Today</option>
+              <option value="7d" className="bg-slate-900 text-white">1 Week</option>
+              <option value="30d" className="bg-slate-900 text-white">30 Days</option>
+              <option value="custom" className="bg-slate-900 text-white">Custom Range</option>
+            </select>
+          </div>
+
           <Link
             href="/admin/organizations/cillah-dev/sales/users"
             className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold rounded-xl border border-slate-800 transition-colors"
@@ -348,6 +402,38 @@ export default function CillahSalesDashboardPage() {
           </button>
         </div>
       </div>
+
+      {/* Custom Date Range Pickers */}
+      {datePreset === 'custom' && (
+        <div className="flex flex-wrap items-center gap-3 p-3.5 rounded-xl bg-slate-900/70 border border-slate-800 text-xs">
+          <span className="text-slate-400 font-medium">Custom Date Range:</span>
+          <input
+            type="date"
+            value={customStart}
+            onChange={(e) => setCustomStart(e.target.value)}
+            className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white [color-scheme:dark] focus:outline-none focus:border-[#C9A66B]"
+          />
+          <span className="text-slate-500">to</span>
+          <input
+            type="date"
+            value={customEnd}
+            onChange={(e) => setCustomEnd(e.target.value)}
+            className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white [color-scheme:dark] focus:outline-none focus:border-[#C9A66B]"
+          />
+          {(customStart || customEnd) && (
+            <button
+              type="button"
+              onClick={() => {
+                setCustomStart('')
+                setCustomEnd('')
+              }}
+              className="text-[#C9A66B] hover:underline cursor-pointer"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 4 Executive KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -610,6 +696,7 @@ export default function CillahSalesDashboardPage() {
           currencyPrefix="KES "
           externalAgentFilter={selectedAgent}
           externalPlatformFilter={selectedPlatform}
+          externalDateRange={activeDateRange}
         />
       </div>
     </div>
