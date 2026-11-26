@@ -22,6 +22,9 @@ import {
   Sparkles,
   Plus,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  GripVertical,
   X,
   CheckCircle2,
   AlertCircle,
@@ -141,7 +144,73 @@ export default function CRMPipelineBoard({
 
   // Filters & State
   const [agentFilter, setAgentFilter] = useState<string>(effectiveIsAdmin ? 'all' : currentUserEmail)
-  const [timeFilter, setTimeFilter] = useState<'24h' | '7d' | '30d' | 'all'>('all')
+  const [timeFilter, setTimeFilter] = useState<'24h' | '7d' | '30d' | 'all' | 'custom'>('all')
+  const [customStartDate, setCustomStartDate] = useState<string>('')
+  const [customEndDate, setCustomEndDate] = useState<string>('')
+
+  // Flexible User-Persisted Kanban Column Order
+  const defaultStageIds = useMemo(() => STAGES.map((s) => s.id), [])
+  const [stageOrder, setStageOrder] = useState<string[]>(() => STAGES.map((s) => s.id))
+  const [draggedStageId, setDraggedStageId] = useState<string | null>(null)
+
+  const stageOrderStorageKey = `cillah_crm_stage_order:${(currentUserEmail || 'default').toLowerCase()}`
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const saved = localStorage.getItem(stageOrderStorageKey)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed)) {
+          const validSaved = parsed.filter((id: string) => defaultStageIds.includes(id))
+          const missing = defaultStageIds.filter((id) => !validSaved.includes(id))
+          setStageOrder([...validSaved, ...missing])
+        }
+      }
+    } catch {}
+  }, [stageOrderStorageKey, defaultStageIds])
+
+  const persistStageOrder = (nextOrder: string[]) => {
+    setStageOrder(nextOrder)
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(stageOrderStorageKey, JSON.stringify(nextOrder))
+      } catch {}
+    }
+  }
+
+  const moveStageColumn = (stageId: string, direction: -1 | 1) => {
+    const idx = stageOrder.indexOf(stageId)
+    if (idx === -1) return
+    const targetIdx = idx + direction
+    if (targetIdx < 0 || targetIdx >= stageOrder.length) return
+    const next = [...stageOrder]
+    const [removed] = next.splice(idx, 1)
+    next.splice(targetIdx, 0, removed)
+    persistStageOrder(next)
+  }
+
+  const reorderStageColumn = (fromId: string, toId: string) => {
+    if (!fromId || !toId || fromId === toId) return
+    const fromIdx = stageOrder.indexOf(fromId)
+    const toIdx = stageOrder.indexOf(toId)
+    if (fromIdx === -1 || toIdx === -1) return
+    const next = [...stageOrder]
+    const [removed] = next.splice(fromIdx, 1)
+    next.splice(toIdx, 0, removed)
+    persistStageOrder(next)
+  }
+
+  const isCustomStageOrder = useMemo(
+    () => stageOrder.some((id, i) => id !== defaultStageIds[i]),
+    [stageOrder, defaultStageIds]
+  )
+
+  const orderedStages = useMemo(() => {
+    return stageOrder
+      .map((id) => STAGES.find((s) => s.id === id))
+      .filter((s): s is (typeof STAGES)[number] => Boolean(s))
+  }, [stageOrder])
 
   // Sync agent filter whenever role/view mode or parent executive filter changes
   useEffect(() => {
@@ -778,7 +847,7 @@ export default function CRMPipelineBoard({
         return false
       }
 
-      // Time Filter
+      // Time Filter (including Custom Date Range)
       if (timeFilter !== 'all') {
         const createdAt = new Date(lead.created_at).getTime()
         const now = new Date().getTime()
@@ -787,6 +856,16 @@ export default function CRMPipelineBoard({
         if (timeFilter === '24h' && diffHours > 24) return false
         if (timeFilter === '7d' && diffHours > 24 * 7) return false
         if (timeFilter === '30d' && diffHours > 24 * 30) return false
+        if (timeFilter === 'custom') {
+          if (customStartDate) {
+            const startMs = new Date(`${customStartDate}T00:00:00`).getTime()
+            if (createdAt < startMs) return false
+          }
+          if (customEndDate) {
+            const endMs = new Date(`${customEndDate}T23:59:59.999`).getTime()
+            if (createdAt > endMs) return false
+          }
+        }
       }
 
       // Search Query
@@ -801,13 +880,13 @@ export default function CRMPipelineBoard({
 
       return true
     })
-  }, [leads, agentFilter, effectiveIsAdmin, selectedStages, timeFilter, searchQuery, currentUserEmail, externalPlatformFilter, externalDateRange])
+  }, [leads, agentFilter, effectiveIsAdmin, selectedStages, timeFilter, customStartDate, customEndDate, searchQuery, currentUserEmail, externalPlatformFilter, externalDateRange])
 
   const visibleKanbanStages = useMemo(() => {
     return selectedStages.length > 0
-      ? STAGES.filter((st) => selectedStages.includes(st.id))
-      : STAGES
-  }, [selectedStages])
+      ? orderedStages.filter((st) => selectedStages.includes(st.id))
+      : orderedStages
+  }, [selectedStages, orderedStages])
 
   // Recycle Bin (Trash) Leads Calculation
   const trashLeads = useMemo(() => {
@@ -1685,18 +1764,29 @@ export default function CRMPipelineBoard({
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[#C9A66B]">
                     Select Stage
                   </span>
-                  {selectedStages.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedStages([])}
-                      className="text-[11px] text-[#C9A66B] hover:underline font-semibold cursor-pointer"
-                    >
-                      Show All
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isCustomStageOrder && (
+                      <button
+                        type="button"
+                        onClick={() => persistStageOrder(defaultStageIds)}
+                        className="text-[10px] text-slate-400 hover:text-white underline cursor-pointer"
+                      >
+                        Reset Order
+                      </button>
+                    )}
+                    {selectedStages.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStages([])}
+                        className="text-[11px] text-[#C9A66B] hover:underline font-semibold cursor-pointer"
+                      >
+                        Show All
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                {STAGES.map((st) => {
+                {orderedStages.map((st) => {
                   const isChecked = selectedStages.includes(st.id)
                   const stageCount = leads.filter((l) => {
                     if (l.stage === 'trash') return false
@@ -1740,7 +1830,7 @@ export default function CRMPipelineBoard({
             )}
           </div>
 
-          {/* 5. Time Filter Dropdown (Anchored right-0 on mobile / left-0 on desktop right below Time button) */}
+          {/* 5. Time Filter Dropdown (All Time / 24h / 7d / 30d / Custom Dates) */}
           <div className="relative flex-1 sm:flex-initial" ref={timeMenuRef}>
             <button
               type="button"
@@ -1755,21 +1845,34 @@ export default function CRMPipelineBoard({
                   : 'bg-[#0F1422] border-white/10 text-slate-200 hover:border-white/20'
               }`}
             >
-              <span className="inline-flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-[#C9A66B]" />
-                <span>{timeFilter === 'all' ? 'Time' : timeFilter}</span>
+              <span className="inline-flex items-center gap-1.5 truncate">
+                <Clock className="w-3.5 h-3.5 text-[#C9A66B] shrink-0" />
+                <span className="truncate">
+                  {timeFilter === 'all'
+                    ? 'Time'
+                    : timeFilter === 'custom'
+                    ? customStartDate && customEndDate
+                      ? `${customStartDate.slice(5)} → ${customEndDate.slice(5)}`
+                      : customStartDate
+                      ? `From ${customStartDate.slice(5)}`
+                      : customEndDate
+                      ? `To ${customEndDate.slice(5)}`
+                      : 'Custom'
+                    : timeFilter}
+                </span>
               </span>
               <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform shrink-0 ${timeMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {timeMenuOpen && (
-              <div className="absolute right-0 sm:left-0 sm:right-auto top-full mt-1.5 w-48 bg-[#0E131F] border border-[#C9A66B]/40 rounded-xl shadow-2xl z-50 overflow-hidden p-1.5 space-y-1">
+              <div className="absolute right-0 sm:left-0 sm:right-auto top-full mt-1.5 w-64 max-w-[calc(100vw-24px)] bg-[#0E131F] border border-[#C9A66B]/40 rounded-xl shadow-2xl z-50 overflow-hidden p-2 space-y-1">
                 {(
                   [
                     { id: 'all', label: 'All Time' },
                     { id: '24h', label: 'Last 24 Hours' },
                     { id: '7d', label: 'Last 7 Days' },
                     { id: '30d', label: 'Last 30 Days' },
+                    { id: 'custom', label: 'Custom Dates' },
                   ] as const
                 ).map((opt) => (
                   <button
@@ -1777,7 +1880,9 @@ export default function CRMPipelineBoard({
                     type="button"
                     onClick={() => {
                       setTimeFilter(opt.id)
-                      setTimeMenuOpen(false)
+                      if (opt.id !== 'custom') {
+                        setTimeMenuOpen(false)
+                      }
                     }}
                     className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                       timeFilter === opt.id
@@ -1789,6 +1894,54 @@ export default function CRMPipelineBoard({
                     {timeFilter === opt.id && <span className="text-[#C9A66B] font-bold">✓</span>}
                   </button>
                 ))}
+
+                {timeFilter === 'custom' && (
+                  <div className="pt-2 mt-1 border-t border-white/10 space-y-2 px-1">
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
+                        From Date
+                      </label>
+                      <input
+                        type="date"
+                        value={customStartDate}
+                        onChange={(e) => setCustomStartDate(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white [color-scheme:dark] focus:outline-none focus:border-[#C9A66B]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">
+                        To Date
+                      </label>
+                      <input
+                        type="date"
+                        value={customEndDate}
+                        onChange={(e) => setCustomEndDate(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white [color-scheme:dark] focus:outline-none focus:border-[#C9A66B]"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomStartDate('')
+                          setCustomEndDate('')
+                          setTimeFilter('all')
+                          setTimeMenuOpen(false)
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg text-[11px] text-slate-400 hover:text-white cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTimeMenuOpen(false)}
+                        className="px-3 py-1.5 rounded-lg bg-[#C9A66B] text-slate-950 font-bold text-[11px] cursor-pointer"
+                      >
+                        Apply Dates
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1981,25 +2134,71 @@ export default function CRMPipelineBoard({
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault()
+                  const colId = e.dataTransfer.getData('stageColumnId')
+                  if (colId) {
+                    reorderStageColumn(colId, stage.id)
+                    setDraggedStageId(null)
+                    return
+                  }
                   const leadId = e.dataTransfer.getData('leadId')
                   if (leadId) handleStageChange(leadId, stage.id)
                 }}
               >
-                {/* Clean Column Header: Stage Title + Total Number Right Beside Title */}
+                {/* Clean Flexible Column Header: Title + Total Number + Left/Right Reorder */}
                 <div
-                  className={`px-3.5 py-2.5 rounded-xl border ${stage.color} mb-3.5 flex items-center gap-2 ${
-                    stage.id === 'due_followup' && stageLeads.length > 0 ? 'animate-pulse' : ''
-                  }`}
+                  draggable
+                  onDragStart={(e) => {
+                    e.stopPropagation()
+                    e.dataTransfer.setData('stageColumnId', stage.id)
+                    setDraggedStageId(stage.id)
+                  }}
+                  onDragEnd={() => setDraggedStageId(null)}
+                  className={`px-3 py-2.5 rounded-xl border ${stage.color} mb-3.5 flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing ${
+                    draggedStageId === stage.id ? 'opacity-60 ring-2 ring-[#C9A66B]' : ''
+                  } ${stage.id === 'due_followup' && stageLeads.length > 0 ? 'animate-pulse' : ''}`}
                 >
-                  {stage.id === 'due_followup' && stageLeads.length > 0 && (
-                    <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0" />
-                  )}
-                  <span className="font-bold text-xs uppercase tracking-wider truncate">
-                    {stage.name}
-                  </span>
-                  <span className="text-xs font-black px-2 py-0.5 rounded-full bg-slate-950/90 text-white border border-white/15 tabular-nums shrink-0">
-                    {stageLeads.length}
-                  </span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <GripVertical className="w-3.5 h-3.5 opacity-50 shrink-0 hidden sm:block" />
+                    {stage.id === 'due_followup' && stageLeads.length > 0 && (
+                      <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0" />
+                    )}
+                    <span className="font-bold text-xs uppercase tracking-wider truncate">
+                      {stage.name}
+                    </span>
+                    <span className="text-xs font-black px-2 py-0.5 rounded-full bg-slate-950/90 text-white border border-white/15 tabular-nums shrink-0">
+                      {stageLeads.length}
+                    </span>
+                  </div>
+
+                  {/* Mobile & Desktop 1-Tap Column Reorder Controls */}
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button
+                      type="button"
+                      disabled={stageOrder.indexOf(stage.id) <= 0}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        moveStageColumn(stage.id, -1)
+                      }}
+                      title="Move column left"
+                      aria-label={`Move ${stage.name} left`}
+                      className="p-1 rounded-lg hover:bg-white/15 disabled:opacity-25 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={stageOrder.indexOf(stage.id) >= stageOrder.length - 1}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        moveStageColumn(stage.id, 1)
+                      }}
+                      title="Move column right"
+                      aria-label={`Move ${stage.name} right`}
+                      className="p-1 rounded-lg hover:bg-white/15 disabled:opacity-25 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Cards Container */}
