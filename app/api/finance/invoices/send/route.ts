@@ -264,11 +264,42 @@ export async function POST(request: NextRequest) {
     if (user.email) gmailParams.set("authuser", user.email)
     const gmailComposeUrl = `https://mail.google.com/mail/?${gmailParams.toString()}`
 
-    // 3. Update invoice sent metadata + log note & activity
+    // 3. Auto-link CRM lead (if not yet linked) + move lead to "Invoice" stage + log activity
     const existingSentVia: string[] = Array.isArray(invoice.sent_via) ? invoice.sent_via : []
     const nextSentVia = Array.from(new Set([...existingSentVia, channel]))
     const nextStatus = invoice.status === "payment_made" ? "payment_made" : "sent"
     const nowIso = new Date().toISOString()
+
+    let resolvedLeadId: string | null = invoice.lead_id || null
+    if (!resolvedLeadId) {
+      const { data: candidateLeads } = await db
+        .from("sales_leads")
+        .select("id, full_name, email, phone_number, stage")
+        .neq("stage", "trash")
+        .order("updated_at", { ascending: false })
+        .limit(250)
+
+      const emailLower = String(invoice.client_email || "").toLowerCase().trim()
+      const phoneTail = String(invoice.client_phone || "").replace(/\D/g, "").slice(-9)
+      const nameLower = String(invoice.client_name || "").toLowerCase().trim()
+
+      const matched =
+        (emailLower
+          ? (candidateLeads || []).find(
+              (l: any) => String(l.email || "").toLowerCase().trim() === emailLower
+            )
+          : null) ||
+        (phoneTail.length >= 9
+          ? (candidateLeads || []).find(
+              (l: any) => String(l.phone_number || "").replace(/\D/g, "").slice(-9) === phoneTail
+            )
+          : null) ||
+        (candidateLeads || []).find(
+          (l: any) => String(l.full_name || "").toLowerCase().trim() === nameLower
+        )
+
+      if (matched) resolvedLeadId = matched.id
+    }
 
     await db
       .from("finance_invoices")
@@ -276,32 +307,69 @@ export async function POST(request: NextRequest) {
         status: nextStatus,
         sent_via: nextSentVia,
         sent_at: nowIso,
+        lead_id: resolvedLeadId,
         updated_at: nowIso,
       })
       .eq("id", invoice.id)
 
-    if (invoice.lead_id) {
+    if (resolvedLeadId) {
       const callerEmail = (user.email || "").toLowerCase()
       const agentEmail = invoice.org_id === CILLAH_ORG_ID ? "atulah@cillah.dev" : callerEmail
-      await Promise.allSettled([
-        db.from("lead_notes").insert({
-          lead_id: invoice.lead_id,
-          author_email: callerEmail,
-          author_name: callerEmail.split("@")[0],
-          source: "invoice_sent",
-          note_text: `Sent Invoice ${invoice.invoice_number} (${amountFormatted}) with Pay Now link via ${channel.toUpperCase()}.\nLink: ${payUrl}`,
-        }),
-        db.from("lead_activities").insert({
-          lead_id: invoice.lead_id,
-          org_id: invoice.org_id,
-          agent_email: agentEmail,
-          agent_name: agentEmail === "atulah@cillah.dev" ? "Atulah" : agentEmail.split("@")[0],
-          lead_name: invoice.client_name,
-          activity_type: "invoice_sent",
-          summary: `Sent Pay Now link (${invoice.invoice_number} • ${amountFormatted}) via ${channel.toUpperCase()}`,
-          created_at: nowIso,
-        }),
+
+      // Move lead to "invoice" stage unless already paid / ongoing / won
+      const { data: currentLead } = await db
+        .from("sales_leads")
+        .select("stage")
+        .eq("id", resolvedLeadId)
+        .maybeSingle()
+
+      const postPaymentStages = new Set([
+        "closed_won",
+        "ongoing_project",
+        "done_delivered",
+        "full_payment_made",
       ])
+
+      const sendTasks: Promise<any>[] = [
+        Promise.resolve(
+          db.from("lead_notes").insert({
+            lead_id: resolvedLeadId,
+            author_email: callerEmail,
+            author_name: callerEmail.split("@")[0],
+            source: "invoice_sent",
+            note_text: `Sent Invoice ${invoice.invoice_number} (${amountFormatted}) with Pay Now link via ${channel.toUpperCase()}.\nLink: ${payUrl}`,
+          })
+        ),
+        Promise.resolve(
+          db.from("lead_activities").insert({
+            lead_id: resolvedLeadId,
+            org_id: invoice.org_id,
+            agent_email: agentEmail,
+            agent_name: agentEmail === "atulah@cillah.dev" ? "Atulah" : agentEmail.split("@")[0],
+            lead_name: invoice.client_name,
+            activity_type: "invoice_sent",
+            summary: `Sent Pay Now link (${invoice.invoice_number} • ${amountFormatted}) via ${channel.toUpperCase()} — moved to Invoice stage`,
+            created_at: nowIso,
+          })
+        ),
+      ]
+
+      if (!currentLead?.stage || !postPaymentStages.has(currentLead.stage)) {
+        sendTasks.push(
+          Promise.resolve(
+            db
+              .from("sales_leads")
+              .update({
+                stage: "invoice",
+                last_interaction_at: nowIso,
+                updated_at: nowIso,
+              })
+              .eq("id", resolvedLeadId)
+          )
+        )
+      }
+
+      await Promise.allSettled(sendTasks)
     }
 
     return NextResponse.json({

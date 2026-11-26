@@ -354,7 +354,7 @@ export async function POST(request: NextRequest) {
     const description = String(body.description || "").trim() || null
     const invoiceType = String(body.invoiceType || "deposit").trim()
     const amountKes = Number(body.amountKes)
-    const leadId = body.leadId ? String(body.leadId).trim() : null
+    let leadId = body.leadId ? String(body.leadId).trim() : null
     const allowedMethods: string[] =
       Array.isArray(body.allowedMethods) && body.allowedMethods.length > 0
         ? body.allowedMethods.filter((m: string) => m === "mpesa" || m === "card")
@@ -375,6 +375,69 @@ export async function POST(request: NextRequest) {
         { error: "Please enter a valid agreed amount greater than 0 KES." },
         { status: 400 }
       )
+    }
+
+    // Auto-link CRM lead by email, phone (last 9 digits), or full name if not explicitly chosen
+    let linkedLeadStage: string | null = null
+    let linkedLeadName: string | null = null
+    if (!leadId) {
+      const [{ data: staffRows }, { data: candidateLeads }] = await Promise.all([
+        db.from("staff_members").select("email").eq("org_id", org.id).eq("is_active", true),
+        db
+          .from("sales_leads")
+          .select("id, full_name, email, phone_number, stage, assigned_agent_email")
+          .neq("stage", "trash")
+          .order("updated_at", { ascending: false })
+          .limit(300),
+      ])
+
+      const orgEmails = new Set(
+        (staffRows || []).map((s: any) => String(s.email || "").toLowerCase())
+      )
+      if (org.id === CILLAH_ORG_ID) {
+        orgEmails.add("atulah@cillah.dev")
+        orgEmails.add("awuorcillah@gmail.com")
+      }
+
+      const scopedLeads = (candidateLeads || []).filter((l: any) => {
+        const assigned = String(l.assigned_agent_email || "").toLowerCase()
+        if (org.id === CILLAH_ORG_ID) {
+          if (EXCLUDED_CILLAH_DEMO_EMAILS.has(assigned)) return false
+          return orgEmails.has(assigned)
+        }
+        if (assigned === "atulah@cillah.dev" || assigned === "awuorcillah@gmail.com") return false
+        return orgEmails.has(assigned)
+      })
+
+      const phoneTail = (clientPhone || "").replace(/\D/g, "").slice(-9)
+      const nameLower = clientName.toLowerCase()
+
+      const matched =
+        (clientEmail
+          ? scopedLeads.find((l: any) => String(l.email || "").toLowerCase().trim() === clientEmail)
+          : null) ||
+        (phoneTail.length >= 9
+          ? scopedLeads.find(
+              (l: any) => String(l.phone_number || "").replace(/\D/g, "").slice(-9) === phoneTail
+            )
+          : null) ||
+        scopedLeads.find((l: any) => String(l.full_name || "").toLowerCase().trim() === nameLower)
+
+      if (matched) {
+        leadId = matched.id
+        linkedLeadStage = matched.stage
+        linkedLeadName = matched.full_name
+      }
+    } else {
+      const { data: chosenLead } = await db
+        .from("sales_leads")
+        .select("id, full_name, stage")
+        .eq("id", leadId)
+        .maybeSingle()
+      if (chosenLead) {
+        linkedLeadStage = chosenLead.stage
+        linkedLeadName = chosenLead.full_name
+      }
     }
 
     const prefix = org.slug === "rosy-realtors" ? "ROSY" : "CIL"
@@ -429,10 +492,31 @@ export async function POST(request: NextRequest) {
     const host = request.headers.get("host") || "www.cillah.dev"
     const payUrl = `${protocol}://${host}/pay/${invoice.public_token}`
 
-    // Auto-record attached contract & invoice inside the lead's drawer documents + notes + activity log
+    // Auto-move linked CRM lead to "Invoice" stage + record documents, notes & activity
+    const POST_PAYMENT_STAGES = new Set([
+      "closed_won",
+      "ongoing_project",
+      "done_delivered",
+      "full_payment_made",
+    ])
     if (leadId) {
       const nowIso = new Date().toISOString()
       const tasks: Promise<any>[] = []
+
+      if (!linkedLeadStage || !POST_PAYMENT_STAGES.has(linkedLeadStage)) {
+        tasks.push(
+          Promise.resolve(
+            db
+              .from("sales_leads")
+              .update({
+                stage: "invoice",
+                last_interaction_at: nowIso,
+                updated_at: nowIso,
+              })
+              .eq("id", leadId)
+          )
+        )
+      }
 
       if (contractUrl) {
         tasks.push(
@@ -482,6 +566,7 @@ export async function POST(request: NextRequest) {
               `Agreed Amount: KES ${amountKes.toLocaleString("en-KE")}`,
               `Allowed Payment Options: ${allowedMethods.map((m) => m.toUpperCase()).join(" & ")}`,
               contractName ? `Contract Attached: ${contractName}` : null,
+              `Pipeline Stage: Invoice`,
               `Pay Now Link: ${payUrl}`,
             ]
               .filter(Boolean)
@@ -498,7 +583,7 @@ export async function POST(request: NextRequest) {
             activity_type: "invoice_created",
             summary: `Created invoice ${invoiceNumber} for ${clientName} — KES ${amountKes.toLocaleString(
               "en-KE"
-            )}`,
+            )} (moved to Invoice stage)`,
             created_at: nowIso,
           })
         )
@@ -511,6 +596,7 @@ export async function POST(request: NextRequest) {
       success: true,
       invoice,
       payUrl,
+      linkedLead: leadId ? { id: leadId, full_name: linkedLeadName || clientName } : null,
     })
   } catch (err: any) {
     console.error("[Finance Invoices POST] Exception:", err)

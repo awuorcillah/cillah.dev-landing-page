@@ -186,12 +186,14 @@ export default function FinanceDepartmentHub({
   // Create Invoice (Pay Now) Modal
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [selectedLeadId, setSelectedLeadId] = useState("")
+  const [leadMenuOpen, setLeadMenuOpen] = useState(false)
+  const [invoiceTypeMenuOpen, setInvoiceTypeMenuOpen] = useState(false)
   const [clientName, setClientName] = useState("")
   const [clientEmail, setClientEmail] = useState("")
   const [clientPhone, setClientPhone] = useState("")
   const [clientCompany, setClientCompany] = useState("")
   const [title, setTitle] = useState("")
-  const [invoiceType, setInvoiceType] = useState("deposit")
+  const [invoiceType, setInvoiceType] = useState<"deposit" | "full_payment" | "retainer">("deposit")
   const [amountKes, setAmountKes] = useState("")
   const [dueDate, setDueDate] = useState("")
   const [allowMpesa, setAllowMpesa] = useState(true)
@@ -201,6 +203,39 @@ export default function FinanceDepartmentHub({
   const [contractName, setContractName] = useState("")
   const [uploadingContract, setUploadingContract] = useState(false)
   const [creatingInvoice, setCreatingInvoice] = useState(false)
+
+  const INVOICE_TYPE_OPTIONS: Array<{
+    id: "deposit" | "full_payment" | "retainer"
+    label: string
+  }> = [
+    { id: "deposit", label: "Deposit" },
+    { id: "full_payment", label: "Final Full Payment Made" },
+    { id: "retainer", label: "Monthly Retainer" },
+  ]
+
+  // Live automatic CRM lead match as user types client email / phone / name
+  const autoMatchedLead = useMemo(() => {
+    if (selectedLeadId) {
+      return leads.find((l) => l.id === selectedLeadId) || null
+    }
+    const emailLower = clientEmail.trim().toLowerCase()
+    const phoneTail = clientPhone.replace(/\D/g, "").slice(-9)
+    const nameLower = clientName.trim().toLowerCase()
+    if (!emailLower && phoneTail.length < 9 && nameLower.length < 3) return null
+
+    return (
+      (emailLower
+        ? leads.find((l) => (l.email || "").trim().toLowerCase() === emailLower)
+        : null) ||
+      (phoneTail.length >= 9
+        ? leads.find((l) => (l.phone_number || "").replace(/\D/g, "").slice(-9) === phoneTail)
+        : null) ||
+      (nameLower.length >= 3
+        ? leads.find((l) => (l.full_name || "").trim().toLowerCase() === nameLower)
+        : null) ||
+      null
+    )
+  }, [selectedLeadId, leads, clientEmail, clientPhone, clientName])
 
   // Send Pay Now Link Modal
   const [sendTarget, setSendTarget] = useState<FinanceInvoice | null>(null)
@@ -320,12 +355,13 @@ export default function FinanceDepartmentHub({
     }
     setCreatingInvoice(true)
     try {
+      const resolvedLeadId = selectedLeadId || autoMatchedLead?.id || null
       const res = await fetch("/api/finance/invoices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orgSlug,
-          leadId: selectedLeadId || null,
+          leadId: resolvedLeadId,
           clientName,
           clientEmail,
           clientPhone,
@@ -343,8 +379,14 @@ export default function FinanceDepartmentHub({
       const data = await res.json()
       if (!res.ok || !data.invoice) throw new Error(data.error || "Could not create invoice")
 
-      toast.success(`Invoice ${data.invoice.invoice_number} ready!`)
+      toast.success(
+        data.linkedLead
+          ? `Invoice ${data.invoice.invoice_number} ready — ${data.linkedLead.full_name} moved to Invoice stage!`
+          : `Invoice ${data.invoice.invoice_number} ready!`
+      )
       setShowInvoiceModal(false)
+      setLeadMenuOpen(false)
+      setInvoiceTypeMenuOpen(false)
       setSendTarget(data.invoice)
       setCustomSendMessage("")
       setActiveTab("invoices")
@@ -1250,18 +1292,85 @@ export default function FinanceDepartmentHub({
             </div>
 
             <form onSubmit={handleCreateInvoice} className="p-5 overflow-y-auto space-y-3.5 text-xs">
-              <select
-                value={selectedLeadId}
-                onChange={(e) => handleSelectLead(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
-              >
-                <option value="">Link CRM Lead (optional)</option>
-                {leads.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.full_name} {l.company_name ? `(${l.company_name})` : ""}
-                  </option>
-                ))}
-              </select>
+              {/* Custom Dark-Obsidian CRM Lead Picker (Auto-links automatically if left blank) */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLeadMenuOpen((o) => !o)
+                    setInvoiceTypeMenuOpen(false)
+                  }}
+                  className={`w-full flex items-center justify-between gap-2 bg-[#090C14] border rounded-xl px-3.5 py-2.5 text-left transition-colors cursor-pointer ${
+                    leadMenuOpen || autoMatchedLead
+                      ? "border-[#C9A66B]/60 text-white"
+                      : "border-white/10 text-slate-300 hover:border-[#C9A66B]/40"
+                  }`}
+                >
+                  <span className="truncate font-semibold">
+                    {autoMatchedLead
+                      ? `${autoMatchedLead.full_name}${autoMatchedLead.company_name ? ` (${autoMatchedLead.company_name})` : ""}`
+                      : "Link CRM Lead (auto-links by name/phone/email)"}
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-[#C9A66B] shrink-0 transition-transform ${
+                      leadMenuOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                {autoMatchedLead && (
+                  <p className="mt-1.5 text-[11px] font-semibold text-emerald-400 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    <span>
+                      CRM Lead linked automatically — moves to <strong className="text-[#E5C687]">Invoice</strong> stage
+                    </span>
+                  </p>
+                )}
+
+                {leadMenuOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 max-h-52 overflow-y-auto z-50 rounded-xl bg-[#0E131F] border border-[#C9A66B]/45 shadow-2xl divide-y divide-white/[0.06]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedLeadId("")
+                        setLeadMenuOpen(false)
+                      }}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 text-left cursor-pointer transition-colors ${
+                        !selectedLeadId ? "bg-[#C9A66B]/15 text-[#E5C687] font-bold" : "text-slate-300 hover:bg-white/[0.05]"
+                      }`}
+                    >
+                      <span>Auto-match CRM Lead</span>
+                      {!selectedLeadId && <Check className="w-3.5 h-3.5 text-[#C9A66B]" />}
+                    </button>
+                    {leads.map((l) => {
+                      const active = selectedLeadId === l.id
+                      return (
+                        <button
+                          key={l.id}
+                          type="button"
+                          onClick={() => {
+                            handleSelectLead(l.id)
+                            setLeadMenuOpen(false)
+                          }}
+                          className={`w-full flex items-center justify-between gap-2 px-3.5 py-2.5 text-left cursor-pointer transition-colors ${
+                            active ? "bg-[#C9A66B]/15 text-[#E5C687] font-bold" : "text-slate-200 hover:bg-white/[0.05]"
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold">{l.full_name}</p>
+                            {(l.company_name || l.phone_number || l.email) && (
+                              <p className="text-[10px] text-slate-400 truncate">
+                                {[l.company_name, l.phone_number, l.email].filter(Boolean).join(" · ")}
+                              </p>
+                            )}
+                          </div>
+                          {active && <Check className="w-3.5 h-3.5 text-[#C9A66B] shrink-0" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
 
               <div className="grid grid-cols-2 gap-2.5">
                 <input
@@ -1309,24 +1418,75 @@ export default function FinanceDepartmentHub({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
-                <select
-                  value={invoiceType}
-                  onChange={(e) => setInvoiceType(e.target.value)}
-                  className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
-                >
-                  <option value="deposit">Deposit → Ongoing Project</option>
-                  <option value="milestone">Milestone → Ongoing Project</option>
-                  <option value="final_balance">Final → Full Payment Made</option>
-                  <option value="full_payment">Full → Full Payment Made</option>
-                  <option value="retainer">Monthly Retainer</option>
-                </select>
-                <input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white [color-scheme:dark] focus:outline-none focus:border-[#C9A66B]"
-                />
+              {/* Luxury Payment Type Dropdown + Clear "Select Date" Due Date Picker */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInvoiceTypeMenuOpen((o) => !o)
+                      setLeadMenuOpen(false)
+                    }}
+                    className={`w-full flex items-center justify-between gap-2 bg-[#090C14] border rounded-xl px-3.5 py-2.5 text-left font-bold transition-colors cursor-pointer ${
+                      invoiceTypeMenuOpen
+                        ? "border-[#C9A66B] text-[#E5C687]"
+                        : "border-white/15 text-white hover:border-[#C9A66B]/50"
+                    }`}
+                  >
+                    <span className="truncate">
+                      {INVOICE_TYPE_OPTIONS.find((o) => o.id === invoiceType)?.label || "Deposit"}
+                    </span>
+                    <ChevronDown
+                      className={`w-4 h-4 text-[#C9A66B] shrink-0 transition-transform ${
+                        invoiceTypeMenuOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+
+                  {invoiceTypeMenuOpen && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl bg-[#0E131F] border border-[#C9A66B]/45 shadow-2xl overflow-hidden divide-y divide-white/[0.06]">
+                      {INVOICE_TYPE_OPTIONS.map((opt) => {
+                        const selected = invoiceType === opt.id
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              setInvoiceType(opt.id)
+                              setInvoiceTypeMenuOpen(false)
+                            }}
+                            className={`w-full flex items-center justify-between gap-2 px-3.5 py-2.5 text-xs font-bold text-left transition-colors cursor-pointer ${
+                              selected
+                                ? "bg-[#C9A66B]/15 text-[#E5C687]"
+                                : "text-slate-200 hover:bg-white/[0.05]"
+                            }`}
+                          >
+                            <span>{opt.label}</span>
+                            {selected && <Check className="w-3.5 h-3.5 text-[#C9A66B] shrink-0" />}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Clear "Select Date" wrapper so mobile never shows a blank mystery box */}
+                <label className="relative flex items-center justify-between gap-2 bg-[#090C14] border border-white/15 hover:border-[#C9A66B]/50 rounded-xl px-3.5 py-2.5 cursor-pointer transition-colors">
+                  <span className="inline-flex items-center gap-2 min-w-0 truncate">
+                    <Calendar className="w-3.5 h-3.5 text-[#C9A66B] shrink-0" />
+                    <span className={dueDate ? "text-white font-semibold" : "text-slate-400 font-semibold"}>
+                      {dueDate || "Select Date"}
+                    </span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 shrink-0">Due</span>
+                  <input
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    aria-label="Select Due Date"
+                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer [color-scheme:dark]"
+                  />
+                </label>
               </div>
 
               <div className="flex items-center gap-4 p-3 rounded-xl bg-slate-950 border border-slate-800">
