@@ -21,9 +21,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
-  // Auto-redirect if user is already authenticated or display OAuth error
+  // Prefetch destination routes immediately & auto-redirect if already signed in
   useEffect(() => {
-    // Check for error in URL parameters from OAuth callback redirect
+    router.prefetch('/user/dashboard')
+    router.prefetch('/admin/dashboard')
+
     if (typeof window !== 'undefined') {
       const searchParams = new URLSearchParams(window.location.search)
       const oauthError = searchParams.get('error')
@@ -38,27 +40,27 @@ export default function LoginPage() {
     }
 
     async function checkActiveUser() {
-      const { data: { user } } = await supabase.auth.getUser()
+      // Fast local session read first (0ms), avoiding extra network roundtrip when logged out
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
       if (user) {
+        const userEmail = user.email?.toLowerCase() || ''
+        if (isAdminAccount(userEmail, null)) {
+          router.replace('/admin/dashboard')
+          return
+        }
         const { data: profile } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', user.id)
           .maybeSingle()
 
-        const userEmail = user.email?.toLowerCase() || ''
         const isAdmin = isAdminAccount(userEmail, profile?.role)
-
-        if (isAdmin) {
-          window.location.href = '/admin/dashboard'
-        } else {
-          // Sales agent user dashboard: personal CRM pipeline board
-          window.location.href = '/user/dashboard'
-        }
+        router.replace(isAdmin ? '/admin/dashboard' : '/user/dashboard')
       }
     }
     checkActiveUser()
-  }, [supabase])
+  }, [supabase, router])
 
   const handleGoogleLogin = async () => {
     setGoogleLoading(true)
@@ -88,40 +90,57 @@ export default function LoginPage() {
 
       if (error) throw error
 
-      // Log login event in auth_audit_logs table
       if (data.user) {
-        try {
-          await supabase.from('auth_audit_logs').insert({
+        const userEmail = (data.user.email || email).toLowerCase().trim()
+
+        // Fire-and-forget audit log (never blocks login redirect!)
+        void supabase
+          .from('auth_audit_logs')
+          .insert({
             user_id: data.user.id,
             event_type: 'login',
             user_agent: typeof window !== 'undefined' ? window.navigator.userAgent : 'browser',
           })
-        } catch {
-          // Ignore if table isn't present
-        }
+          .then(() => {}, () => {})
 
-        // Check profile role for smart routing
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, full_name')
-          .eq('id', data.user.id)
-          .maybeSingle()
+        // Fetch profile + staff membership in parallel so /user/dashboard hydrates in 0ms
+        const [{ data: profile }, { data: staff }] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('role, full_name, avatar_url')
+            .eq('id', data.user.id)
+            .maybeSingle(),
+          supabase
+            .from('staff_members')
+            .select('full_name, role, status, org_id')
+            .ilike('email', userEmail)
+            .maybeSingle(),
+        ])
 
-        const userEmail = (data.user.email || email).toLowerCase()
         const isAdmin = isAdminAccount(userEmail, profile?.role)
-        const userRole = isAdmin ? 'admin' : (profile?.role || 'user')
-        const userName = profile?.full_name || email
+        const userName = staff?.full_name || profile?.full_name || userEmail.split('@')[0]
 
-        toast.success(`Welcome back, ${userName}! Role: ${userRole.toUpperCase()}`, {
-          position: 'top-left',
-        })
-
-        if (isAdmin) {
-          window.location.href = '/admin/dashboard'
-        } else {
-          // Sales agent personal pipeline
-          window.location.href = '/user/dashboard'
+        // Pre-warm session cache for instant 0ms Team Home render after redirect
+        if (typeof window !== 'undefined' && !isAdmin) {
+          try {
+            sessionStorage.setItem(
+              'cillah_user_workspace_cache',
+              JSON.stringify({
+                email: userEmail,
+                displayName: userName,
+                avatarUrl: profile?.avatar_url || null,
+                staffRole: staff?.role || 'sales',
+                orgId: staff?.org_id || 'a1b2c3d4-e5f6-7890-abcd-222222222222',
+                cachedAt: Date.now(),
+              })
+            )
+            // Always land on Team Home role selector on fresh login
+            sessionStorage.removeItem('cillah_active_workspace_tab')
+          } catch {}
         }
+
+        toast.success(`Welcome back, ${userName}!`, { position: 'top-center' })
+        router.replace(isAdmin ? '/admin/dashboard' : '/user/dashboard')
       }
     } catch (err: any) {
       toast.error(err.message || 'Invalid login credentials', {

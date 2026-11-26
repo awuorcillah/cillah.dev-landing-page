@@ -155,7 +155,11 @@ export default function CRMPipelineBoard({
   }, [effectiveIsAdmin, currentUserEmail, externalAgentFilter])
   const [selectedStages, setSelectedStages] = useState<string[]>([])
   const [stageMenuOpen, setStageMenuOpen] = useState(false)
+  const [viewMenuOpen, setViewMenuOpen] = useState(false)
+  const [timeMenuOpen, setTimeMenuOpen] = useState(false)
   const stageMenuRef = useRef<HTMLDivElement>(null)
+  const viewMenuRef = useRef<HTMLDivElement>(null)
+  const timeMenuRef = useRef<HTMLDivElement>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban')
 
@@ -176,6 +180,12 @@ export default function CRMPipelineBoard({
       }
       if (stageMenuRef.current && !stageMenuRef.current.contains(e.target as Node)) {
         setStageMenuOpen(false)
+      }
+      if (viewMenuRef.current && !viewMenuRef.current.contains(e.target as Node)) {
+        setViewMenuOpen(false)
+      }
+      if (timeMenuRef.current && !timeMenuRef.current.contains(e.target as Node)) {
+        setTimeMenuOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -472,20 +482,23 @@ export default function CRMPipelineBoard({
     }
   }
 
-  // 1. Fetch Staff & Leads on Mount
+  // 1. Fetch Staff, Orgs & Leads IN PARALLEL + instant 0ms cache hydration for flash speed
   useEffect(() => {
+    const cacheKey = `cillah_crm_leads_cache:${(currentUserEmail || '').toLowerCase()}`
+    if (!effectiveIsAdmin && typeof window !== 'undefined') {
+      try {
+        const raw = sessionStorage.getItem(cacheKey)
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (Array.isArray(parsed?.leads)) {
+            setLeads(parsed.leads)
+            setLoading(false)
+          }
+        }
+      } catch {}
+    }
+
     async function fetchData() {
-      setLoading(true)
-
-      // Fetch Staff Members & Organizations
-      const [{ data: staffData }, { data: orgData }] = await Promise.all([
-        supabase.from('staff_members').select('*'),
-        supabase.from('organizations').select('*')
-      ])
-      if (staffData) setStaffMembers(staffData)
-      if (orgData) setOrganizations(orgData)
-
-      // Fetch Sales Leads
       let query = supabase.from('sales_leads').select('*').order('created_at', { ascending: false })
 
       if (!effectiveIsAdmin) {
@@ -494,7 +507,15 @@ export default function CRMPipelineBoard({
         query = query.eq('assigned_agent_email', agentFilter)
       }
 
-      const { data: leadsData } = await query
+      // Single parallel Promise.all — eliminates sequential waterfall!
+      const [{ data: staffData }, { data: orgData }, { data: leadsData }] = await Promise.all([
+        supabase.from('staff_members').select('*'),
+        supabase.from('organizations').select('*'),
+        query
+      ])
+      if (staffData) setStaffMembers(staffData)
+      if (orgData) setOrganizations(orgData)
+
       const allowedOrgEmails = orgId
         ? new Set(
             (staffData || [])
@@ -545,7 +566,6 @@ export default function CRMPipelineBoard({
           const { data: stageLeadsData } = await stageQuery
           if (stageLeadsData && stageLeadsData.length > 0) {
             stageLeadsData.forEach((sl: any) => {
-              // Only add if not already in combinedLeads (by phone or id)
               const exists = combinedLeads.some(
                 (cl) => cl.id === sl.id || (sl.phone_number && cl.phone_number === sl.phone_number)
               )
@@ -590,6 +610,14 @@ export default function CRMPipelineBoard({
 
       setLeads(combinedLeads)
       setLoading(false)
+      if (!effectiveIsAdmin && typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem(
+            cacheKey,
+            JSON.stringify({ leads: combinedLeads, cachedAt: Date.now() })
+          )
+        } catch {}
+      }
     }
 
     fetchData()
@@ -1484,186 +1512,372 @@ export default function CRMPipelineBoard({
   }
 
   return (
-    <div className={`w-full ${embedded ? 'bg-transparent p-0' : 'min-h-screen bg-[#0E131F] p-3 sm:p-6 md:p-8'} text-slate-100 font-sans`}>
-      {/* HEADER BAR */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 md:mb-8 border-b border-slate-800 pb-5 md:pb-6">
-        <div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
-              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-[#C9A66B] flex-shrink-0" />
-              <span>{forceUserOnly ? 'My Sales Pipeline' : 'Sales Engine & CRM Pipeline'}</span>
-            </h1>
-            <span className="px-2.5 py-0.5 sm:px-3 sm:py-1 bg-[#C9A66B]/20 text-[#C9A66B] text-[10px] sm:text-xs font-semibold rounded-full border border-[#C9A66B]/30 uppercase whitespace-nowrap">
-              {effectiveIsAdmin ? 'Admin Control · Full Access' : 'Sales Agent · Delete Restricted to Admin'}
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Logged in as <span className="text-slate-200 font-medium">{currentUserEmail}</span>
-          </p>
-        </div>
-
-        {/* CONTROLS: AGENT FILTER & VIEW MODE */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          {/* Staff Admin Agent Switcher (Strictly Organization Agents) */}
-          {effectiveIsAdmin && (
-            <div className="flex items-center gap-2 bg-slate-900 border border-slate-700/80 rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs">
-              <UserCheck className="w-4 h-4 text-[#C9A66B]" />
-              <span className="text-slate-400">Agent:</span>
-              <select
-                value={agentFilter}
-                onChange={(e) => setAgentFilter(e.target.value)}
-                className="bg-transparent text-white font-medium focus:outline-none cursor-pointer"
-              >
-                <option value="all" className="bg-slate-900 text-white">All {currentOrg.name} Agents</option>
-                {orgStaffMembers.map((agent) => (
-                  <option key={agent.id} value={agent.email} className="bg-slate-900 text-white">
-                    {agent.full_name} ({agent.email})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Personal AI Assistant Button (Reads Individualized Pipeline & Prompt Settings) */}
+    <div className={`w-full ${embedded ? 'bg-transparent p-0' : 'min-h-screen bg-[#090B12] px-3 pt-3 pb-6 sm:p-5 md:p-6'} text-slate-100 font-sans`}>
+      {/* ULTRA-CLEAN LUXURY ACTION & FILTER BAR (AI | + | View ▾ | Stage ▾ | Time ▾) */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+          {/* 1. AI Button */}
           <button
             type="button"
             onClick={openPipelineAiAssistant}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/35 font-bold rounded-xl text-xs transition-all cursor-pointer"
-            title="Open Personal Sales AI Assistant (Read Pipeline & Prompt Settings)"
+            className="inline-flex items-center justify-center gap-1.5 h-9 px-3 bg-cyan-500/15 hover:bg-cyan-500/25 active:scale-[0.97] text-cyan-300 border border-cyan-500/35 font-bold rounded-xl text-xs transition-all cursor-pointer shrink-0"
+            title="Personal Sales AI Assistant"
           >
-            <Bot className="w-4 h-4" /> Personal AI
+            <Bot className="w-4 h-4" />
+            <span>AI</span>
           </button>
 
-          {/* Add Lead Quick Button */}
+          {/* 2. Add (+) Button */}
           <button
+            type="button"
             onClick={() => {
               setAddStage('new_lead')
               setAddAssignedAgentEmail(currentUserEmail)
               setShowAddLeadModal(true)
             }}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-[#C9A66B] hover:bg-[#C9A66B]/90 text-slate-950 font-bold rounded-xl text-xs transition-all shadow-md shadow-[#C9A66B]/25 cursor-pointer"
+            className="inline-flex items-center justify-center gap-1 h-9 px-3 bg-[#C9A66B] hover:bg-[#d8b77c] active:scale-[0.97] text-slate-950 font-black rounded-xl text-xs transition-all shadow-md shadow-[#C9A66B]/20 cursor-pointer shrink-0"
+            title="Add New Lead"
           >
-            <Plus className="w-4 h-4" /> Add Lead
+            <Plus className="w-4 h-4 stroke-[2.6]" />
+            <span className="hidden sm:inline">Add</span>
           </button>
 
-          {/* Recycle Bin (Trash) Button — ADMIN ONLY */}
-          {effectiveIsAdmin && (
+          {/* 3. View Dropdown (Kanban / List) */}
+          <div className="relative" ref={viewMenuRef}>
             <button
+              type="button"
+              onClick={() => {
+                setViewMenuOpen((p) => !p)
+                setStageMenuOpen(false)
+                setTimeMenuOpen(false)
+              }}
+              className={`inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                viewMenuOpen
+                  ? 'bg-[#C9A66B]/15 border-[#C9A66B]/60 text-[#E5C687]'
+                  : 'bg-[#0F1422] border-white/10 text-slate-200 hover:border-white/20'
+              }`}
+            >
+              {viewMode === 'kanban' ? (
+                <LayoutGrid className="w-3.5 h-3.5 text-[#C9A66B]" />
+              ) : (
+                <List className="w-3.5 h-3.5 text-[#C9A66B]" />
+              )}
+              <span>{viewMode === 'kanban' ? 'Kanban' : 'List'}</span>
+              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${viewMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {viewMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] sm:hidden"
+                  onClick={() => setViewMenuOpen(false)}
+                />
+                <div className="fixed inset-x-3 bottom-4 sm:absolute sm:inset-auto sm:left-0 sm:top-full sm:mt-2 sm:w-48 bg-[#0E131F] border border-white/15 rounded-2xl shadow-2xl z-50 overflow-hidden p-2 space-y-1">
+                  <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-white/[0.07] sm:hidden">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#C9A66B]">
+                      Select View
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setViewMenuOpen(false)}
+                      className="p-1 text-slate-400 hover:text-white"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewMode('kanban')
+                      setViewMenuOpen(false)
+                    }}
+                    className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                      viewMode === 'kanban'
+                        ? 'bg-[#C9A66B]/15 text-[#E5C687] border border-[#C9A66B]/35'
+                        : 'text-slate-300 hover:bg-white/[0.05]'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <LayoutGrid className="w-4 h-4" /> Kanban
+                    </span>
+                    {viewMode === 'kanban' && <span className="text-[#C9A66B] font-bold">✓</span>}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewMode('table')
+                      setViewMenuOpen(false)
+                    }}
+                    className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                      viewMode === 'table'
+                        ? 'bg-[#C9A66B]/15 text-[#E5C687] border border-[#C9A66B]/35'
+                        : 'text-slate-300 hover:bg-white/[0.05]'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <List className="w-4 h-4" /> List
+                    </span>
+                    {viewMode === 'table' && <span className="text-[#C9A66B] font-bold">✓</span>}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* 4. Stage Dropdown (Mobile Bottom-Sheet — Never Clipped!) */}
+          <div className="relative" ref={stageMenuRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setStageMenuOpen((p) => !p)
+                setViewMenuOpen(false)
+                setTimeMenuOpen(false)
+              }}
+              className={`inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                selectedStages.length > 0 || stageMenuOpen
+                  ? 'bg-[#C9A66B]/15 border-[#C9A66B]/60 text-[#E5C687]'
+                  : 'bg-[#0F1422] border-white/10 text-slate-200 hover:border-white/20'
+              }`}
+            >
+              <Filter className="w-3.5 h-3.5 text-[#C9A66B]" />
+              <span>
+                {selectedStages.length === 0
+                  ? 'Stage'
+                  : selectedStages.length === 1
+                  ? STAGES.find((s) => s.id === selectedStages[0])?.name || '1 Stage'
+                  : `${selectedStages.length} Stages`}
+              </span>
+              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${stageMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {stageMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] sm:hidden"
+                  onClick={() => setStageMenuOpen(false)}
+                />
+                <div className="fixed inset-x-3 bottom-4 max-h-[72vh] overflow-y-auto sm:absolute sm:inset-auto sm:left-0 sm:top-full sm:mt-2 sm:w-64 sm:max-h-[420px] bg-[#0E131F] border border-white/15 rounded-2xl shadow-2xl z-50 p-2 space-y-1">
+                  <div className="flex items-center justify-between px-2.5 py-2 border-b border-white/[0.07] mb-1 sticky top-0 bg-[#0E131F]">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#C9A66B]">
+                      Filter by Stage
+                    </span>
+                    <div className="flex items-center gap-2.5">
+                      {selectedStages.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedStages([])}
+                          className="text-[11px] text-[#C9A66B] hover:underline font-semibold cursor-pointer"
+                        >
+                          Show All
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setStageMenuOpen(false)}
+                        className="p-0.5 text-slate-400 hover:text-white sm:hidden"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {STAGES.map((st) => {
+                    const isChecked = selectedStages.includes(st.id)
+                    const stageCount = leads.filter((l) => {
+                      if (l.stage === 'trash') return false
+                      if (getEffectiveStage(l) !== st.id) return false
+                      if (!effectiveIsAdmin && l.assigned_agent_email !== currentUserEmail) return false
+                      if (effectiveIsAdmin && agentFilter !== 'all' && l.assigned_agent_email !== agentFilter) return false
+                      return true
+                    }).length
+
+                    return (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => toggleStageFilter(st.id)}
+                        className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs transition-colors cursor-pointer ${
+                          isChecked
+                            ? 'bg-[#C9A66B]/15 text-white font-semibold'
+                            : 'text-slate-300 hover:bg-white/[0.05]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span
+                            className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] shrink-0 ${
+                              isChecked
+                                ? 'bg-[#C9A66B] border-[#C9A66B] text-slate-950 font-bold'
+                                : 'border-slate-600 bg-slate-950'
+                            }`}
+                          >
+                            {isChecked ? '✓' : ''}
+                          </span>
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${st.badge}`} />
+                          <span className="truncate">{st.name}</span>
+                        </div>
+                        <span className="text-[11px] font-mono font-bold text-slate-400 shrink-0">
+                          {stageCount}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* 5. Time Filter Dropdown (All Time / 24h / 7d / 30d) */}
+          <div className="relative" ref={timeMenuRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setTimeMenuOpen((p) => !p)
+                setViewMenuOpen(false)
+                setStageMenuOpen(false)
+              }}
+              className={`inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                timeFilter !== 'all' || timeMenuOpen
+                  ? 'bg-[#C9A66B]/15 border-[#C9A66B]/60 text-[#E5C687]'
+                  : 'bg-[#0F1422] border-white/10 text-slate-200 hover:border-white/20'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5 text-[#C9A66B]" />
+              <span>{timeFilter === 'all' ? 'Time' : timeFilter}</span>
+              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${timeMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {timeMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] sm:hidden"
+                  onClick={() => setTimeMenuOpen(false)}
+                />
+                <div className="fixed inset-x-3 bottom-4 sm:absolute sm:inset-auto sm:right-0 sm:left-auto sm:top-full sm:mt-2 sm:w-48 bg-[#0E131F] border border-white/15 rounded-2xl shadow-2xl z-50 overflow-hidden p-2 space-y-1">
+                  <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-white/[0.07] sm:hidden">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#C9A66B]">
+                      Time Filter
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setTimeMenuOpen(false)}
+                      className="p-1 text-slate-400 hover:text-white"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {(
+                    [
+                      { id: 'all', label: 'All Time' },
+                      { id: '24h', label: 'Last 24 Hours' },
+                      { id: '7d', label: 'Last 7 Days' },
+                      { id: '30d', label: 'Last 30 Days' },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        setTimeFilter(opt.id)
+                        setTimeMenuOpen(false)
+                      }}
+                      className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                        timeFilter === opt.id
+                          ? 'bg-[#C9A66B]/15 text-[#E5C687] border border-[#C9A66B]/35'
+                          : 'text-slate-300 hover:bg-white/[0.05]'
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      {timeFilter === opt.id && <span className="text-[#C9A66B] font-bold">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Admin-Only Compact Controls (Agent Filter + Recycle Bin) */}
+        {effectiveIsAdmin && (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 h-9 bg-[#0F1422] border border-white/10 rounded-xl px-2.5 text-xs">
+              <UserCheck className="w-3.5 h-3.5 text-[#C9A66B]" />
+              <select
+                value={agentFilter}
+                onChange={(e) => setAgentFilter(e.target.value)}
+                className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
+              >
+                <option value="all" className="bg-slate-900 text-white">All Agents</option>
+                {orgStaffMembers.map((agent) => (
+                  <option key={agent.id} value={agent.email} className="bg-slate-900 text-white">
+                    {agent.full_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="button"
               onClick={() => setShowBinModal(true)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 h-9 px-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                 trashLeads.length > 0
                   ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30'
-                  : 'bg-slate-900 hover:bg-slate-800 text-slate-400 border-slate-700/80 hover:text-white'
+                  : 'bg-[#0F1422] hover:bg-slate-800 text-slate-400 border-white/10 hover:text-white'
               }`}
-              title="Recycle Bin (Deleted Contacts — Admin Only)"
+              title="Recycle Bin (Admin Only)"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Bin</span>
               {trashLeads.length > 0 && (
                 <span className="px-1.5 py-0.5 bg-rose-500 text-white rounded-full text-[10px] font-bold">
                   {trashLeads.length}
                 </span>
               )}
             </button>
-          )}
-
-          {/* View Mode Toggle */}
-          <div className="flex items-center bg-slate-900 border border-slate-700/80 rounded-xl p-1">
-            <button
-              onClick={() => setViewMode('kanban')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                viewMode === 'kanban' ? 'bg-[#C9A66B] text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <LayoutGrid className="w-4 h-4" /> Kanban Board
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                viewMode === 'table' ? 'bg-[#C9A66B] text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <List className="w-4 h-4" /> Table View
-            </button>
           </div>
+        )}
+      </div>
 
-          {/* User Profile Avatar Dropdown Menu (hidden in forceUserOnly since /user/dashboard has its own header) */}
-          {!forceUserOnly && (
-            <div className="relative" ref={profileRef}>
-              <button
-                onClick={() => setProfileMenuOpen((prev) => !prev)}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-[#C9A66B]/60 transition-all text-xs shadow-md"
-              >
-                <div className="w-6 h-6 rounded-full bg-[#C9A66B]/20 border border-[#C9A66B]/50 flex items-center justify-center font-bold text-[#C9A66B] text-[11px] uppercase">
-                  {currentUserEmail[0]?.toUpperCase() || 'U'}
-                </div>
-                <span className="text-slate-200 font-semibold hidden sm:inline">{currentUserEmail.split('@')[0]}</span>
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${profileMenuOpen ? 'rotate-180 text-[#C9A66B]' : ''}`} />
-              </button>
-
-              {profileMenuOpen && (
-                <div className="absolute right-0 top-12 w-52 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl z-50 overflow-hidden text-xs divide-y divide-slate-800">
-                  <div className="px-4 py-3 bg-slate-950/60">
-                    <p className="font-semibold text-white truncate">{currentUserEmail.split('@')[0]}</p>
-                    <p className="text-[10px] text-slate-400 truncate">{currentUserEmail}</p>
-                  </div>
-                  <div className="py-1.5">
-                    <Link
-                      href="/user/profile"
-                      onClick={() => setProfileMenuOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
-                    >
-                      Profile
-                    </Link>
-                    <Link
-                      href={effectiveIsAdmin ? '/admin/dashboard' : '/user/dashboard'}
-                      onClick={() => setProfileMenuOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
-                    >
-                      Dashboard
-                    </Link>
-                    <Link
-                      href={effectiveIsAdmin ? '/admin/pipeline' : '/user/dashboard'}
-                      onClick={() => setProfileMenuOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 text-[#C9A66B] font-bold hover:bg-slate-800 transition-colors"
-                    >
-                      Sales Pipeline
-                    </Link>
-                  </div>
-                  <div className="py-1.5">
-                    <button
-                      type="button"
-                      onClick={handleQuickLogout}
-                      className="w-full text-left flex items-center gap-2 px-4 py-2.5 text-red-400 hover:bg-red-500/10 font-medium transition-colors cursor-pointer"
-                    >
-                      Log Out
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+      {/* CLEAN SINGLE SEARCH BAR BELOW */}
+      <div className="mb-4">
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search lead by name, phone, email, company..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-[#0F1422] border border-white/10 text-slate-100 placeholder-slate-500 text-xs sm:text-sm rounded-2xl pl-10 pr-9 py-2.5 sm:py-3 focus:outline-none focus:border-[#C9A66B]/60 transition-colors"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              aria-label="Clear search"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           )}
         </div>
       </div>
 
-      {/* INDIVIDUALIZED AI FOLLOW-UP SCANNER BANNER */}
+      {/* INDIVIDUALIZED AI FOLLOW-UP SCANNER BANNER (Compact) */}
       {followupScan && followupScan.counts.totalAttention > 0 && (
-        <div className="mb-6 rounded-2xl bg-slate-900/80 border border-cyan-500/25 px-4 py-3">
+        <div className="mb-4 rounded-2xl bg-[#0F1422]/90 border border-cyan-500/25 px-3.5 py-2.5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5 text-xs">
+            <div className="flex items-center gap-2 text-xs">
               <div className="p-1.5 rounded-lg bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 shrink-0">
-                <BellRing className="w-4 h-4" />
+                <BellRing className="w-3.5 h-3.5" />
               </div>
-              <div>
-                <span className="font-bold text-white">AI Follow-Up Scanner: </span>
+              <div className="min-w-0">
+                <span className="font-bold text-white">Follow-Ups: </span>
                 <span className="text-slate-300">
                   {followupScan.counts.overdue > 0 && (
                     <strong className="text-rose-400">{followupScan.counts.overdue} overdue · </strong>
                   )}
                   {followupScan.counts.dueToday > 0 && (
-                    <strong className="text-amber-400">{followupScan.counts.dueToday} due today · </strong>
+                    <strong className="text-amber-400">{followupScan.counts.dueToday} today · </strong>
                   )}
-                  <strong className="text-cyan-300">{followupScan.counts.upcoming48h} due within 48h</strong>
+                  <strong className="text-cyan-300">{followupScan.counts.upcoming48h} in 48h</strong>
                 </span>
               </div>
             </div>
@@ -1673,20 +1887,20 @@ export default function CRMPipelineBoard({
                 onClick={() => setScanExpanded((p) => !p)}
                 className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-300 hover:text-white cursor-pointer"
               >
-                {scanExpanded ? 'Hide List' : 'View Reminders'}
+                {scanExpanded ? 'Hide' : 'View'}
               </button>
               <button
                 type="button"
                 onClick={openPipelineAiAssistant}
                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/35 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-500/25 cursor-pointer"
               >
-                <Bot className="w-3.5 h-3.5" /> Ask AI to Prioritize
+                <Bot className="w-3.5 h-3.5" /> Prioritize
               </button>
             </div>
           </div>
 
           {scanExpanded && (
-            <div className="mt-3 pt-3 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            <div className="mt-2.5 pt-2.5 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               {[...followupScan.overdue, ...followupScan.dueToday, ...followupScan.upcoming48h]
                 .slice(0, 6)
                 .map((item: any) => {
@@ -1734,173 +1948,9 @@ export default function CRMPipelineBoard({
         </div>
       )}
 
-      {/* METRICS ROW - HORIZONTAL SWIPEABLE ON MOBILE */}
-      <div className="flex overflow-x-auto pb-3 pt-1 -mx-3 px-3 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 md:mb-8 scrollbar-none snap-x snap-mandatory">
-        <div className="min-w-[210px] sm:min-w-0 flex-1 snap-start bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center gap-3 sm:gap-4 flex-shrink-0 sm:flex-shrink">
-          <div className="p-2.5 sm:p-3 bg-sky-500/10 text-sky-400 rounded-xl border border-sky-500/20 flex-shrink-0">
-            <InboxIcon className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <div>
-            <div className="text-xl sm:text-2xl font-black text-white">{metrics.newToday}</div>
-            <div className="text-[11px] sm:text-xs text-slate-400 font-medium">New Leads (24h)</div>
-          </div>
-        </div>
-
-        <div className="min-w-[210px] sm:min-w-0 flex-1 snap-start bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center gap-3 sm:gap-4 flex-shrink-0 sm:flex-shrink">
-          <div className="p-2.5 sm:p-3 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20 flex-shrink-0">
-            <Flame className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <div>
-            <div className="text-xl sm:text-2xl font-black text-amber-400">{metrics.hotLeads}</div>
-            <div className="text-[11px] sm:text-xs text-slate-400 font-medium">Hot Leads</div>
-          </div>
-        </div>
-
-        <div className="min-w-[210px] sm:min-w-0 flex-1 snap-start bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center gap-3 sm:gap-4 flex-shrink-0 sm:flex-shrink">
-          <div className="p-2.5 sm:p-3 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/20 flex-shrink-0">
-            <Calendar className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <div>
-            <div className="text-xl sm:text-2xl font-black text-purple-300">{metrics.upcomingAppointments}</div>
-            <div className="text-[11px] sm:text-xs text-slate-400 font-medium">Upcoming Follow-ups</div>
-          </div>
-        </div>
-
-        <div className="min-w-[210px] sm:min-w-0 flex-1 snap-start bg-slate-900/90 border border-emerald-500/20 rounded-2xl p-4 sm:p-5 shadow-lg flex items-center gap-3 sm:gap-4 flex-shrink-0 sm:flex-shrink">
-          <div className="p-2.5 sm:p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20 flex-shrink-0">
-            <Award className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <div>
-            <div className="text-xl sm:text-2xl font-black text-emerald-400">
-              {currencyPrefix}{metrics.wonDealsValue.toLocaleString()}
-            </div>
-            <div className="text-[11px] sm:text-xs text-slate-400 font-medium">
-              Won Deals ({metrics.wonDealsCount})
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* SEARCH & FILTERS BAR */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
-        {/* Search Bar */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search lead by name, phone, email, company..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-700/70 text-slate-100 text-xs rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:border-[#C9A66B]"
-          />
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Time Filter Pills */}
-          <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 p-1 rounded-xl text-xs">
-            {(['all', '24h', '7d', '30d'] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTimeFilter(t)}
-                className={`px-3 py-1 rounded-lg capitalize transition-colors ${
-                  timeFilter === t ? 'bg-slate-800 text-[#C9A66B] font-bold' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {t === 'all' ? 'All Time' : t}
-              </button>
-            ))}
-          </div>
-
-          {/* Multi-Select Stage Filter Dropdown */}
-          <div className="relative" ref={stageMenuRef}>
-            <button
-              type="button"
-              onClick={() => setStageMenuOpen((prev) => !prev)}
-              className={`flex items-center gap-2 bg-slate-950 border px-3 py-2 rounded-xl text-xs transition-colors cursor-pointer ${
-                selectedStages.length > 0
-                  ? 'border-[#C9A66B]/60 text-[#C9A66B] font-semibold'
-                  : 'border-slate-800 text-slate-200 hover:border-slate-700'
-              }`}
-            >
-              <Filter className="w-3.5 h-3.5" />
-              <span>
-                {selectedStages.length === 0
-                  ? 'All Stages'
-                  : selectedStages.length === 1
-                  ? STAGES.find((s) => s.id === selectedStages[0])?.name || '1 Stage'
-                  : `${selectedStages.length} Stages Selected`}
-              </span>
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${stageMenuOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {stageMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-64 bg-slate-900 border border-slate-700/90 rounded-xl shadow-2xl z-50 overflow-hidden p-2 space-y-1">
-                <div className="flex items-center justify-between px-2 py-1.5 border-b border-slate-800 mb-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Show Columns
-                  </span>
-                  {selectedStages.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedStages([])}
-                      className="text-[11px] text-[#C9A66B] hover:underline font-medium cursor-pointer"
-                    >
-                      Show All
-                    </button>
-                  )}
-                </div>
-
-                {STAGES.map((st) => {
-                  const isChecked = selectedStages.includes(st.id)
-                  const stageCount = leads.filter((l) => {
-                    if (l.stage === 'trash') return false
-                    if (getEffectiveStage(l) !== st.id) return false
-                    if (!effectiveIsAdmin && l.assigned_agent_email !== currentUserEmail) return false
-                    if (effectiveIsAdmin && agentFilter !== 'all' && l.assigned_agent_email !== agentFilter) return false
-                    return true
-                  }).length
-
-                  return (
-                    <button
-                      key={st.id}
-                      type="button"
-                      onClick={() => toggleStageFilter(st.id)}
-                      className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-xs transition-colors cursor-pointer ${
-                        isChecked
-                          ? 'bg-[#C9A66B]/15 text-white font-semibold'
-                          : 'text-slate-300 hover:bg-slate-800/80'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span
-                          className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] shrink-0 ${
-                            isChecked
-                              ? 'bg-[#C9A66B] border-[#C9A66B] text-slate-950 font-bold'
-                              : 'border-slate-600 bg-slate-950'
-                          }`}
-                        >
-                          {isChecked ? '✓' : ''}
-                        </span>
-                        <span className={`w-2 h-2 rounded-full shrink-0 ${st.badge}`} />
-                        <span className="truncate">{st.name}</span>
-                      </div>
-                      <span className="text-[11px] font-mono text-slate-400 shrink-0">
-                        {stageCount}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* Selected Stage Filter Chips */}
       {selectedStages.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 -mt-4 mb-6">
-          <span className="text-[11px] text-slate-400">Showing columns:</span>
+        <div className="flex flex-wrap items-center gap-1.5 mb-4">
           {selectedStages.map((stageId) => {
             const st = STAGES.find((s) => s.id === stageId)
             if (!st) return null
@@ -1909,7 +1959,7 @@ export default function CRMPipelineBoard({
                 key={stageId}
                 type="button"
                 onClick={() => toggleStageFilter(stageId)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#C9A66B]/15 border border-[#C9A66B]/40 text-[#C9A66B] text-xs font-medium hover:bg-[#C9A66B]/25 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#C9A66B]/15 border border-[#C9A66B]/40 text-[#C9A66B] text-[11px] font-semibold hover:bg-[#C9A66B]/25 transition-colors cursor-pointer"
               >
                 <span>{st.name}</span>
                 <X className="w-3 h-3" />
@@ -1919,26 +1969,26 @@ export default function CRMPipelineBoard({
           <button
             type="button"
             onClick={() => setSelectedStages([])}
-            className="text-xs text-slate-400 hover:text-white underline ml-1 cursor-pointer"
+            className="text-[11px] text-slate-400 hover:text-white underline ml-1 cursor-pointer"
           >
-            Reset to All Stages
+            Reset
           </button>
         </div>
       )}
 
       {/* KANBAN BOARD VIEW */}
       {viewMode === 'kanban' && (
-        <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-8 -mx-3 px-3 sm:mx-0 sm:px-0 items-start snap-x snap-mandatory scrollbar-thin">
+        <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-8 -mx-3 px-3 sm:mx-0 sm:px-0 items-start snap-x snap-mandatory scroll-smooth scrollbar-thin">
           {visibleKanbanStages.map((stage) => {
             const stageLeads = filteredLeads.filter((l) => getEffectiveStage(l) === stage.id)
 
             return (
               <div
                 key={stage.id}
-                className={`border rounded-2xl p-3.5 sm:p-4 flex flex-col min-h-[500px] w-[84vw] max-w-[320px] sm:w-[290px] sm:max-w-none flex-shrink-0 snap-center sm:snap-align-none ${
+                className={`border rounded-2xl p-3 sm:p-4 flex flex-col min-h-[460px] w-[86vw] max-w-[330px] sm:w-[295px] sm:max-w-none flex-shrink-0 snap-center sm:snap-align-none ${
                   stage.id === 'due_followup' && stageLeads.length > 0
                     ? 'bg-rose-950/20 border-rose-500/40'
-                    : 'bg-slate-900/80 border-slate-800/80'
+                    : 'bg-[#0E131F]/90 border-white/[0.08]'
                 }`}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
@@ -1947,35 +1997,21 @@ export default function CRMPipelineBoard({
                   if (leadId) handleStageChange(leadId, stage.id)
                 }}
               >
-                {/* Column Header */}
+                {/* Clean Column Header: Stage Title + Count Only */}
                 <div
-                  className={`p-3 rounded-xl border ${stage.color} mb-4 flex items-center justify-between ${
+                  className={`px-3.5 py-2.5 rounded-xl border ${stage.color} mb-3.5 flex items-center justify-between ${
                     stage.id === 'due_followup' && stageLeads.length > 0 ? 'animate-pulse' : ''
                   }`}
                 >
-                  <span className="font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 truncate">
                     {stage.id === 'due_followup' && stageLeads.length > 0 && (
-                      <span className="w-2 h-2 rounded-full bg-rose-400" />
+                      <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0" />
                     )}
-                    {stage.name}
+                    <span className="truncate">{stage.name}</span>
                   </span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-black px-2 py-0.5 rounded-full bg-slate-950/80">
-                      {stageLeads.length}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setAddStage(stage.id)
-                        setAddAssignedAgentEmail(currentUserEmail)
-                        setShowAddLeadModal(true)
-                      }}
-                      title={`Add lead directly to ${stage.name}`}
-                      className="p-1 hover:bg-white/10 rounded-lg text-slate-300 hover:text-white transition-colors cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-slate-950/85 tabular-nums shrink-0">
+                    {stageLeads.length}
+                  </span>
                 </div>
 
                 {/* Cards Container */}
@@ -2210,10 +2246,117 @@ export default function CRMPipelineBoard({
         </div>
       )}
 
-      {/* TABLE VIEW */}
+      {/* LIST VIEW (Responsive Mobile Cards + Desktop Table) */}
       {viewMode === 'table' && (
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-          <table className="w-full text-left border-collapse text-xs">
+        <div className="space-y-2.5">
+          {/* Mobile Luxury List Cards (< md) */}
+          <div className="md:hidden space-y-2.5">
+            {filteredLeads.length === 0 ? (
+              <div className="p-8 rounded-2xl bg-[#0E131F] border border-white/10 text-center text-xs text-slate-400">
+                No leads match your current filter.
+              </div>
+            ) : (
+              filteredLeads.map((lead) => {
+                const stageMeta = STAGES.find((s) => s.id === getEffectiveStage(lead))
+                return (
+                  <div
+                    key={lead.id}
+                    onClick={() => setSelectedLead(lead)}
+                    className="p-4 rounded-2xl bg-[#0E131F] border border-white/10 active:scale-[0.99] transition-all space-y-2.5 shadow-md"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-sm text-white truncate">{lead.full_name}</h4>
+                        {lead.company_name && (
+                          <p className="text-[11px] text-slate-400 truncate">{lead.company_name}</p>
+                        )}
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold shrink-0 ${stageMeta?.color || 'bg-slate-800 text-slate-300 border-slate-700'}`}>
+                        {stageMeta?.name || lead.stage}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                      {lead.phone_number && (
+                        <span className="text-emerald-400 font-medium">{lead.phone_number}</span>
+                      )}
+                      {lead.email && (
+                        <span className="text-purple-300 truncate max-w-[200px]">{lead.email}</span>
+                      )}
+                      {lead.estimated_value > 0 && (
+                        <span className="text-[#E5C687] font-mono font-bold ml-auto">
+                          {currencyPrefix}{lead.estimated_value.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/[0.06]">
+                      <div className="flex items-center gap-1.5">
+                        {lead.phone_number && (
+                          <a
+                            href={getWhatsAppLink(lead.phone_number, lead)}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-2 bg-emerald-500/15 text-emerald-400 rounded-xl"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                        {lead.phone_number && (
+                          <a
+                            href={`tel:${lead.phone_number}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-2 bg-sky-500/15 text-sky-400 rounded-xl"
+                          >
+                            <Phone className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                        {lead.email && (
+                          <a
+                            href={getEmailComposeLink(lead)}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-2 bg-purple-500/15 text-purple-400 rounded-xl"
+                          >
+                            <Mail className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openLeadAiAssistant(lead)
+                          }}
+                          className="p-2 bg-cyan-500/15 text-cyan-300 rounded-xl"
+                        >
+                          <Bot className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <select
+                        value={lead.stage}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => handleStageChange(lead.id, e.target.value)}
+                        className="bg-slate-950 border border-slate-700 text-[11px] text-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#C9A66B]"
+                      >
+                        {STAGES.map((st) => (
+                          <option key={st.id} value={st.id}>
+                            {st.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+
+          {/* Desktop Table View (md+) */}
+          <div className="hidden md:block bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 font-bold uppercase tracking-wider">
                 <th className="p-4">Lead Name</th>
@@ -2386,6 +2529,7 @@ export default function CRMPipelineBoard({
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

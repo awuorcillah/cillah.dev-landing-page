@@ -134,6 +134,15 @@ export default function UserProfile() {
         .eq('id', user.id)
       if (updateErr) throw updateErr
       setProfile((prev: any) => ({ ...prev, avatar_url: avatarUrl }))
+      // Sync avatar immediately to workspace cache so top-right profile icon updates instantaneously
+      try {
+        const raw = sessionStorage.getItem('cillah_user_workspace_cache')
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          parsed.avatarUrl = avatarUrl
+          sessionStorage.setItem('cillah_user_workspace_cache', JSON.stringify(parsed))
+        }
+      } catch {}
       toast.success('Profile picture updated!')
     } catch (e: any) {
       toast.error(e.message ?? 'Failed to upload avatar')
@@ -173,11 +182,17 @@ export default function UserProfile() {
         {/* Avatar Card */}
         <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-slate-800 shadow-2xl p-6 flex flex-col sm:flex-row items-center gap-6">
           <div className="relative shrink-0">
-            <img
-              src={profile?.avatar_url || '/placeholder-avatar.png'}
-              alt="Profile Avatar"
-              className="h-24 w-24 rounded-full border-2 border-[#C9A66B]/40 object-cover shadow-lg"
-            />
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt="Profile Avatar"
+                className="h-24 w-24 rounded-full border-2 border-[#C9A66B]/40 object-cover shadow-lg"
+              />
+            ) : (
+              <div className="h-24 w-24 rounded-full border-2 border-[#C9A66B]/40 bg-slate-800 flex items-center justify-center shadow-lg">
+                <User className="w-10 h-10 text-[#C9A66B]" />
+              </div>
+            )}
             {uploading && (
               <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center">
                 <Sparkles className="h-5 w-5 text-[#C9A66B] animate-spin" />
