@@ -501,9 +501,19 @@ export async function POST(request: NextRequest) {
     ])
     if (leadId) {
       const nowIso = new Date().toISOString()
+      const exactDateTime = new Intl.DateTimeFormat("en-KE", {
+        timeZone: "Africa/Nairobi",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      }).format(new Date(nowIso))
       const tasks: Promise<any>[] = []
 
-      if (!linkedLeadStage || !POST_PAYMENT_STAGES.has(linkedLeadStage)) {
+      const movedToInvoiceStage = !linkedLeadStage || !POST_PAYMENT_STAGES.has(linkedLeadStage)
+      if (movedToInvoiceStage) {
         tasks.push(
           Promise.resolve(
             db
@@ -562,11 +572,14 @@ export async function POST(request: NextRequest) {
             source: "invoice_created",
             note_text: [
               `INVOICE CREATED — ${invoiceNumber}`,
+              `Date & Time: ${exactDateTime} EAT`,
               `Item: ${title}`,
               `Agreed Amount: KES ${amountKes.toLocaleString("en-KE")}`,
               `Allowed Payment Options: ${allowedMethods.map((m) => m.toUpperCase()).join(" & ")}`,
               contractName ? `Contract Attached: ${contractName}` : null,
-              `Pipeline Stage: Invoice`,
+              movedToInvoiceStage
+                ? `Pipeline Stage: Moved to Invoice`
+                : `Pipeline Stage: Synced with Finance (${linkedLeadStage})`,
               `Pay Now Link: ${payUrl}`,
             ]
               .filter(Boolean)
@@ -583,7 +596,7 @@ export async function POST(request: NextRequest) {
             activity_type: "invoice_created",
             summary: `Created invoice ${invoiceNumber} for ${clientName} — KES ${amountKes.toLocaleString(
               "en-KE"
-            )} (moved to Invoice stage)`,
+            )} on ${exactDateTime} EAT${movedToInvoiceStage ? " (moved to Invoice stage)" : ""}`,
             created_at: nowIso,
           })
         )

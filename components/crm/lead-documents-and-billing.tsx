@@ -15,6 +15,9 @@ import {
   MessageSquare,
   Loader2,
   Plus,
+  ChevronDown,
+  Check,
+  Calendar,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -57,12 +60,22 @@ interface LeadDocumentsAndBillingProps {
     phone_number: string | null
     company_name: string | null
     estimated_value: number
+    stage?: string
   }
   orgId: string
   orgSlug: string
   orgName: string
   onActivityUpdated?: () => void
 }
+
+const BILL_TYPE_OPTIONS: Array<{
+  id: "deposit" | "full_payment" | "retainer"
+  label: string
+}> = [
+  { id: "deposit", label: "Deposit" },
+  { id: "full_payment", label: "Final Full Payment Made" },
+  { id: "retainer", label: "Monthly Retainer" },
+]
 
 const formatKES = (n: number) =>
   `KES ${Math.round(Number(n) || 0).toLocaleString("en-KE")}`
@@ -83,15 +96,26 @@ export default function LeadDocumentsAndBilling({
   const [docTitle, setDocTitle] = useState("")
   const [uploadingDoc, setUploadingDoc] = useState(false)
 
-  // Quick Bill Client inline form state
-  const [showBillForm, setShowBillForm] = useState(false)
+  const isOngoingStage = lead.stage === "ongoing_project"
+  const isInvoiceStage = lead.stage === "invoice"
+
+  // Quick Bill Client inline form state (Auto-opens in Invoice & Ongoing Project lead shelves!)
+  const [showBillForm, setShowBillForm] = useState(isOngoingStage || isInvoiceStage)
   const [billTitle, setBillTitle] = useState(
-    lead.company_name ? `${lead.company_name} — Project Agreement` : `Project Agreement — ${lead.full_name}`
+    isOngoingStage
+      ? `Final Payment — ${lead.company_name || lead.full_name}`
+      : lead.company_name
+      ? `${lead.company_name} — Project Deposit`
+      : `Project Deposit — ${lead.full_name}`
   )
   const [billAmount, setBillAmount] = useState(
     lead.estimated_value > 0 ? String(lead.estimated_value) : ""
   )
-  const [billType, setBillType] = useState("deposit")
+  const [billType, setBillType] = useState<"deposit" | "full_payment" | "retainer">(
+    isOngoingStage ? "full_payment" : "deposit"
+  )
+  const [billTypeMenuOpen, setBillTypeMenuOpen] = useState(false)
+  const [billDueDate, setBillDueDate] = useState("")
   const [allowMpesa, setAllowMpesa] = useState(true)
   const [allowCard, setAllowCard] = useState(true)
   const [billContractUrl, setBillContractUrl] = useState("")
@@ -121,15 +145,24 @@ export default function LeadDocumentsAndBilling({
 
   useEffect(() => {
     loadLeadFinance()
-    setShowBillForm(false)
+    const ongoing = lead.stage === "ongoing_project"
+    const invStage = lead.stage === "invoice"
+    setShowBillForm(ongoing || invStage)
+    setBillType(ongoing ? "full_payment" : "deposit")
+    setBillTypeMenuOpen(false)
+    setBillDueDate("")
     setBillTitle(
-      lead.company_name ? `${lead.company_name} — Project Agreement` : `Project Agreement — ${lead.full_name}`
+      ongoing
+        ? `Final Payment — ${lead.company_name || lead.full_name}`
+        : lead.company_name
+        ? `${lead.company_name} — Project Deposit`
+        : `Project Deposit — ${lead.full_name}`
     )
     setBillAmount(lead.estimated_value > 0 ? String(lead.estimated_value) : "")
     setBillContractUrl("")
     setBillContractName("")
     setBillContractNotes("")
-  }, [lead.id, lead.company_name, lead.full_name, lead.estimated_value, loadLeadFinance])
+  }, [lead.id, lead.stage, lead.company_name, lead.full_name, lead.estimated_value, loadLeadFinance])
 
   const handleUploadLeadDoc = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -196,6 +229,7 @@ export default function LeadDocumentsAndBilling({
           contractUrl: billContractUrl || null,
           contractName: billContractName || null,
           contractNotes: billContractNotes.trim() || null,
+          dueDate: billDueDate || null,
         }),
       })
       const data = await res.json()
@@ -280,25 +314,34 @@ export default function LeadDocumentsAndBilling({
         </button>
       </div>
 
-      {/* INLINE BILL CLIENT FORM */}
+      {/* INLINE BILL CLIENT FORM (Auto-opens & syncs with Finance in Invoice & Ongoing Project) */}
       {showBillForm && (
         <form
           onSubmit={handleQuickCreateInvoice}
-          className="p-4 rounded-xl bg-slate-950 border border-[#C9A66B]/40 space-y-3 text-xs"
+          className="p-4 rounded-xl bg-[#090C14] border border-[#C9A66B]/45 space-y-3 text-xs"
         >
-          <p className="font-bold text-[#E5C687] uppercase tracking-wider text-[10px]">
-            Create Invoice + Pay Now Link (M-Pesa / Card)
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-bold text-[#E5C687] uppercase tracking-wider text-[10px]">
+              {isOngoingStage
+                ? "Final Payment Invoice · Synced with Finance"
+                : "Invoice & Pay Now · Synced with Finance"}
+            </p>
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-bold text-emerald-300">
+              {isOngoingStage
+                ? "Paid → Full Payment Made"
+                : "Paid → Ongoing Project"}
+            </span>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             <div className="sm:col-span-2">
-              <label className="text-slate-400 block mb-1">Invoice / Scope Title *</label>
+              <label className="text-slate-400 block mb-1">Invoice Title *</label>
               <input
                 type="text"
                 required
                 value={billTitle}
                 onChange={(e) => setBillTitle(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#C9A66B]"
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
               />
             </div>
             <div>
@@ -310,27 +353,82 @@ export default function LeadDocumentsAndBilling({
                 value={billAmount}
                 onChange={(e) => setBillAmount(e.target.value)}
                 placeholder="50000"
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono font-bold focus:outline-none focus:border-[#C9A66B]"
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-white font-mono font-bold focus:outline-none focus:border-[#C9A66B]"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div>
-              <label className="text-slate-400 block mb-1">Milestone Stage After Payment</label>
-              <select
-                value={billType}
-                onChange={(e) => setBillType(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#C9A66B]"
+            <div className="relative">
+              <label className="text-slate-400 block mb-1">Payment Type</label>
+              <button
+                type="button"
+                onClick={() => setBillTypeMenuOpen((o) => !o)}
+                className={`w-full flex items-center justify-between gap-2 bg-[#0E131F] border rounded-xl px-3 py-2.5 text-left font-bold cursor-pointer transition-colors ${
+                  billTypeMenuOpen
+                    ? "border-[#C9A66B] text-[#E5C687]"
+                    : "border-white/15 text-white hover:border-[#C9A66B]/50"
+                }`}
               >
-                <option value="deposit">Deposit → Ongoing Project</option>
-                <option value="milestone">Milestone → Ongoing Project</option>
-                <option value="final_balance">Final Balance → Full Payment Made</option>
-                <option value="full_payment">Full Payment → Full Payment Made</option>
-              </select>
+                <span className="truncate">
+                  {BILL_TYPE_OPTIONS.find((o) => o.id === billType)?.label || "Deposit"}
+                </span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-[#C9A66B] shrink-0 transition-transform ${
+                    billTypeMenuOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+              {billTypeMenuOpen && (
+                <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl bg-[#0E131F] border border-[#C9A66B]/45 shadow-2xl overflow-hidden divide-y divide-white/[0.06]">
+                  {BILL_TYPE_OPTIONS.map((opt) => {
+                    const selected = billType === opt.id
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setBillType(opt.id)
+                          setBillTypeMenuOpen(false)
+                        }}
+                        className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 text-xs font-bold text-left cursor-pointer transition-colors ${
+                          selected
+                            ? "bg-[#C9A66B]/15 text-[#E5C687]"
+                            : "text-slate-200 hover:bg-white/[0.05]"
+                        }`}
+                      >
+                        <span>{opt.label}</span>
+                        {selected && <Check className="w-3.5 h-3.5 text-[#C9A66B] shrink-0" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
+
             <div>
-              <label className="text-slate-400 block mb-1">Link Existing Contract (Optional)</label>
+              <label className="text-slate-400 block mb-1">Due Date</label>
+              <label className="relative flex items-center justify-between gap-2 bg-[#0E131F] border border-white/15 hover:border-[#C9A66B]/50 rounded-xl px-3 py-2.5 cursor-pointer transition-colors">
+                <span className="inline-flex items-center gap-2 min-w-0 truncate">
+                  <Calendar className="w-3.5 h-3.5 text-[#C9A66B] shrink-0" />
+                  <span className={billDueDate ? "text-white font-semibold" : "text-slate-400 font-semibold"}>
+                    {billDueDate || "Select Date"}
+                  </span>
+                </span>
+                <input
+                  type="date"
+                  value={billDueDate}
+                  onChange={(e) => setBillDueDate(e.target.value)}
+                  aria-label="Select Due Date"
+                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer [color-scheme:dark]"
+                />
+              </label>
+            </div>
+          </div>
+
+          {documents.filter((d) => d.doc_type !== "invoice").length > 0 && (
+            <div>
+              <label className="text-slate-400 block mb-1">Attach Uploaded Contract (Optional)</label>
               <select
                 value={billContractUrl}
                 onChange={(e) => {
@@ -338,9 +436,9 @@ export default function LeadDocumentsAndBilling({
                   const match = documents.find((d) => d.file_url === e.target.value)
                   setBillContractName(match?.title || match?.file_name || "")
                 }}
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#C9A66B]"
+                className="w-full bg-[#0E131F] border border-white/15 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
               >
-                <option value="">No contract attached (or upload below)</option>
+                <option value="">No contract attached</option>
                 {documents
                   .filter((d) => d.doc_type !== "invoice")
                   .map((d) => (
@@ -350,7 +448,7 @@ export default function LeadDocumentsAndBilling({
                   ))}
               </select>
             </div>
-          </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-4 pt-1">
             <label className="inline-flex items-center gap-1.5 cursor-pointer text-emerald-300 font-semibold">

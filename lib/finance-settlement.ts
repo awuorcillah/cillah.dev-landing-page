@@ -96,18 +96,34 @@ export async function settleInvoiceAndAdvancePipeline(params: SettleInvoiceParam
         )
 
         // Decide next pipeline column:
-        // - Final Balance / Full Payment (or already Done & Delivered) -> 'full_payment_made'
-        // - Deposit / Milestone / Retainer -> 'ongoing_project'
+        // - Final Full Payment Made ('full_payment' / 'final_balance') -> 'full_payment_made'
+        // - Deposit / Retainer -> 'ongoing_project'
+        // (Won Deals data updates only once user moves the lead to 'done_delivered' / 'closed_won')
         const isFinalPayment =
           paidInvoice.invoice_type === "final_balance" ||
-          paidInvoice.invoice_type === "full_payment" ||
-          lead.stage === "done_delivered"
+          paidInvoice.invoice_type === "full_payment"
 
         const nextStage = isFinalPayment ? "full_payment_made" : "ongoing_project"
         const nextStageLabel = isFinalPayment ? "Full Payment Made" : "Ongoing Project"
+        const prevStageLabel =
+          lead.stage === "invoice"
+            ? "Invoice"
+            : lead.stage === "ongoing_project"
+            ? "Ongoing Project"
+            : lead.stage || "Pipeline"
 
-        // Update estimated_value to reflect confirmed KES paid (keeps Won Deals accurate in KES!)
+        // Update estimated_value to reflect confirmed total KES paid
         const updatedValue = Math.max(Number(lead.estimated_value) || 0, totalPaidForLead)
+
+        const exactDateTime = new Intl.DateTimeFormat("en-KE", {
+          timeZone: "Africa/Nairobi",
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        }).format(new Date(nowIso))
 
         await supabase
           .from("sales_leads")
@@ -132,11 +148,11 @@ export async function settleInvoiceAndAdvancePipeline(params: SettleInvoiceParam
             : lead.assigned_agent_email || paidInvoice.created_by_email
 
         const noteText = [
-          `PAYMENT MADE — Invoice ${paidInvoice.invoice_number}`,
-          `Amount Received: KES ${resolvedPaidAmount.toLocaleString("en-KE")}`,
-          `Payment Method: ${methodPretty}`,
+          `INVOICE PAID — ${paidInvoice.invoice_number}`,
+          `Date & Time: ${exactDateTime} EAT`,
+          `Amount Received: KES ${resolvedPaidAmount.toLocaleString("en-KE")} (${methodPretty})`,
           `Reference / Receipt: ${params.paymentReference}`,
-          `Pipeline Updated: Automatically moved to "${nextStageLabel}"`,
+          `Stage Updated: ${prevStageLabel} → ${nextStageLabel}`,
           paidInvoice.contract_name ? `Contract Attached: ${paidInvoice.contract_name}` : null,
         ]
           .filter(Boolean)
@@ -157,9 +173,9 @@ export async function settleInvoiceAndAdvancePipeline(params: SettleInvoiceParam
             agent_name: agentEmail === "atulah@cillah.dev" ? "Atulah" : agentEmail.split("@")[0],
             lead_name: lead.full_name,
             activity_type: "payment_received",
-            summary: `Payment made by ${lead.full_name} — KES ${resolvedPaidAmount.toLocaleString(
+            summary: `Invoice Paid by ${lead.full_name} — KES ${resolvedPaidAmount.toLocaleString(
               "en-KE"
-            )} via ${methodPretty} (${paidInvoice.invoice_number}). Moved to ${nextStageLabel}.`,
+            )} via ${methodPretty} (${paidInvoice.invoice_number}) on ${exactDateTime} EAT. Moved ${prevStageLabel} → ${nextStageLabel}.`,
             metadata: {
               invoice_id: paidInvoice.id,
               invoice_number: paidInvoice.invoice_number,

@@ -94,17 +94,18 @@ const STAGES = [
   { id: 'repeat_lead', name: 'Repeat Inquiries', color: 'bg-violet-500/10 border-violet-500/30 text-violet-400', badge: 'bg-violet-500' },
   { id: 'hot_lead', name: 'Hot Lead', color: 'bg-amber-500/10 border-amber-500/30 text-amber-400', badge: 'bg-amber-500' },
   { id: 'warm_lead', name: 'Warm Lead', color: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400', badge: 'bg-yellow-500' },
-  { id: 'viewing', name: 'Booked Consultations', color: 'bg-purple-500/10 border-purple-500/30 text-purple-400', badge: 'bg-purple-500' },
-  { id: 'invoice', name: 'Invoice', color: 'bg-[#C9A66B]/15 border-[#C9A66B]/45 text-[#E5C687]', badge: 'bg-[#C9A66B]' },
   { id: 'cold_lead', name: 'Cold Lead', color: 'bg-slate-500/10 border-slate-500/30 text-slate-400', badge: 'bg-slate-500' },
   { id: 'spam', name: 'Spam', color: 'bg-red-500/10 border-red-500/30 text-red-400', badge: 'bg-red-500' },
-  { id: 'closed_won', name: 'Won Deals', color: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400', badge: 'bg-emerald-500' },
+  { id: 'viewing', name: 'Booked Consultations', color: 'bg-purple-500/10 border-purple-500/30 text-purple-400', badge: 'bg-purple-500' },
+  { id: 'invoice', name: 'Invoice', color: 'bg-[#C9A66B]/15 border-[#C9A66B]/45 text-[#E5C687]', badge: 'bg-[#C9A66B]' },
   { id: 'ongoing_project', name: 'Ongoing Project', color: 'bg-cyan-500/15 border-cyan-500/45 text-cyan-300', badge: 'bg-cyan-500' },
+  { id: 'full_payment_made', name: 'Full Payment Made', color: 'bg-[#C9A66B]/20 border-[#C9A66B]/60 text-[#E5C687]', badge: 'bg-[#C9A66B]' },
   { id: 'done_delivered', name: 'Done & Delivered', color: 'bg-indigo-500/15 border-indigo-500/45 text-indigo-300', badge: 'bg-indigo-500' },
-  { id: 'full_payment_made', name: 'Full Payment Made', color: 'bg-[#C9A66B]/20 border-[#C9A66B]/60 text-[#E5C687]', badge: 'bg-[#C9A66B]' }
+  { id: 'closed_won', name: 'Won Deals', color: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400', badge: 'bg-emerald-500' }
 ]
 
-const WON_STAGES = new Set(['closed_won', 'ongoing_project', 'done_delivered', 'full_payment_made'])
+// Won Deals data updates once a deal reaches Done & Delivered (or Won Deals)
+const WON_STAGES = new Set(['done_delivered', 'closed_won'])
 
 interface CRMPipelineBoardProps {
   currentUserEmail?: string
@@ -933,11 +934,26 @@ export default function CRMPipelineBoard({
     return { newToday, hotLeads, upcomingAppointments, wonDealsCount, wonDealsValue }
   }, [leads])
 
-  // Stage Move Handler
+  // Stage Move Handler — auto-updates Notes & Pipeline Activity with exact Nairobi date & time
   const handleStageChange = async (leadId: string, newStage: string) => {
+    const movedLead = leads.find((l) => l.id === leadId)
+    const previousStageId = movedLead?.stage || ''
+    if (previousStageId === newStage) return
+
+    const nowIso = new Date().toISOString()
+    const exactDateTime = new Intl.DateTimeFormat('en-KE', {
+      timeZone: 'Africa/Nairobi',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    }).format(new Date(nowIso))
+
     await supabase
       .from('sales_leads')
-      .update({ stage: newStage, updated_at: new Date().toISOString() })
+      .update({ stage: newStage, last_interaction_at: nowIso, updated_at: nowIso })
       .eq('id', leadId)
 
     const mappedStageStatus =
@@ -949,21 +965,59 @@ export default function CRMPipelineBoard({
 
     await supabase
       .from('stage_leads')
-      .update({ status: mappedStageStatus, updated_at: new Date().toISOString() })
+      .update({ status: mappedStageStatus, updated_at: nowIso })
       .eq('id', leadId)
 
-    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, stage: newStage } : l)))
+    setLeads((prev) =>
+      prev.map((l) => (l.id === leadId ? { ...l, stage: newStage, updated_at: nowIso } : l))
+    )
     if (selectedLead?.id === leadId) {
-      setSelectedLead((prev) => (prev ? { ...prev, stage: newStage } : null))
+      setSelectedLead((prev) => (prev ? { ...prev, stage: newStage, updated_at: nowIso } : null))
     }
 
-    const movedLead = leads.find((l) => l.id === leadId)
+    const oldStageName = STAGES.find((s) => s.id === previousStageId)?.name || previousStageId || 'Previous Stage'
     const stageName = STAGES.find((s) => s.id === newStage)?.name || newStage
+    const isNowWon = WON_STAGES.has(newStage)
+    const valStr =
+      movedLead?.estimated_value && Number(movedLead.estimated_value) > 0
+        ? `${currencyPrefix}${Number(movedLead.estimated_value).toLocaleString()}`
+        : null
+
+    const stageNoteText = [
+      `Stage changed: ${oldStageName} → ${stageName}`,
+      `Date & Time: ${exactDateTime} EAT`,
+      isNowWon
+        ? `Won Deals Updated${valStr ? ` (${valStr})` : ''} — Project delivered & counted in Won Deals.`
+        : newStage === 'invoice'
+        ? `Synced with Finance — open lead shelf or Finance to send Pay Now invoice.`
+        : null,
+    ]
+      .filter(Boolean)
+      .join('\n')
+
+    const { data: insertedNote } = await supabase
+      .from('lead_notes')
+      .insert({
+        lead_id: leadId,
+        author_email: currentUserEmail,
+        author_name: currentUserEmail.split('@')[0],
+        source: 'stage_changed',
+        note_text: stageNoteText,
+      })
+      .select()
+      .maybeSingle()
+
+    if (insertedNote && selectedLead?.id === leadId) {
+      setNotes((prev) => [insertedNote as LeadNote, ...prev])
+    }
+
     logLeadActivity({
       lead_id: leadId,
       lead_name: movedLead?.full_name || null,
-      activity_type: 'stage_changed',
-      summary: `Moved "${movedLead?.full_name || 'lead'}" to ${stageName}`,
+      activity_type: isNowWon ? 'deal_won' : 'stage_changed',
+      summary: `Moved "${movedLead?.full_name || 'lead'}" from ${oldStageName} → ${stageName} (${exactDateTime} EAT)${
+        isNowWon ? ' — Won Deals updated' : ''
+      }`,
     })
   }
 
@@ -3245,14 +3299,14 @@ export default function CRMPipelineBoard({
                 </button>
               </div>
 
-              {/* DOCUMENTS, CONTRACTS & DIRECT CLIENT BILLING */}
+              {/* DOCUMENTS, CONTRACTS & DIRECT CLIENT BILLING (Auto-opens & syncs with Finance in Invoice / Ongoing Project) */}
               <LeadDocumentsAndBilling
                 lead={selectedLead}
                 orgId={currentOrgId}
                 orgSlug={currentOrg.slug}
                 orgName={currentOrg.name}
                 onActivityUpdated={() => {
-                  // Reload notes so newly logged invoice/document notes appear immediately
+                  // Reload notes AND refresh lead stage in case Finance auto-advanced it (e.g. to Invoice)
                   supabase
                     .from('lead_notes')
                     .select('*')
@@ -3260,6 +3314,19 @@ export default function CRMPipelineBoard({
                     .order('created_at', { ascending: false })
                     .then(({ data }) => {
                       if (data) setNotes(data)
+                    })
+                  supabase
+                    .from('sales_leads')
+                    .select('stage, estimated_value, updated_at')
+                    .eq('id', selectedLead.id)
+                    .maybeSingle()
+                    .then(({ data }) => {
+                      if (data) {
+                        setSelectedLead((prev) => (prev ? { ...prev, ...data } : null))
+                        setLeads((prev) =>
+                          prev.map((l) => (l.id === selectedLead.id ? { ...l, ...data } : l))
+                        )
+                      }
                     })
                 }}
               />
@@ -3300,12 +3367,27 @@ export default function CRMPipelineBoard({
                       const isTransfer = note.source === 'agent_transfer'
                       const isConsultation = note.source === 'consultation_scheduled'
                       const isRepeat = note.source === 'lead_deduplication'
+                      const isStageChange = note.source === 'stage_changed'
+                      const isFinanceEvent =
+                        note.source === 'invoice_created' ||
+                        note.source === 'invoice_sent' ||
+                        note.source === 'payment_received'
 
                       return (
                         <div key={note.id} className="p-3 bg-slate-950 border border-slate-800/80 rounded-xl text-xs">
                           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1.5">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="font-bold text-[#C9A66B]">{note.author_name || note.author_email}</span>
+                              {isStageChange && (
+                                <span className="px-1.5 py-0.5 bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 rounded text-[9px] font-semibold">
+                                  Stage Update
+                                </span>
+                              )}
+                              {isFinanceEvent && (
+                                <span className="px-1.5 py-0.5 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 rounded text-[9px] font-semibold">
+                                  {note.source === 'payment_received' ? 'Payment Paid' : 'Finance Sync'}
+                                </span>
+                              )}
                               {isEdit && (
                                 <span className="px-1.5 py-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded text-[9px] font-semibold flex items-center gap-1">
                                   <Edit2 className="w-2.5 h-2.5" /> Edited

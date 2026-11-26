@@ -330,6 +330,16 @@ export async function POST(request: NextRequest) {
         "full_payment_made",
       ])
 
+      const exactDateTime = new Intl.DateTimeFormat("en-KE", {
+        timeZone: "Africa/Nairobi",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      }).format(new Date(nowIso))
+
       const sendTasks: Promise<any>[] = [
         Promise.resolve(
           db.from("lead_notes").insert({
@@ -337,7 +347,12 @@ export async function POST(request: NextRequest) {
             author_email: callerEmail,
             author_name: callerEmail.split("@")[0],
             source: "invoice_sent",
-            note_text: `Sent Invoice ${invoice.invoice_number} (${amountFormatted}) with Pay Now link via ${channel.toUpperCase()}.\nLink: ${payUrl}`,
+            note_text: [
+              `INVOICE SENT — ${invoice.invoice_number} (${amountFormatted})`,
+              `Date & Time: ${exactDateTime} EAT`,
+              `Channel: ${channel.toUpperCase()}`,
+              `Pay Now Link: ${payUrl}`,
+            ].join("\n"),
           })
         ),
         Promise.resolve(
@@ -348,7 +363,7 @@ export async function POST(request: NextRequest) {
             agent_name: agentEmail === "atulah@cillah.dev" ? "Atulah" : agentEmail.split("@")[0],
             lead_name: invoice.client_name,
             activity_type: "invoice_sent",
-            summary: `Sent Pay Now link (${invoice.invoice_number} • ${amountFormatted}) via ${channel.toUpperCase()} — moved to Invoice stage`,
+            summary: `Sent Pay Now link (${invoice.invoice_number} • ${amountFormatted}) via ${channel.toUpperCase()} on ${exactDateTime} EAT`,
             created_at: nowIso,
           })
         ),

@@ -257,11 +257,9 @@ export default function CillahSalesDashboardPage() {
       const val = Number(l.estimated_value) || 0
       totalPipelineValue += val
       if (
-        l.stage === 'closed_won' ||
-        l.stage === 'closed' ||
-        l.stage === 'ongoing_project' ||
         l.stage === 'done_delivered' ||
-        l.stage === 'full_payment_made'
+        l.stage === 'closed_won' ||
+        l.stage === 'closed'
       ) {
         wonValue += val
         wonCount += 1
@@ -306,11 +304,9 @@ export default function CillahSalesDashboardPage() {
         )
         const wonLeads = agLeads.filter(
           (l) =>
-            l.stage === 'closed_won' ||
-            l.stage === 'closed' ||
-            l.stage === 'ongoing_project' ||
             l.stage === 'done_delivered' ||
-            l.stage === 'full_payment_made'
+            l.stage === 'closed_won' ||
+            l.stage === 'closed'
         )
         const pipelineValue = agLeads.reduce((sum, l) => sum + (Number(l.estimated_value) || 0), 0)
         const speedMins = agLeads.map((l) => {
