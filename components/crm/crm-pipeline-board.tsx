@@ -1513,92 +1513,77 @@ export default function CRMPipelineBoard({
 
   return (
     <div className={`w-full ${embedded ? 'bg-transparent p-0' : 'min-h-screen bg-[#090B12] px-3 pt-3 pb-6 sm:p-5 md:p-6'} text-slate-100 font-sans`}>
-      {/* ULTRA-CLEAN LUXURY ACTION & FILTER BAR (AI | + | View ▾ | Stage ▾ | Time ▾) */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
-          {/* 1. AI Button */}
-          <button
-            type="button"
-            onClick={openPipelineAiAssistant}
-            className="inline-flex items-center justify-center gap-1.5 h-9 px-3 bg-cyan-500/15 hover:bg-cyan-500/25 active:scale-[0.97] text-cyan-300 border border-cyan-500/35 font-bold rounded-xl text-xs transition-all cursor-pointer shrink-0"
-            title="Personal Sales AI Assistant"
-          >
-            <Bot className="w-4 h-4" />
-            <span>AI</span>
-          </button>
+      {/* LUXURY 2-ROW ACTION & FILTER BAR: Row 1 = AI, + Lead, View | Row 2 = Stage, Time */}
+      <div className="space-y-2 mb-3">
+        {/* ROW 1: AI | + Lead | View ▾ */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 flex-1">
+            {/* 1. AI Button */}
+            <button
+              type="button"
+              onClick={openPipelineAiAssistant}
+              className="inline-flex items-center justify-center gap-1.5 h-10 px-3.5 bg-cyan-500/15 hover:bg-cyan-500/25 active:scale-[0.97] text-cyan-300 border border-cyan-500/35 font-bold rounded-xl text-xs transition-all cursor-pointer shrink-0"
+              title="Personal Sales AI Assistant"
+            >
+              <Bot className="w-4 h-4" />
+              <span>AI</span>
+            </button>
 
-          {/* 2. Add (+) Button */}
-          <button
-            type="button"
-            onClick={() => {
-              setAddStage('new_lead')
-              setAddAssignedAgentEmail(currentUserEmail)
-              setShowAddLeadModal(true)
-            }}
-            className="inline-flex items-center justify-center gap-1 h-9 px-3 bg-[#C9A66B] hover:bg-[#d8b77c] active:scale-[0.97] text-slate-950 font-black rounded-xl text-xs transition-all shadow-md shadow-[#C9A66B]/20 cursor-pointer shrink-0"
-            title="Add New Lead"
-          >
-            <Plus className="w-4 h-4 stroke-[2.6]" />
-            <span className="hidden sm:inline">Add</span>
-          </button>
-
-          {/* 3. View Dropdown (Kanban / List) */}
-          <div className="relative" ref={viewMenuRef}>
+            {/* 2. + Lead Button */}
             <button
               type="button"
               onClick={() => {
-                setViewMenuOpen((p) => !p)
-                setStageMenuOpen(false)
-                setTimeMenuOpen(false)
+                setAddStage('new_lead')
+                setAddAssignedAgentEmail(currentUserEmail)
+                setShowAddLeadModal(true)
               }}
-              className={`inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-                viewMenuOpen
-                  ? 'bg-[#C9A66B]/15 border-[#C9A66B]/60 text-[#E5C687]'
-                  : 'bg-[#0F1422] border-white/10 text-slate-200 hover:border-white/20'
-              }`}
+              className="inline-flex items-center justify-center gap-1.5 h-10 px-3.5 bg-[#C9A66B] hover:bg-[#d8b77c] active:scale-[0.97] text-slate-950 font-black rounded-xl text-xs transition-all shadow-md shadow-[#C9A66B]/20 cursor-pointer shrink-0"
+              title="Add New Lead"
             >
-              {viewMode === 'kanban' ? (
-                <LayoutGrid className="w-3.5 h-3.5 text-[#C9A66B]" />
-              ) : (
-                <List className="w-3.5 h-3.5 text-[#C9A66B]" />
-              )}
-              <span>{viewMode === 'kanban' ? 'Kanban' : 'List'}</span>
-              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${viewMenuOpen ? 'rotate-180' : ''}`} />
+              <Plus className="w-4 h-4 stroke-[2.6]" />
+              <span>Lead</span>
             </button>
 
-            {viewMenuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] sm:hidden"
-                  onClick={() => setViewMenuOpen(false)}
-                />
-                <div className="fixed inset-x-3 bottom-4 sm:absolute sm:inset-auto sm:left-0 sm:top-full sm:mt-2 sm:w-48 bg-[#0E131F] border border-white/15 rounded-2xl shadow-2xl z-50 overflow-hidden p-2 space-y-1">
-                  <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-white/[0.07] sm:hidden">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#C9A66B]">
-                      Select View
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setViewMenuOpen(false)}
-                      className="p-1 text-slate-400 hover:text-white"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
+            {/* 3. View Dropdown (Drops directly under View button) */}
+            <div className="relative ml-auto sm:ml-0" ref={viewMenuRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMenuOpen((p) => !p)
+                  setStageMenuOpen(false)
+                  setTimeMenuOpen(false)
+                }}
+                className={`inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                  viewMenuOpen
+                    ? 'bg-[#C9A66B]/15 border-[#C9A66B]/60 text-[#E5C687]'
+                    : 'bg-[#0F1422] border-white/10 text-slate-200 hover:border-white/20'
+                }`}
+              >
+                {viewMode === 'kanban' ? (
+                  <LayoutGrid className="w-3.5 h-3.5 text-[#C9A66B]" />
+                ) : (
+                  <List className="w-3.5 h-3.5 text-[#C9A66B]" />
+                )}
+                <span>View</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${viewMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {viewMenuOpen && (
+                <div className="absolute right-0 sm:left-0 sm:right-auto top-full mt-1.5 w-44 bg-[#0E131F] border border-[#C9A66B]/40 rounded-xl shadow-2xl z-50 overflow-hidden p-1.5 space-y-1">
                   <button
                     type="button"
                     onClick={() => {
                       setViewMode('kanban')
                       setViewMenuOpen(false)
                     }}
-                    className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                    className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                       viewMode === 'kanban'
-                        ? 'bg-[#C9A66B]/15 text-[#E5C687] border border-[#C9A66B]/35'
-                        : 'text-slate-300 hover:bg-white/[0.05]'
+                        ? 'bg-[#C9A66B]/15 text-[#E5C687]'
+                        : 'text-slate-200 hover:bg-white/[0.06]'
                     }`}
                   >
                     <span className="flex items-center gap-2">
-                      <LayoutGrid className="w-4 h-4" /> Kanban
+                      <LayoutGrid className="w-3.5 h-3.5" /> Kanban
                     </span>
                     {viewMode === 'kanban' && <span className="text-[#C9A66B] font-bold">✓</span>}
                   </button>
@@ -1608,24 +1593,66 @@ export default function CRMPipelineBoard({
                       setViewMode('table')
                       setViewMenuOpen(false)
                     }}
-                    className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                    className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                       viewMode === 'table'
-                        ? 'bg-[#C9A66B]/15 text-[#E5C687] border border-[#C9A66B]/35'
-                        : 'text-slate-300 hover:bg-white/[0.05]'
+                        ? 'bg-[#C9A66B]/15 text-[#E5C687]'
+                        : 'text-slate-200 hover:bg-white/[0.06]'
                     }`}
                   >
                     <span className="flex items-center gap-2">
-                      <List className="w-4 h-4" /> List
+                      <List className="w-3.5 h-3.5" /> List
                     </span>
                     {viewMode === 'table' && <span className="text-[#C9A66B] font-bold">✓</span>}
                   </button>
                 </div>
-              </>
-            )}
+              )}
+            </div>
           </div>
 
-          {/* 4. Stage Dropdown (Mobile Bottom-Sheet — Never Clipped!) */}
-          <div className="relative" ref={stageMenuRef}>
+          {/* Admin-Only Compact Controls (Desktop/Tablet right side) */}
+          {effectiveIsAdmin && (
+            <div className="hidden sm:flex items-center gap-2">
+              <div className="flex items-center gap-1.5 h-10 bg-[#0F1422] border border-white/10 rounded-xl px-2.5 text-xs">
+                <UserCheck className="w-3.5 h-3.5 text-[#C9A66B]" />
+                <select
+                  value={agentFilter}
+                  onChange={(e) => setAgentFilter(e.target.value)}
+                  className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
+                >
+                  <option value="all" className="bg-slate-900 text-white">All Agents</option>
+                  {orgStaffMembers.map((agent) => (
+                    <option key={agent.id} value={agent.email} className="bg-slate-900 text-white">
+                      {agent.full_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowBinModal(true)}
+                className={`inline-flex items-center gap-1.5 h-10 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                  trashLeads.length > 0
+                    ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30'
+                    : 'bg-[#0F1422] hover:bg-slate-800 text-slate-400 border-white/10 hover:text-white'
+                }`}
+                title="Recycle Bin (Admin Only)"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {trashLeads.length > 0 && (
+                  <span className="px-1.5 py-0.5 bg-rose-500 text-white rounded-full text-[10px] font-bold">
+                    {trashLeads.length}
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* ROW 2: Stage ▾ | Time ▾ (Dropdowns anchored directly beneath their buttons!) */}
+        <div className="flex items-center gap-2">
+          {/* 4. Stage Dropdown (Anchored left-0 right below Stage button) */}
+          <div className="relative flex-1 sm:flex-initial" ref={stageMenuRef}>
             <button
               type="button"
               onClick={() => {
@@ -1633,101 +1660,88 @@ export default function CRMPipelineBoard({
                 setViewMenuOpen(false)
                 setTimeMenuOpen(false)
               }}
-              className={`inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+              className={`w-full sm:w-auto inline-flex items-center justify-between sm:justify-start gap-2 h-10 px-3.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
                 selectedStages.length > 0 || stageMenuOpen
                   ? 'bg-[#C9A66B]/15 border-[#C9A66B]/60 text-[#E5C687]'
                   : 'bg-[#0F1422] border-white/10 text-slate-200 hover:border-white/20'
               }`}
             >
-              <Filter className="w-3.5 h-3.5 text-[#C9A66B]" />
-              <span>
-                {selectedStages.length === 0
-                  ? 'Stage'
-                  : selectedStages.length === 1
-                  ? STAGES.find((s) => s.id === selectedStages[0])?.name || '1 Stage'
-                  : `${selectedStages.length} Stages`}
+              <span className="inline-flex items-center gap-1.5 truncate">
+                <Filter className="w-3.5 h-3.5 text-[#C9A66B] shrink-0" />
+                <span className="truncate">
+                  {selectedStages.length === 0
+                    ? 'Stage'
+                    : selectedStages.length === 1
+                    ? STAGES.find((s) => s.id === selectedStages[0])?.name || '1 Stage'
+                    : `${selectedStages.length} Stages`}
+                </span>
               </span>
-              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${stageMenuOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform shrink-0 ${stageMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {stageMenuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] sm:hidden"
-                  onClick={() => setStageMenuOpen(false)}
-                />
-                <div className="fixed inset-x-3 bottom-4 max-h-[72vh] overflow-y-auto sm:absolute sm:inset-auto sm:left-0 sm:top-full sm:mt-2 sm:w-64 sm:max-h-[420px] bg-[#0E131F] border border-white/15 rounded-2xl shadow-2xl z-50 p-2 space-y-1">
-                  <div className="flex items-center justify-between px-2.5 py-2 border-b border-white/[0.07] mb-1 sticky top-0 bg-[#0E131F]">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#C9A66B]">
-                      Filter by Stage
-                    </span>
-                    <div className="flex items-center gap-2.5">
-                      {selectedStages.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedStages([])}
-                          className="text-[11px] text-[#C9A66B] hover:underline font-semibold cursor-pointer"
-                        >
-                          Show All
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setStageMenuOpen(false)}
-                        className="p-0.5 text-slate-400 hover:text-white sm:hidden"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {STAGES.map((st) => {
-                    const isChecked = selectedStages.includes(st.id)
-                    const stageCount = leads.filter((l) => {
-                      if (l.stage === 'trash') return false
-                      if (getEffectiveStage(l) !== st.id) return false
-                      if (!effectiveIsAdmin && l.assigned_agent_email !== currentUserEmail) return false
-                      if (effectiveIsAdmin && agentFilter !== 'all' && l.assigned_agent_email !== agentFilter) return false
-                      return true
-                    }).length
-
-                    return (
-                      <button
-                        key={st.id}
-                        type="button"
-                        onClick={() => toggleStageFilter(st.id)}
-                        className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs transition-colors cursor-pointer ${
-                          isChecked
-                            ? 'bg-[#C9A66B]/15 text-white font-semibold'
-                            : 'text-slate-300 hover:bg-white/[0.05]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span
-                            className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] shrink-0 ${
-                              isChecked
-                                ? 'bg-[#C9A66B] border-[#C9A66B] text-slate-950 font-bold'
-                                : 'border-slate-600 bg-slate-950'
-                            }`}
-                          >
-                            {isChecked ? '✓' : ''}
-                          </span>
-                          <span className={`w-2 h-2 rounded-full shrink-0 ${st.badge}`} />
-                          <span className="truncate">{st.name}</span>
-                        </div>
-                        <span className="text-[11px] font-mono font-bold text-slate-400 shrink-0">
-                          {stageCount}
-                        </span>
-                      </button>
-                    )
-                  })}
+              <div className="absolute left-0 top-full mt-1.5 w-64 max-w-[calc(100vw-24px)] max-h-[60vh] overflow-y-auto bg-[#0E131F] border border-[#C9A66B]/40 rounded-xl shadow-2xl z-50 p-1.5 space-y-0.5">
+                <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-white/[0.07] mb-1 sticky top-0 bg-[#0E131F]">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#C9A66B]">
+                    Select Stage
+                  </span>
+                  {selectedStages.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStages([])}
+                      className="text-[11px] text-[#C9A66B] hover:underline font-semibold cursor-pointer"
+                    >
+                      Show All
+                    </button>
+                  )}
                 </div>
-              </>
+
+                {STAGES.map((st) => {
+                  const isChecked = selectedStages.includes(st.id)
+                  const stageCount = leads.filter((l) => {
+                    if (l.stage === 'trash') return false
+                    if (getEffectiveStage(l) !== st.id) return false
+                    if (!effectiveIsAdmin && l.assigned_agent_email !== currentUserEmail) return false
+                    if (effectiveIsAdmin && agentFilter !== 'all' && l.assigned_agent_email !== agentFilter) return false
+                    return true
+                  }).length
+
+                  return (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => toggleStageFilter(st.id)}
+                      className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-xs transition-colors cursor-pointer ${
+                        isChecked
+                          ? 'bg-[#C9A66B]/15 text-white font-semibold'
+                          : 'text-slate-200 hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] shrink-0 ${
+                            isChecked
+                              ? 'bg-[#C9A66B] border-[#C9A66B] text-slate-950 font-bold'
+                              : 'border-slate-600 bg-slate-950'
+                          }`}
+                        >
+                          {isChecked ? '✓' : ''}
+                        </span>
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${st.badge}`} />
+                        <span className="truncate">{st.name}</span>
+                      </div>
+                      <span className="text-[11px] font-mono font-bold text-slate-400 shrink-0">
+                        {stageCount}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
             )}
           </div>
 
-          {/* 5. Time Filter Dropdown (All Time / 24h / 7d / 30d) */}
-          <div className="relative" ref={timeMenuRef}>
+          {/* 5. Time Filter Dropdown (Anchored right-0 on mobile / left-0 on desktop right below Time button) */}
+          <div className="relative flex-1 sm:flex-initial" ref={timeMenuRef}>
             <button
               type="button"
               onClick={() => {
@@ -1735,76 +1749,60 @@ export default function CRMPipelineBoard({
                 setViewMenuOpen(false)
                 setStageMenuOpen(false)
               }}
-              className={`inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+              className={`w-full sm:w-auto inline-flex items-center justify-between sm:justify-start gap-2 h-10 px-3.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
                 timeFilter !== 'all' || timeMenuOpen
                   ? 'bg-[#C9A66B]/15 border-[#C9A66B]/60 text-[#E5C687]'
                   : 'bg-[#0F1422] border-white/10 text-slate-200 hover:border-white/20'
               }`}
             >
-              <Clock className="w-3.5 h-3.5 text-[#C9A66B]" />
-              <span>{timeFilter === 'all' ? 'Time' : timeFilter}</span>
-              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${timeMenuOpen ? 'rotate-180' : ''}`} />
+              <span className="inline-flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-[#C9A66B]" />
+                <span>{timeFilter === 'all' ? 'Time' : timeFilter}</span>
+              </span>
+              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform shrink-0 ${timeMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {timeMenuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] sm:hidden"
-                  onClick={() => setTimeMenuOpen(false)}
-                />
-                <div className="fixed inset-x-3 bottom-4 sm:absolute sm:inset-auto sm:right-0 sm:left-auto sm:top-full sm:mt-2 sm:w-48 bg-[#0E131F] border border-white/15 rounded-2xl shadow-2xl z-50 overflow-hidden p-2 space-y-1">
-                  <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-white/[0.07] sm:hidden">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#C9A66B]">
-                      Time Filter
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setTimeMenuOpen(false)}
-                      className="p-1 text-slate-400 hover:text-white"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                  {(
-                    [
-                      { id: 'all', label: 'All Time' },
-                      { id: '24h', label: 'Last 24 Hours' },
-                      { id: '7d', label: 'Last 7 Days' },
-                      { id: '30d', label: 'Last 30 Days' },
-                    ] as const
-                  ).map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => {
-                        setTimeFilter(opt.id)
-                        setTimeMenuOpen(false)
-                      }}
-                      className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
-                        timeFilter === opt.id
-                          ? 'bg-[#C9A66B]/15 text-[#E5C687] border border-[#C9A66B]/35'
-                          : 'text-slate-300 hover:bg-white/[0.05]'
-                      }`}
-                    >
-                      <span>{opt.label}</span>
-                      {timeFilter === opt.id && <span className="text-[#C9A66B] font-bold">✓</span>}
-                    </button>
-                  ))}
-                </div>
-              </>
+              <div className="absolute right-0 sm:left-0 sm:right-auto top-full mt-1.5 w-48 bg-[#0E131F] border border-[#C9A66B]/40 rounded-xl shadow-2xl z-50 overflow-hidden p-1.5 space-y-1">
+                {(
+                  [
+                    { id: 'all', label: 'All Time' },
+                    { id: '24h', label: 'Last 24 Hours' },
+                    { id: '7d', label: 'Last 7 Days' },
+                    { id: '30d', label: 'Last 30 Days' },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => {
+                      setTimeFilter(opt.id)
+                      setTimeMenuOpen(false)
+                    }}
+                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                      timeFilter === opt.id
+                        ? 'bg-[#C9A66B]/15 text-[#E5C687]'
+                        : 'text-slate-200 hover:bg-white/[0.06]'
+                    }`}
+                  >
+                    <span>{opt.label}</span>
+                    {timeFilter === opt.id && <span className="text-[#C9A66B] font-bold">✓</span>}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         </div>
 
-        {/* Admin-Only Compact Controls (Agent Filter + Recycle Bin) */}
+        {/* Admin-Only Mobile Controls */}
         {effectiveIsAdmin && (
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1.5 h-9 bg-[#0F1422] border border-white/10 rounded-xl px-2.5 text-xs">
+          <div className="flex sm:hidden items-center gap-2">
+            <div className="flex-1 flex items-center gap-1.5 h-9 bg-[#0F1422] border border-white/10 rounded-xl px-2.5 text-xs">
               <UserCheck className="w-3.5 h-3.5 text-[#C9A66B]" />
               <select
                 value={agentFilter}
                 onChange={(e) => setAgentFilter(e.target.value)}
-                className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
+                className="flex-1 bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
               >
                 <option value="all" className="bg-slate-900 text-white">All Agents</option>
                 {orgStaffMembers.map((agent) => (
@@ -1814,23 +1812,13 @@ export default function CRMPipelineBoard({
                 ))}
               </select>
             </div>
-
             <button
               type="button"
               onClick={() => setShowBinModal(true)}
-              className={`inline-flex items-center gap-1.5 h-9 px-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                trashLeads.length > 0
-                  ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30'
-                  : 'bg-[#0F1422] hover:bg-slate-800 text-slate-400 border-white/10 hover:text-white'
-              }`}
-              title="Recycle Bin (Admin Only)"
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-semibold border bg-[#0F1422] text-slate-300 border-white/10"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              {trashLeads.length > 0 && (
-                <span className="px-1.5 py-0.5 bg-rose-500 text-white rounded-full text-[10px] font-bold">
-                  {trashLeads.length}
-                </span>
-              )}
+              {trashLeads.length > 0 && <span>{trashLeads.length}</span>}
             </button>
           </div>
         )}
@@ -1997,19 +1985,19 @@ export default function CRMPipelineBoard({
                   if (leadId) handleStageChange(leadId, stage.id)
                 }}
               >
-                {/* Clean Column Header: Stage Title + Count Only */}
+                {/* Clean Column Header: Stage Title + Total Number Right Beside Title */}
                 <div
-                  className={`px-3.5 py-2.5 rounded-xl border ${stage.color} mb-3.5 flex items-center justify-between ${
+                  className={`px-3.5 py-2.5 rounded-xl border ${stage.color} mb-3.5 flex items-center gap-2 ${
                     stage.id === 'due_followup' && stageLeads.length > 0 ? 'animate-pulse' : ''
                   }`}
                 >
-                  <span className="font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 truncate">
-                    {stage.id === 'due_followup' && stageLeads.length > 0 && (
-                      <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0" />
-                    )}
-                    <span className="truncate">{stage.name}</span>
+                  {stage.id === 'due_followup' && stageLeads.length > 0 && (
+                    <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0" />
+                  )}
+                  <span className="font-bold text-xs uppercase tracking-wider truncate">
+                    {stage.name}
                   </span>
-                  <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-slate-950/85 tabular-nums shrink-0">
+                  <span className="text-xs font-black px-2 py-0.5 rounded-full bg-slate-950/90 text-white border border-white/15 tabular-nums shrink-0">
                     {stageLeads.length}
                   </span>
                 </div>
