@@ -341,27 +341,27 @@ export default function MarketingHub({
     .map((c) => c.channel)
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 space-y-4">
-      {/* CLEAN TOP BAR: Action ▾ | Channel ▾ (No redundant header badges — Access lives under Profile Avatar) */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/[0.08]">
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          {/* 1. ACTION DROPDOWN */}
-          <div className="relative flex-1 sm:flex-initial" ref={dropdownRef}>
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-4 space-y-4 min-w-0 overflow-x-hidden">
+      {/* CLEAN TOP BAR: Active Action ▾ | Channel ▾ (No redundant header badges — Access lives under Profile Avatar) */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/[0.08] min-w-0">
+        <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto min-w-0">
+          {/* 1. ACTION DROPDOWN (Displays currently selected action!) */}
+          <div className="relative min-w-0 sm:flex-initial" ref={dropdownRef}>
             <button
               type="button"
               onClick={() => {
                 setDropdownOpen((o) => !o)
                 setChannelDropdownOpen(false)
               }}
-              className={`w-full sm:w-auto inline-flex items-center justify-between sm:justify-start gap-2 h-10 px-3.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+              className={`w-full sm:w-auto inline-flex items-center justify-between sm:justify-start gap-1.5 sm:gap-2 h-10 px-3 sm:px-3.5 rounded-xl border text-xs font-bold transition-all cursor-pointer min-w-0 ${
                 dropdownOpen
                   ? 'bg-[#C9A66B]/15 border-[#C9A66B]/60 text-[#E5C687]'
                   : 'bg-[#0F1422] border-white/10 text-white hover:border-[#C9A66B]/50'
               }`}
             >
-              <span className="inline-flex items-center gap-2 truncate">
+              <span className="inline-flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
                 <CurrentIcon className="w-3.5 h-3.5 text-[#C9A66B] shrink-0" />
-                <span className="truncate">Action</span>
+                <span className="truncate">{currentOption.label}</span>
               </span>
               <ChevronDown
                 className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${
@@ -404,20 +404,20 @@ export default function MarketingHub({
           </div>
 
           {/* 2. CHANNEL DROPDOWN (Right next to Action!) */}
-          <div className="relative flex-1 sm:flex-initial" ref={channelDropdownRef}>
+          <div className="relative min-w-0 sm:flex-initial" ref={channelDropdownRef}>
             <button
               type="button"
               onClick={() => {
                 setChannelDropdownOpen((o) => !o)
                 setDropdownOpen(false)
               }}
-              className={`w-full sm:w-auto inline-flex items-center justify-between sm:justify-start gap-2 h-10 px-3.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+              className={`w-full sm:w-auto inline-flex items-center justify-between sm:justify-start gap-1.5 sm:gap-2 h-10 px-3 sm:px-3.5 rounded-xl border text-xs font-bold transition-all cursor-pointer min-w-0 ${
                 channelDropdownOpen || selectedChannels.length > 0
                   ? 'bg-[#C9A66B]/15 border-[#C9A66B]/60 text-[#E5C687]'
                   : 'bg-[#0F1422] border-white/10 text-white hover:border-[#C9A66B]/50'
               }`}
             >
-              <span className="inline-flex items-center gap-2 truncate">
+              <span className="inline-flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
                 <Share2 className="w-3.5 h-3.5 text-[#C9A66B] shrink-0" />
                 <span className="truncate">
                   Channel{selectedChannels.length > 0 ? ` (${selectedChannels.length})` : ''}
@@ -590,35 +590,37 @@ export default function MarketingHub({
       )}
 
       {activeAction === 'roles' && permissions.canManageRoles && (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6 w-full min-w-0">
           {/* Role Tiers Guide Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 min-w-0">
             {(Object.keys(MARKETING_ROLE_TIERS) as MarketingRoleTier[]).map((tierKey) => {
               const info = MARKETING_ROLE_TIERS[tierKey]
               return (
                 <div
                   key={tierKey}
-                  className="rounded-2xl bg-slate-900/80 border border-slate-800 p-4 space-y-2"
+                  className="rounded-2xl bg-slate-900/80 border border-slate-800 p-4 space-y-2 min-w-0"
                 >
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${info.badgeClass}`}
                   >
                     {info.label}
                   </span>
-                  <p className="text-xs text-slate-400 leading-relaxed">{info.description}</p>
+                  <p className="text-xs text-slate-400 leading-relaxed break-words">
+                    {info.description}
+                  </p>
                 </div>
               )
             })}
           </div>
 
           {/* Assign / Update Team Role Form */}
-          <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-5 sm:p-6 space-y-4 shadow-xl">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <UserPlus className="w-4 h-4 text-[#C9A66B]" /> Assign Marketing Role Tier
+          <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-4 sm:p-6 space-y-4 shadow-xl min-w-0">
+            <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+              <UserPlus className="w-4 h-4 text-[#C9A66B] shrink-0" /> Assign Marketing Role Tier
             </h3>
             <form
               onSubmit={handleSaveRole}
-              className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs"
+              className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs min-w-0"
             >
               <input
                 type="email"
@@ -626,19 +628,19 @@ export default function MarketingHub({
                 value={roleEmail}
                 onChange={(e) => setRoleEmail(e.target.value)}
                 placeholder="team.member@cillah.dev"
-                className="rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]"
+                className="w-full min-w-0 rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]"
               />
               <input
                 type="text"
                 value={roleFullName}
                 onChange={(e) => setRoleFullName(e.target.value)}
                 placeholder="Full Name (optional)"
-                className="rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]"
+                className="w-full min-w-0 rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]"
               />
               <select
                 value={roleTier}
                 onChange={(e) => setRoleTier(e.target.value as MarketingRoleTier)}
-                className="rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
+                className="w-full min-w-0 rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
               >
                 {(Object.keys(MARKETING_ROLE_TIERS) as MarketingRoleTier[]).map((k) => (
                   <option key={k} value={k} className="bg-slate-900">
@@ -649,7 +651,7 @@ export default function MarketingHub({
               <button
                 type="submit"
                 disabled={savingRole}
-                className="rounded-xl bg-[#C9A66B] hover:bg-[#d8b87d] text-slate-950 font-bold px-4 py-2.5 transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5"
+                className="w-full rounded-xl bg-[#C9A66B] hover:bg-[#d8b87d] text-slate-950 font-bold px-4 py-2.5 transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5"
               >
                 {savingRole ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -661,8 +663,8 @@ export default function MarketingHub({
             </form>
           </div>
 
-          {/* Configured Role Assignments Table */}
-          <div className="rounded-2xl bg-slate-900/80 border border-slate-800 overflow-hidden shadow-xl">
+          {/* Configured Role Assignments (Mobile Cards + Desktop Table — Zero Horizontal Cutoff!) */}
+          <div className="rounded-2xl bg-slate-900/80 border border-slate-800 overflow-hidden shadow-xl min-w-0">
             <div className="p-4 border-b border-slate-800 text-sm font-bold text-white">
               Active Marketing Team Permissions ({roleAssignments.length})
             </div>
@@ -672,62 +674,109 @@ export default function MarketingHub({
                 <Loader2 className="w-4 h-4 animate-spin text-[#C9A66B]" /> Loading role assignments...
               </div>
             ) : roleAssignments.length === 0 ? (
-              <div className="py-10 text-center text-xs text-slate-500">
-                No role records yet. Run the SQL schema or add a team member above.
+              <div className="py-10 text-center text-xs text-slate-500 px-4">
+                No role records yet. Add a team member above.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase tracking-wider">
-                    <tr>
-                      <th className="py-3 px-4">Team Member</th>
-                      <th className="py-3 px-4">Email</th>
-                      <th className="py-3 px-4">Current Role Tier</th>
-                      <th className="py-3 px-4 text-right">Change Tier</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60">
-                    {roleAssignments.map((item) => {
-                      const tierInfo = getRolePermissions(item.marketing_role)
-                      return (
-                        <tr key={item.id} className="hover:bg-slate-800/30">
-                          <td className="py-3.5 px-4 font-semibold text-white">
-                            {item.full_name || item.user_email.split('@')[0]}
-                          </td>
-                          <td className="py-3.5 px-4 text-slate-400">{item.user_email}</td>
-                          <td className="py-3.5 px-4">
-                            <span
-                              className={`inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${tierInfo.badgeClass}`}
-                            >
-                              {tierInfo.label}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-right">
-                            <select
-                              value={item.marketing_role}
-                              onChange={(e) =>
-                                handleQuickRoleUpdate(
-                                  item,
-                                  e.target.value as MarketingRoleTier
-                                )
-                              }
-                              className="rounded-lg bg-slate-950 border border-slate-700 px-2.5 py-1.5 text-xs text-white cursor-pointer"
-                            >
-                              {(Object.keys(MARKETING_ROLE_TIERS) as MarketingRoleTier[]).map(
-                                (k) => (
-                                  <option key={k} value={k} className="bg-slate-900">
-                                    {MARKETING_ROLE_TIERS[k].label}
-                                  </option>
-                                )
-                              )}
-                            </select>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                {/* Mobile Stacked Cards (100% fits phone width, no cut-off) */}
+                <div className="sm:hidden divide-y divide-slate-800/70">
+                  {roleAssignments.map((item) => {
+                    const tierInfo = getRolePermissions(item.marketing_role)
+                    return (
+                      <div key={item.id} className="p-4 space-y-2.5 min-w-0">
+                        <div className="flex items-start justify-between gap-2 min-w-0">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-white truncate">
+                              {item.full_name || item.user_email.split('@')[0]}
+                            </p>
+                            <p className="text-[11px] text-slate-400 break-all mt-0.5">
+                              {item.user_email}
+                            </p>
+                          </div>
+                          <span
+                            className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${tierInfo.badgeClass}`}
+                          >
+                            {tierInfo.label}
+                          </span>
+                        </div>
+                        <select
+                          value={item.marketing_role}
+                          onChange={(e) =>
+                            handleQuickRoleUpdate(
+                              item,
+                              e.target.value as MarketingRoleTier
+                            )
+                          }
+                          className="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white cursor-pointer"
+                        >
+                          {(Object.keys(MARKETING_ROLE_TIERS) as MarketingRoleTier[]).map(
+                            (k) => (
+                              <option key={k} value={k} className="bg-slate-900">
+                                {MARKETING_ROLE_TIERS[k].label}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Desktop Table */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase tracking-wider">
+                      <tr>
+                        <th className="py-3 px-4">Team Member</th>
+                        <th className="py-3 px-4">Email</th>
+                        <th className="py-3 px-4">Current Role Tier</th>
+                        <th className="py-3 px-4 text-right">Change Tier</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {roleAssignments.map((item) => {
+                        const tierInfo = getRolePermissions(item.marketing_role)
+                        return (
+                          <tr key={item.id} className="hover:bg-slate-800/30">
+                            <td className="py-3.5 px-4 font-semibold text-white">
+                              {item.full_name || item.user_email.split('@')[0]}
+                            </td>
+                            <td className="py-3.5 px-4 text-slate-400">{item.user_email}</td>
+                            <td className="py-3.5 px-4">
+                              <span
+                                className={`inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${tierInfo.badgeClass}`}
+                              >
+                                {tierInfo.label}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <select
+                                value={item.marketing_role}
+                                onChange={(e) =>
+                                  handleQuickRoleUpdate(
+                                    item,
+                                    e.target.value as MarketingRoleTier
+                                  )
+                                }
+                                className="rounded-lg bg-slate-950 border border-slate-700 px-2.5 py-1.5 text-xs text-white cursor-pointer"
+                              >
+                                {(Object.keys(MARKETING_ROLE_TIERS) as MarketingRoleTier[]).map(
+                                  (k) => (
+                                    <option key={k} value={k} className="bg-slate-900">
+                                      {MARKETING_ROLE_TIERS[k].label}
+                                    </option>
+                                  )
+                                )}
+                              </select>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 import {
   Plus,
@@ -8,6 +8,9 @@ import {
   Copy,
   CheckCircle2,
   Clock,
+  Calendar,
+  ChevronDown,
+  Check,
   FileText,
   Upload,
   ExternalLink,
@@ -100,6 +103,30 @@ interface OrgLeadOption {
 }
 
 type FinanceTab = "inflow" | "invoices" | "subscriptions" | "salary" | "expenses"
+type FinanceTimeFilter = "today" | "7d" | "30d" | "all" | "custom"
+
+const FINANCE_TIME_OPTIONS: Array<{ id: FinanceTimeFilter; label: string; shortLabel: string }> = [
+  { id: "today", label: "Today", shortLabel: "Today" },
+  { id: "7d", label: "7 Days", shortLabel: "7 Days" },
+  { id: "30d", label: "30 Days", shortLabel: "30 Days" },
+  { id: "all", label: "All Time", shortLabel: "All Time" },
+  { id: "custom", label: "Custom Dates", shortLabel: "Custom" },
+]
+
+function toLocalYmd(input: string | Date): string {
+  const d = typeof input === "string" ? new Date(input) : input
+  if (Number.isNaN(d.getTime())) return ""
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
+function normalizeDateYmd(raw?: string | null): string {
+  if (!raw) return ""
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) return raw.trim()
+  return toLocalYmd(raw)
+}
 
 interface FinanceDepartmentHubProps {
   orgSlug: string
@@ -119,9 +146,23 @@ export default function FinanceDepartmentHub({
   const supabase = createClient()
 
   const [activeTab, setActiveTab] = useState<FinanceTab>("inflow")
-  const [inflowScope, setInflowScope] = useState<"today" | "all">("today")
+  const [timeFilter, setTimeFilter] = useState<FinanceTimeFilter>("all")
+  const [customStartDate, setCustomStartDate] = useState("")
+  const [customEndDate, setCustomEndDate] = useState("")
+  const [timeMenuOpen, setTimeMenuOpen] = useState(false)
+  const timeMenuRef = useRef<HTMLDivElement>(null)
   const [invoiceFilter, setInvoiceFilter] = useState<"all" | "unpaid" | "payment_made">("all")
   const [search, setSearch] = useState("")
+
+  useEffect(() => {
+    const onOutside = (e: MouseEvent) => {
+      if (timeMenuRef.current && !timeMenuRef.current.contains(e.target as Node)) {
+        setTimeMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", onOutside)
+    return () => document.removeEventListener("mousedown", onOutside)
+  }, [])
 
   const [loading, setLoading] = useState(true)
   const [outflowsSchemaPending, setOutflowsSchemaPending] = useState(false)
@@ -447,19 +488,103 @@ export default function FinanceDepartmentHub({
     }
   }
 
+  const matchesTimeFilter = useCallback(
+    (rawDate?: string | null) => {
+      if (timeFilter === "all") return true
+      const itemYmd = normalizeDateYmd(rawDate)
+      if (!itemYmd) return false
+
+      const now = new Date()
+      const todayYmd = toLocalYmd(now)
+
+      if (timeFilter === "today") {
+        return itemYmd === todayYmd
+      }
+      if (timeFilter === "7d") {
+        const start = new Date(now)
+        start.setDate(start.getDate() - 6)
+        return itemYmd >= toLocalYmd(start) && itemYmd <= todayYmd
+      }
+      if (timeFilter === "30d") {
+        const start = new Date(now)
+        start.setDate(start.getDate() - 29)
+        return itemYmd >= toLocalYmd(start) && itemYmd <= todayYmd
+      }
+      if (timeFilter === "custom") {
+        if (customStartDate && itemYmd < customStartDate) return false
+        if (customEndDate && itemYmd > customEndDate) return false
+        return true
+      }
+      return true
+    },
+    [timeFilter, customStartDate, customEndDate]
+  )
+
+  const activeTimeLabel = useMemo(() => {
+    if (timeFilter === "custom") {
+      if (customStartDate && customEndDate) return `${customStartDate} → ${customEndDate}`
+      if (customStartDate) return `From ${customStartDate}`
+      if (customEndDate) return `Until ${customEndDate}`
+      return "Custom Dates"
+    }
+    return FINANCE_TIME_OPTIONS.find((o) => o.id === timeFilter)?.label || "All Time"
+  }, [timeFilter, customStartDate, customEndDate])
+
+  const timeFilteredInflow = useMemo(
+    () => inflowEntries.filter((e) => matchesTimeFilter(e.paid_at)),
+    [inflowEntries, matchesTimeFilter]
+  )
+
+  const timeFilteredOutflows = useMemo(
+    () => outflows.filter((o) => matchesTimeFilter(o.occurred_on)),
+    [outflows, matchesTimeFilter]
+  )
+
+  const timeFilteredInvoices = useMemo(
+    () => invoices.filter((inv) => matchesTimeFilter(inv.paid_at || inv.created_at)),
+    [invoices, matchesTimeFilter]
+  )
+
+  const periodStats = useMemo(() => {
+    const inflowKes = timeFilteredInflow.reduce((s, e) => s + Number(e.amount_kes || 0), 0)
+    const activeOut = timeFilteredOutflows.filter(
+      (o) => o.status === "paid" || o.status === "active"
+    )
+    const outflowKes = activeOut.reduce((s, o) => s + Number(o.amount_kes || 0), 0)
+    const subscriptionsKes = activeOut
+      .filter((o) => o.entry_type === "subscription")
+      .reduce((s, o) => s + Number(o.amount_kes || 0), 0)
+    const salaryKes = activeOut
+      .filter((o) => o.entry_type === "salary")
+      .reduce((s, o) => s + Number(o.amount_kes || 0), 0)
+    const expensesKes = activeOut
+      .filter((o) => o.entry_type === "expense")
+      .reduce((s, o) => s + Number(o.amount_kes || 0), 0)
+    const unpaidCount = timeFilteredInvoices.filter((i) => i.status !== "payment_made").length
+
+    return {
+      inflowKes,
+      outflowKes,
+      netKes: inflowKes - outflowKes,
+      subscriptionsKes,
+      salaryKes,
+      expensesKes,
+      unpaidCount,
+    }
+  }, [timeFilteredInflow, timeFilteredOutflows, timeFilteredInvoices])
+
   const filteredInflow = useMemo(() => {
-    return inflowEntries.filter((e) => {
-      if (inflowScope === "today" && !e.is_today) return false
+    return timeFilteredInflow.filter((e) => {
       if (search.trim()) {
         const q = search.toLowerCase()
         return `${e.client_name} ${e.title} ${e.reference}`.toLowerCase().includes(q)
       }
       return true
     })
-  }, [inflowEntries, inflowScope, search])
+  }, [timeFilteredInflow, search])
 
   const filteredInvoices = useMemo(() => {
-    return invoices.filter((inv) => {
+    return timeFilteredInvoices.filter((inv) => {
       if (invoiceFilter === "payment_made" && inv.status !== "payment_made") return false
       if (invoiceFilter === "unpaid" && inv.status === "payment_made") return false
       if (search.trim()) {
@@ -468,19 +593,19 @@ export default function FinanceDepartmentHub({
       }
       return true
     })
-  }, [invoices, invoiceFilter, search])
+  }, [timeFilteredInvoices, invoiceFilter, search])
 
   const subscriptions = useMemo(
-    () => outflows.filter((o) => o.entry_type === "subscription"),
-    [outflows]
+    () => timeFilteredOutflows.filter((o) => o.entry_type === "subscription"),
+    [timeFilteredOutflows]
   )
   const salaries = useMemo(
-    () => outflows.filter((o) => o.entry_type === "salary"),
-    [outflows]
+    () => timeFilteredOutflows.filter((o) => o.entry_type === "salary"),
+    [timeFilteredOutflows]
   )
   const expenses = useMemo(
-    () => outflows.filter((o) => o.entry_type === "expense"),
-    [outflows]
+    () => timeFilteredOutflows.filter((o) => o.entry_type === "expense"),
+    [timeFilteredOutflows]
   )
 
   const TABS: Array<{ id: FinanceTab; label: string; icon: any }> = [
@@ -492,54 +617,141 @@ export default function FinanceDepartmentHub({
   ]
 
   return (
-    <div className="min-h-screen bg-[#090B12] text-slate-100 px-3 pt-3 pb-10 sm:p-5 md:p-6 space-y-4 font-sans">
-      {/* 1. COMPACT CASHFLOW STRIP (INFLOW | OUTFLOW | NET) — ZERO CLUTTER */}
+    <div className="min-h-screen bg-[#090B12] text-slate-100 px-3 pt-3 pb-10 sm:p-5 md:p-6 space-y-4 font-sans min-w-0 overflow-x-hidden">
+      {/* 0. GLOBAL TIME FILTER BAR (Drives Inflow, Outflow, Net & All Activities) */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="relative" ref={timeMenuRef}>
+          <button
+            type="button"
+            onClick={() => setTimeMenuOpen((o) => !o)}
+            className={`inline-flex items-center gap-2 h-9 px-3.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+              timeMenuOpen || timeFilter !== "all"
+                ? "bg-[#C9A66B]/15 border-[#C9A66B]/60 text-[#E5C687]"
+                : "bg-[#0F1422] border-white/10 text-white hover:border-[#C9A66B]/50"
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5 text-[#C9A66B] shrink-0" />
+            <span className="truncate max-w-[190px]">{activeTimeLabel}</span>
+            <ChevronDown
+              className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${
+                timeMenuOpen ? "rotate-180 text-[#C9A66B]" : ""
+              }`}
+            />
+          </button>
+
+          {timeMenuOpen && (
+            <div className="absolute left-0 top-full mt-1.5 w-52 max-w-[calc(100vw-24px)] z-50 rounded-xl bg-[#0E131F] border border-[#C9A66B]/40 shadow-2xl overflow-hidden divide-y divide-white/[0.06]">
+              {FINANCE_TIME_OPTIONS.map((opt) => {
+                const selected = timeFilter === opt.id
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => {
+                      setTimeFilter(opt.id)
+                      setTimeMenuOpen(false)
+                    }}
+                    className={`w-full flex items-center justify-between gap-2 px-3.5 py-2.5 text-xs font-bold text-left transition-colors cursor-pointer ${
+                      selected ? "bg-[#C9A66B]/15 text-[#E5C687]" : "text-slate-200 hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    <span>{opt.label}</span>
+                    {selected && <Check className="w-3.5 h-3.5 text-[#C9A66B] shrink-0" />}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        <span className="text-[11px] font-semibold text-slate-400 truncate">
+          {isDemoOrg ? `${orgName} Demo` : orgName}
+        </span>
+      </div>
+
+      {/* CUSTOM DATE RANGE PICKER (Shown when Custom Dates is selected) */}
+      {timeFilter === "custom" && (
+        <div className="p-3 rounded-2xl bg-[#0F1422] border border-[#C9A66B]/30 flex flex-wrap items-center gap-2 text-xs">
+          <div className="flex items-center gap-2 flex-1 min-w-[130px]">
+            <span className="text-[10px] font-bold uppercase text-slate-400">From</span>
+            <input
+              type="date"
+              value={customStartDate}
+              onChange={(e) => setCustomStartDate(e.target.value)}
+              className="flex-1 bg-slate-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white [color-scheme:dark] focus:outline-none focus:border-[#C9A66B]"
+            />
+          </div>
+          <div className="flex items-center gap-2 flex-1 min-w-[130px]">
+            <span className="text-[10px] font-bold uppercase text-slate-400">To</span>
+            <input
+              type="date"
+              value={customEndDate}
+              onChange={(e) => setCustomEndDate(e.target.value)}
+              className="flex-1 bg-slate-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white [color-scheme:dark] focus:outline-none focus:border-[#C9A66B]"
+            />
+          </div>
+          {(customStartDate || customEndDate) && (
+            <button
+              type="button"
+              onClick={() => {
+                setCustomStartDate("")
+                setCustomEndDate("")
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-white/[0.06] text-slate-300 hover:text-white font-semibold cursor-pointer"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* 1. COMPACT CASHFLOW STRIP (INFLOW | OUTFLOW | NET) — DRIVEN BY TIME FILTER */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <button
           type="button"
           onClick={() => setActiveTab("inflow")}
-          className="text-left p-3 sm:p-4 rounded-2xl bg-[#0F1422] border border-emerald-500/25 hover:border-emerald-400/50 transition-all cursor-pointer"
+          className="text-left p-3 sm:p-4 rounded-2xl bg-[#0F1422] border border-emerald-500/25 hover:border-emerald-400/50 transition-all cursor-pointer min-w-0"
         >
           <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-400 block">
             Inflow
           </span>
           <span className="text-sm sm:text-xl font-black text-white font-mono block mt-1 truncate">
-            {formatKES(kpis.totalCollectedKes)}
+            {formatKES(periodStats.inflowKes)}
           </span>
           <span className="text-[10px] text-emerald-300/80 block mt-0.5 truncate">
-            Today: {formatKES(kpis.todayInflowKes)}
+            {activeTimeLabel}
           </span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab("expenses")}
-          className="text-left p-3 sm:p-4 rounded-2xl bg-[#0F1422] border border-rose-500/20 hover:border-rose-400/50 transition-all cursor-pointer"
+          className="text-left p-3 sm:p-4 rounded-2xl bg-[#0F1422] border border-rose-500/20 hover:border-rose-400/50 transition-all cursor-pointer min-w-0"
         >
           <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-rose-400 block">
             Outflow
           </span>
           <span className="text-sm sm:text-xl font-black text-white font-mono block mt-1 truncate">
-            {formatKES(kpis.totalOutflowKes)}
+            {formatKES(periodStats.outflowKes)}
           </span>
           <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
             Subs · Salary · Exp
           </span>
         </button>
 
-        <div className="p-3 sm:p-4 rounded-2xl bg-[#0F1422] border border-[#C9A66B]/30">
+        <div className="p-3 sm:p-4 rounded-2xl bg-[#0F1422] border border-[#C9A66B]/30 min-w-0">
           <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#C9A66B] block">
             Net
           </span>
           <span
             className={`text-sm sm:text-xl font-black font-mono block mt-1 truncate ${
-              kpis.netCashflowKes >= 0 ? "text-[#E5C687]" : "text-rose-400"
+              periodStats.netKes >= 0 ? "text-[#E5C687]" : "text-rose-400"
             }`}
           >
-            {formatKES(kpis.netCashflowKes)}
+            {formatKES(periodStats.netKes)}
           </span>
           <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
-            {isDemoOrg ? `${orgName} Demo` : orgName}
+            Inflow − Outflow
           </span>
         </div>
       </div>
@@ -604,29 +816,8 @@ export default function FinanceDepartmentHub({
           {activeTab === "inflow" && (
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <div className="inline-flex bg-[#0F1422] border border-white/10 rounded-xl p-1 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setInflowScope("today")}
-                    className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
-                      inflowScope === "today"
-                        ? "bg-emerald-500/20 text-emerald-300"
-                        : "text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    Today ({formatKES(kpis.todayInflowKes)})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setInflowScope("all")}
-                    className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
-                      inflowScope === "all"
-                        ? "bg-emerald-500/20 text-emerald-300"
-                        : "text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    All ({inflowEntries.length})
-                  </button>
+                <div className="text-xs font-bold text-emerald-300 truncate">
+                  {filteredInflow.length} {filteredInflow.length === 1 ? "payment" : "payments"} &bull; {activeTimeLabel}
                 </div>
 
                 <div className="relative flex-1 max-w-xs">
@@ -644,12 +835,12 @@ export default function FinanceDepartmentHub({
               {filteredInflow.length === 0 ? (
                 <div className="p-10 rounded-2xl bg-[#0F1422] border border-white/[0.07] text-center space-y-2">
                   <p className="text-sm font-bold text-slate-200">
-                    {inflowScope === "today" ? "KES 0 received today" : "No inflow recorded yet"}
+                    KES 0 inflow ({activeTimeLabel})
                   </p>
-                  {inflowScope === "today" && inflowEntries.length > 0 && (
+                  {timeFilter !== "all" && inflowEntries.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => setInflowScope("all")}
+                      onClick={() => setTimeFilter("all")}
                       className="text-xs text-[#C9A66B] font-semibold hover:underline cursor-pointer"
                     >
                       View all {inflowEntries.length} payments →
@@ -700,8 +891,8 @@ export default function FinanceDepartmentHub({
                 <div className="inline-flex bg-[#0F1422] border border-white/10 rounded-xl p-1 text-xs">
                   {(
                     [
-                      { id: "all", label: `All (${invoices.length})` },
-                      { id: "unpaid", label: `Unpaid (${kpis.unpaidCount})` },
+                      { id: "all", label: `All (${timeFilteredInvoices.length})` },
+                      { id: "unpaid", label: `Unpaid (${periodStats.unpaidCount})` },
                       { id: "payment_made", label: "Invoice Paid" },
                     ] as const
                   ).map((f) => (
@@ -844,7 +1035,7 @@ export default function FinanceDepartmentHub({
                     Monthly Total
                   </span>
                   <p className="text-lg font-black font-mono text-white">
-                    {formatKES(kpis.subscriptionsMonthlyKes)}
+                    {formatKES(periodStats.subscriptionsKes)}
                     <span className="text-xs font-normal text-slate-400"> / mo</span>
                   </p>
                 </div>
@@ -915,7 +1106,7 @@ export default function FinanceDepartmentHub({
                     Paid Payroll
                   </span>
                   <p className="text-lg font-black font-mono text-white">
-                    {formatKES(kpis.salaryTotalKes)}
+                    {formatKES(periodStats.salaryKes)}
                   </p>
                 </div>
                 <button
@@ -987,7 +1178,7 @@ export default function FinanceDepartmentHub({
                     Total Expenses
                   </span>
                   <p className="text-lg font-black font-mono text-white">
-                    {formatKES(kpis.expensesTotalKes)}
+                    {formatKES(periodStats.expensesKes)}
                   </p>
                 </div>
                 <button

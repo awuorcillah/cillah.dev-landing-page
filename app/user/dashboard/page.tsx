@@ -484,7 +484,7 @@ export default function UserDashboardPage() {
       </header>
 
       {/* BODY: TEAM HOME ROLE SELECTOR OR ACTIVE PIPELINE */}
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col min-w-0 w-full overflow-x-hidden">
         {activeView === 'home' && (
           <div className="flex-1 flex items-center justify-center px-4 py-10 sm:py-16 relative overflow-hidden">
             {/* Subtle warm champagne glow */}
