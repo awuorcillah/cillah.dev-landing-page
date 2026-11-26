@@ -51,6 +51,7 @@ export default function MarketingHub({
   const [posts, setPosts] = useState<MarketingPostRecord[]>([])
   const [loadingPosts, setLoadingPosts] = useState(true)
   const [schemaPending, setSchemaPending] = useState(false)
+  const [selectedMemberFilter, setSelectedMemberFilter] = useState<string>('all')
 
   const [marketingRole, setMarketingRole] = useState<MarketingRoleTier>(
     isAdminView ? 'marketing_admin' : 'publisher'
@@ -281,6 +282,34 @@ export default function MarketingHub({
     visibleActions.find((a) => a.id === activeAction) || visibleActions[0]
   const CurrentIcon = currentOption.icon
 
+  // Unique team members for Agent/User filter dropdown in Marketing
+  const memberOptions = Array.from(
+    new Map(
+      [
+        ...roleAssignments.map((r) => [
+          r.user_email.toLowerCase(),
+          { email: r.user_email.toLowerCase(), label: r.full_name || r.user_email.split('@')[0] },
+        ] as const),
+        ...posts
+          .filter((p) => p.author_email)
+          .map((p) => [
+            p.author_email.toLowerCase(),
+            {
+              email: p.author_email.toLowerCase(),
+              label: p.author_name || p.author_email.split('@')[0],
+            },
+          ] as const),
+      ]
+    ).values()
+  )
+
+  const filteredPosts =
+    selectedMemberFilter === 'all'
+      ? posts
+      : posts.filter(
+          (p) => (p.author_email || '').toLowerCase() === selectedMemberFilter.toLowerCase()
+        )
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 space-y-5">
       {/* MINIMALIST FUNCTIONAL ACTION BAR */}
@@ -296,8 +325,30 @@ export default function MarketingHub({
           </span>
         </div>
 
-        {/* SINGLE FUNCTIONAL ACTION DROPDOWN */}
-        <div className="w-full sm:w-72 relative" ref={dropdownRef}>
+        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+          {/* Team Member / Agent Filter Dropdown */}
+          {isAdminView && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs">
+              <span className="text-slate-400">Agent:</span>
+              <select
+                value={selectedMemberFilter}
+                onChange={(e) => setSelectedMemberFilter(e.target.value)}
+                className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
+              >
+                <option value="all" className="bg-slate-900 text-white">
+                  All Members ({posts.length})
+                </option>
+                {memberOptions.map((m) => (
+                  <option key={m.email} value={m.email} className="bg-slate-900 text-white">
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* SINGLE FUNCTIONAL ACTION DROPDOWN */}
+          <div className="w-full sm:w-64 relative" ref={dropdownRef}>
           <button
             type="button"
             onClick={() => setDropdownOpen((o) => !o)}
@@ -346,6 +397,7 @@ export default function MarketingHub({
             </div>
           )}
         </div>
+        </div>
       </div>
 
       {/* ONE-TIME SCHEMA INITIALIZATION NOTICE (ONLY IF SQL NOT YET RUN) */}
@@ -368,7 +420,7 @@ export default function MarketingHub({
         <MarketingPostComposer
           organizationSlug={organizationSlug}
           permissions={permissions}
-          posts={posts}
+          posts={filteredPosts}
           loadingPosts={loadingPosts}
           connectedChannels={connections
             .filter((c) => c.status === 'connected')

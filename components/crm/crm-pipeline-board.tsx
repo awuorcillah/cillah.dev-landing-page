@@ -374,18 +374,22 @@ export default function CRMPipelineBoard({
   }, [selectedLead])
 
   const handleSaveViewingDate = async () => {
-    if (!selectedLead || !viewingDateInput) return
+    if (!selectedLead || !viewingDateInput) {
+      toast.error('Please pick a date and time first')
+      return
+    }
     setSavingViewingDate(true)
     setActionSuccessMsg('')
 
     const isoViewing = new Date(viewingDateInput).toISOString()
+    const nowIso = new Date().toISOString()
     const updatedFields = {
       viewing_date: isoViewing,
       next_followup_at: isoViewing,
       followup_status: 'active',
-      followup_title: 'Booked Consultation Reminder',
-      stage: 'viewing',
-      updated_at: new Date().toISOString()
+      followup_title: selectedLead.followup_title || customTitle || 'Upcoming Follow-Up',
+      last_interaction_at: nowIso,
+      updated_at: nowIso
     }
 
     const { error } = await supabase
@@ -398,16 +402,35 @@ export default function CRMPipelineBoard({
       setSelectedLead(updatedLead)
       setLeads((prev) => prev.map((l) => (l.id === selectedLead.id ? updatedLead : l)))
 
-      await supabase.from('lead_notes').insert({
+      const noteText = `Updated upcoming follow-up to ${new Date(viewingDateInput).toLocaleString()}`
+      const { data: insertedNote } = await supabase
+        .from('lead_notes')
+        .insert({
+          lead_id: selectedLead.id,
+          author_email: currentUserEmail,
+          author_name: currentUserEmail.split('@')[0],
+          source: 'followup_updated',
+          note_text: noteText
+        })
+        .select('*')
+        .single()
+
+      if (insertedNote) {
+        setNotes((prev) => [insertedNote, ...prev])
+      }
+
+      logLeadActivity({
         lead_id: selectedLead.id,
-        author_email: currentUserEmail,
-        author_name: currentUserEmail.split('@')[0],
-        source: 'consultation_scheduled',
-        note_text: `Booked consultation scheduled for ${new Date(viewingDateInput).toLocaleString()}`
+        lead_name: selectedLead.full_name,
+        activity_type: 'followup_scheduled',
+        summary: noteText,
       })
 
-      setActionSuccessMsg(`Booked consultation scheduled for ${new Date(viewingDateInput).toLocaleString()}! Stage moved to Booked Consultations.`)
+      toast.success(`Follow-up updated to ${new Date(viewingDateInput).toLocaleString()}`)
+      setActionSuccessMsg(`Follow-up updated to ${new Date(viewingDateInput).toLocaleString()}`)
       setTimeout(() => setActionSuccessMsg(''), 4000)
+    } else {
+      toast.error('Failed to update follow-up date')
     }
     setSavingViewingDate(false)
   }
@@ -1268,9 +1291,13 @@ export default function CRMPipelineBoard({
     setAddingNote(false)
   }
 
-  // Update Follow-up Handler
+  // Schedule Follow-up Handler (Custom Calendar Date & Time + Reason)
   const handleSaveFollowup = async () => {
     if (!selectedLead) return
+    if (!customDate) {
+      toast.error('Please pick a date and time from the calendar')
+      return
+    }
     setUpdatingFollowup(true)
     setActionSuccessMsg('')
 
@@ -1280,20 +1307,54 @@ export default function CRMPipelineBoard({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           lead_id: selectedLead.id,
-          followup_choice: followupChoice,
-          custom_date: followupChoice === 'custom' ? customDate : null,
-          followup_title: customTitle || null,
+          followup_choice: 'custom',
+          custom_date: customDate,
+          followup_title: customTitle.trim() || 'Scheduled Follow-Up',
           agent_email: currentUserEmail
         })
       })
 
       const data = await res.json()
-      if (data.success) {
-        setActionSuccessMsg('Follow-up schedule updated successfully!')
-        setTimeout(() => setActionSuccessMsg(''), 4000)
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Could not schedule follow-up')
       }
-    } catch (err) {
+
+      const isoNext = new Date(customDate).toISOString()
+      const updatedLead: SalesLead = {
+        ...selectedLead,
+        next_followup_at: isoNext,
+        viewing_date: isoNext,
+        followup_status: 'custom_date',
+        followup_title: customTitle.trim() || 'Scheduled Follow-Up',
+        last_interaction_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+
+      setSelectedLead(updatedLead)
+      setLeads((prev) => prev.map((l) => (l.id === selectedLead.id ? updatedLead : l)))
+      setViewingDateInput(customDate)
+
+      setNotes((prev) => [
+        {
+          id: `fu-${Date.now()}`,
+          lead_id: selectedLead.id,
+          author_email: currentUserEmail,
+          author_name: currentUserEmail.split('@')[0],
+          source: 'sales_agent',
+          note_text: `Follow-up scheduled for ${new Date(customDate).toLocaleString()}${
+            customTitle.trim() ? ` — ${customTitle.trim()}` : ''
+          }`,
+          created_at: new Date().toISOString(),
+        },
+        ...prev,
+      ])
+
+      toast.success(`Follow-up scheduled for ${new Date(customDate).toLocaleString()}`)
+      setActionSuccessMsg('Follow-up scheduled successfully!')
+      setTimeout(() => setActionSuccessMsg(''), 4000)
+    } catch (err: any) {
       console.error('Followup update failed:', err)
+      toast.error(err.message || 'Failed to schedule follow-up')
     } finally {
       setUpdatingFollowup(false)
     }
@@ -1903,11 +1964,29 @@ export default function CRMPipelineBoard({
                           </div>
                         )}
 
-                        {/* Display Booked Consultation Date Badge */}
-                        {lead.viewing_date && (
-                          <div className="text-[11px] text-purple-300 font-semibold flex items-center gap-1.5 mt-2 bg-purple-500/10 px-2 py-1 rounded-md border border-purple-500/25">
-                            <Calendar className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
-                            <span className="truncate">Consultation: {new Date(lead.viewing_date).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        {/* Display Upcoming Follow-Up Date Badge (Turns red & blinks when due!) */}
+                        {(lead.next_followup_at || lead.viewing_date) && (
+                          <div
+                            className={`text-[11px] font-semibold flex items-center gap-1.5 mt-2 px-2 py-1 rounded-md border ${
+                              overdue
+                                ? 'bg-rose-500/20 border-rose-500/60 text-rose-200 animate-pulse'
+                                : 'bg-purple-500/10 border-purple-500/25 text-purple-300'
+                            }`}
+                          >
+                            <Calendar
+                              className={`w-3.5 h-3.5 flex-shrink-0 ${
+                                overdue ? 'text-rose-400' : 'text-purple-400'
+                              }`}
+                            />
+                            <span className="truncate">
+                              {overdue ? 'Due Follow-Up: ' : 'Follow-Up: '}
+                              {new Date(lead.next_followup_at || lead.viewing_date!).toLocaleString([], {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
                           </div>
                         )}
 
@@ -2490,13 +2569,17 @@ export default function CRMPipelineBoard({
                     </div>
 
                     <div className="flex items-center justify-between pt-2 border-t border-slate-900">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteLead(selectedLead.id, selectedLead.full_name)}
-                        className="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1.5 py-1 px-2 rounded-lg hover:bg-rose-500/10 transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> Move to Bin
-                      </button>
+                      {effectiveIsAdmin ? (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteLead(selectedLead.id, selectedLead.full_name)}
+                          className="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1.5 py-1 px-2 rounded-lg hover:bg-rose-500/10 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Move to Bin
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-slate-500">Delete restricted to Admin</span>
+                      )}
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -2625,123 +2708,131 @@ export default function CRMPipelineBoard({
                 </div>
               )}
 
-              {/* SCHEDULE BOOKED CONSULTATION & STRATEGY CALL SECTION */}
-              <div className="bg-slate-900/80 border border-purple-500/25 rounded-2xl p-5 mb-6">
-                <h4 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-purple-400" /> Booked Consultations &amp; Strategy Call Scheduler
-                </h4>
-                {(selectedLead.viewing_date || selectedLead.next_followup_at) && (
-                  <div className="mb-3 px-3 py-2 rounded-xl bg-purple-500/15 border border-purple-500/35 text-xs text-purple-200 flex items-center justify-between gap-2">
-                    <span>
-                      Scheduled:{' '}
-                      <strong className="text-white">
-                        {new Date(selectedLead.viewing_date || selectedLead.next_followup_at!).toLocaleString([], {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </strong>
-                    </span>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
-                      Reminder Active
-                    </span>
-                  </div>
-                )}
-                <p className="text-[11px] text-slate-400 mb-3">
-                  Schedule or update the booked consultation date and follow-up reminder for this lead.
-                </p>
-
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="datetime-local"
-                    value={viewingDateInput}
-                    onChange={(e) => setViewingDateInput(e.target.value)}
-                    className="flex-1 bg-slate-950 border border-slate-700 text-xs text-white rounded-xl p-2.5 focus:outline-none focus:border-purple-500"
-                  />
-                  <button
-                    onClick={handleSaveViewingDate}
-                    disabled={savingViewingDate || !viewingDateInput}
-                    className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs transition-all disabled:opacity-50 shadow-md flex items-center justify-center gap-1.5 shrink-0"
+              {/* UPCOMING FOLLOW-UP (TURNS RED & BLINKS WHEN DUE FOR IMMEDIATE ATTENTION) */}
+              {(() => {
+                const activeFollowupIso = selectedLead.next_followup_at || selectedLead.viewing_date
+                const isDueNow = Boolean(activeFollowupIso && new Date(activeFollowupIso).getTime() <= Date.now())
+                return (
+                  <div
+                    className={`rounded-2xl p-5 mb-6 border transition-all ${
+                      isDueNow
+                        ? 'bg-rose-950/30 border-rose-500/70 shadow-lg shadow-rose-500/10'
+                        : 'bg-slate-900/80 border-purple-500/25'
+                    }`}
                   >
-                    <Calendar className="w-4 h-4" /> {savingViewingDate ? 'Scheduling...' : 'Save Booked Consultation'}
-                  </button>
-                </div>
-              </div>
+                    <h4 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                      <Calendar className={`w-4 h-4 ${isDueNow ? 'text-rose-400 animate-pulse' : 'text-purple-400'}`} />
+                      Upcoming Follow-Up
+                    </h4>
 
-              {/* FOLLOW-UP CLOSURE & SCHEDULER SECTION */}
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 mb-6">
-                <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-[#C9A66B]" /> Follow-Up Scheduler & Closure
-                </h4>
+                    {activeFollowupIso && (
+                      <div
+                        className={`mb-3 px-3.5 py-2.5 rounded-xl border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
+                          isDueNow
+                            ? 'bg-rose-500/20 border-rose-500/70 text-rose-100 animate-pulse'
+                            : 'bg-purple-500/15 border-purple-500/35 text-purple-200'
+                        }`}
+                      >
+                        <div>
+                          <div>
+                            Scheduled:{' '}
+                            <strong className="text-white">
+                              {new Date(activeFollowupIso).toLocaleString([], {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </strong>
+                          </div>
+                          {selectedLead.followup_title && (
+                            <div className="text-[11px] opacity-90 mt-0.5">
+                              Reason: {selectedLead.followup_title}
+                            </div>
+                          )}
+                        </div>
+                        <span
+                          className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0 self-start sm:self-center ${
+                            isDueNow
+                              ? 'bg-rose-500 text-white'
+                              : 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/30'
+                          }`}
+                        >
+                          {isDueNow ? 'Due Now — Attention' : 'Reminder Active'}
+                        </span>
+                      </div>
+                    )}
 
-                {/* Preset Choices */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-                  {[
-                    { id: '1_month', label: '1 Month' },
-                    { id: '3_months', label: '3 Months' },
-                    { id: '1_year', label: '1 Year' },
-                    { id: 'forever', label: 'Forever (Close)' }
-                  ].map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => setFollowupChoice(p.id as any)}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors ${
-                        followupChoice === p.id
-                          ? 'bg-[#C9A66B] text-slate-950 border-[#C9A66B]'
-                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
+                    <p className="text-[11px] text-slate-400 mb-3">
+                      Update the follow-up date and reminder for this lead.
+                    </p>
 
-                {/* Custom Date Option Toggle */}
-                <button
-                  onClick={() => setFollowupChoice('custom')}
-                  className={`w-full py-2 mb-3 text-xs font-bold rounded-xl border transition-colors ${
-                    followupChoice === 'custom'
-                      ? 'bg-[#C9A66B] text-slate-950 border-[#C9A66B]'
-                      : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
-                  }`}
-                >
-                  📆 Custom Date & Time Picker
-                </button>
-
-                {/* Custom Form Fields */}
-                {followupChoice === 'custom' && (
-                  <div className="space-y-3 mb-4 bg-slate-950 p-3 rounded-xl border border-slate-800">
-                    <div>
-                      <label className="text-[11px] text-slate-400 block mb-1">Follow-up Reason / Title</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Call back after client reviews AI proposal"
-                        value={customTitle}
-                        onChange={(e) => setCustomTitle(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 text-xs text-white rounded-lg p-2 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] text-slate-400 block mb-1">Date & Time</label>
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <input
                         type="datetime-local"
-                        value={customDate}
-                        onChange={(e) => setCustomDate(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 text-xs text-white rounded-lg p-2 focus:outline-none"
+                        value={viewingDateInput}
+                        onChange={(e) => setViewingDateInput(e.target.value)}
+                        className="flex-1 bg-slate-950 border border-slate-700 text-xs text-white rounded-xl p-2.5 focus:outline-none focus:border-purple-500 [color-scheme:dark]"
                       />
+                      <button
+                        type="button"
+                        onClick={handleSaveViewingDate}
+                        disabled={savingViewingDate || !viewingDateInput}
+                        className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs transition-all disabled:opacity-50 shadow-md flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                      >
+                        <Calendar className="w-4 h-4" />
+                        {savingViewingDate ? 'Updating...' : 'Update Follow-Up'}
+                      </button>
                     </div>
                   </div>
-                )}
+                )
+              })()}
+
+              {/* SCHEDULE FOLLOW-UP (CLEAN CALENDAR DATE & TIME PICKER + REASON) */}
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 mb-6">
+                <h4 className="text-sm font-bold text-white mb-1 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-[#C9A66B]" /> Schedule Follow-Up
+                </h4>
+                <p className="text-[11px] text-slate-400 mb-4">
+                  Pick the exact follow-up date &amp; time from the calendar and add the reason.
+                </p>
+
+                <div className="space-y-3 mb-4 bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                  <div>
+                    <label className="text-[11px] text-slate-300 font-medium flex items-center gap-1.5 mb-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-[#C9A66B]" /> Date &amp; Time
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={customDate}
+                      onChange={(e) => setCustomDate(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 text-xs text-white rounded-lg p-2.5 focus:outline-none focus:border-[#C9A66B] [color-scheme:dark]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-300 font-medium block mb-1.5">
+                      Reason for Follow-Up
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Call back after client reviews proposal, confirm site viewing..."
+                      value={customTitle}
+                      onChange={(e) => setCustomTitle(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 text-xs text-white rounded-lg p-2.5 focus:outline-none focus:border-[#C9A66B]"
+                    />
+                  </div>
+                </div>
 
                 <button
+                  type="button"
                   onClick={handleSaveFollowup}
-                  disabled={updatingFollowup}
-                  className="w-full py-2.5 bg-[#C9A66B] text-slate-950 font-bold rounded-xl text-xs hover:bg-[#C9A66B]/90 transition-all shadow-md"
+                  disabled={updatingFollowup || !customDate}
+                  className="w-full py-2.5 bg-[#C9A66B] text-slate-950 font-bold rounded-xl text-xs hover:bg-[#C9A66B]/90 transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  {updatingFollowup ? 'Saving Schedule...' : 'Save Follow-Up Schedule'}
+                  <Calendar className="w-4 h-4" />
+                  {updatingFollowup ? 'Scheduling...' : 'Schedule Follow-Up'}
                 </button>
               </div>
 

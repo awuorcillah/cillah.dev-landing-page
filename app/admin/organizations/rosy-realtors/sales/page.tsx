@@ -186,13 +186,27 @@ export default function RosyRealtorsSalesDashboardPage() {
     [leads]
   )
 
+  const scopedLeads = useMemo(() => {
+    if (selectedAgent === 'all') return activeLeads
+    return activeLeads.filter(
+      (l) => (l.assigned_agent_email || '').toLowerCase() === selectedAgent.toLowerCase()
+    )
+  }, [activeLeads, selectedAgent])
+
+  const filteredActivities = useMemo(() => {
+    if (selectedAgent === 'all') return recentActivities
+    return recentActivities.filter(
+      (a) => (a.agent_email || '').toLowerCase() === selectedAgent.toLowerCase()
+    )
+  }, [recentActivities, selectedAgent])
+
   const kpis = useMemo(() => {
     let totalPipelineValue = 0
     let wonValue = 0
     let wonCount = 0
     let upcomingConsultations = 0
 
-    activeLeads.forEach((l) => {
+    scopedLeads.forEach((l) => {
       const val = Number(l.estimated_value) || 0
       totalPipelineValue += val
       if (l.stage === 'closed_won' || l.stage === 'closed') {
@@ -204,22 +218,22 @@ export default function RosyRealtorsSalesDashboardPage() {
       }
     })
 
-    const activeChannels = new Set(activeLeads.map((l) => classifyPlatform(l.source))).size
+    const activeChannels = new Set(scopedLeads.map((l) => classifyPlatform(l.source))).size
 
     return {
-      totalLeads: activeLeads.length,
+      totalLeads: scopedLeads.length,
       activeChannels,
       totalPipelineValue,
       wonValue,
       wonCount,
       upcomingConsultations,
     }
-  }, [activeLeads])
+  }, [scopedLeads])
 
   const platformStats = useMemo(() => {
-    const total = activeLeads.length || 1
+    const total = scopedLeads.length || 1
     return PLATFORMS.map((meta) => {
-      const matching = activeLeads.filter((l) => classifyPlatform(l.source) === meta.key)
+      const matching = scopedLeads.filter((l) => classifyPlatform(l.source) === meta.key)
       const value = matching.reduce((sum, l) => sum + (Number(l.estimated_value) || 0), 0)
       return {
         ...meta,
@@ -228,7 +242,7 @@ export default function RosyRealtorsSalesDashboardPage() {
         value,
       }
     }).sort((a, b) => b.count - a.count)
-  }, [activeLeads])
+  }, [scopedLeads])
 
   const agentStats = useMemo(() => {
     return orgStaff
@@ -292,6 +306,28 @@ export default function RosyRealtorsSalesDashboardPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Executive Agent Filter Dropdown (CEO / Admin View) */}
+          {viewRole === 'ceo_admin' && (
+            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs">
+              <Users className="w-3.5 h-3.5 text-[#C9A66B]" />
+              <span className="text-slate-400">Agent:</span>
+              <select
+                value={selectedAgent}
+                onChange={(e) => setSelectedAgent(e.target.value)}
+                className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
+              >
+                <option value="all" className="bg-slate-900 text-white">
+                  All Agents ({activeLeads.length})
+                </option>
+                {agentStats.map((ag) => (
+                  <option key={ag.email} value={ag.email} className="bg-slate-900 text-white">
+                    {ag.name} ({ag.totalLeads})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs">
             <button
               type="button"
@@ -574,16 +610,16 @@ export default function RosyRealtorsSalesDashboardPage() {
                     Every call, WhatsApp, Email, AI draft & viewing scheduled timestamped live.
                   </p>
                 </div>
-                <span className="text-[11px] text-slate-400 shrink-0">{recentActivities.length} logged</span>
+                <span className="text-[11px] text-slate-400 shrink-0">{filteredActivities.length} logged</span>
               </div>
 
-              {recentActivities.length === 0 ? (
+              {filteredActivities.length === 0 ? (
                 <div className="text-xs text-slate-500 py-8 text-center">
-                  No logged activities yet — interact with a buyer lead below to see live timestamps here.
+                  No logged activities yet for this agent — interact with a buyer lead below to see live timestamps here.
                 </div>
               ) : (
                 <div className="space-y-2.5 overflow-y-auto max-h-[320px] pr-1">
-                  {recentActivities.slice(0, 10).map((act) => {
+                  {filteredActivities.slice(0, 10).map((act) => {
                     const icon =
                       act.activity_type === 'call_logged' || act.activity_type === 'voip_call' ? (
                         <Phone className="w-3.5 h-3.5 text-sky-400" />

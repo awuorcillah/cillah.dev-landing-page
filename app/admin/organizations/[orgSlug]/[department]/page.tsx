@@ -15,6 +15,8 @@ export default function DynamicOrganizationDepartmentPage() {
   const deptParam = String(params?.department || 'sales').toLowerCase()
 
   const [org, setOrg] = useState<{ id: string; name: string; slug: string } | null>(null)
+  const [orgAgents, setOrgAgents] = useState<Array<{ email: string; full_name: string }>>([])
+  const [selectedAgent, setSelectedAgent] = useState<string>('all')
   const [userEmail, setUserEmail] = useState('awuorcillah@gmail.com')
   const [loading, setLoading] = useState(true)
 
@@ -23,10 +25,19 @@ export default function DynamicOrganizationDepartmentPage() {
     Promise.all([
       supabase.auth.getUser(),
       supabase.from('organizations').select('id, name, slug').eq('slug', orgSlug).maybeSingle(),
-    ]).then(([{ data: authData }, { data: orgData }]) => {
+    ]).then(async ([{ data: authData }, { data: orgData }]) => {
       if (!active) return
       if (authData?.user?.email) setUserEmail(authData.user.email.toLowerCase())
-      if (orgData?.id) setOrg(orgData)
+      if (orgData?.id) {
+        setOrg(orgData)
+        const { data: staffRows } = await supabase
+          .from('staff_members')
+          .select('email, full_name')
+          .eq('org_id', orgData.id)
+          .eq('is_active', true)
+          .order('full_name', { ascending: true })
+        if (active && staffRows) setOrgAgents(staffRows as any[])
+      }
       setLoading(false)
     })
     return () => {
@@ -103,12 +114,29 @@ export default function DynamicOrganizationDepartmentPage() {
           </div>
           <h1 className="text-2xl font-bold text-white">Executive &amp; Pipeline Dashboard</h1>
         </div>
-        <Link
-          href={`/admin/organizations/${org.slug}/sales/users`}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-200"
-        >
-          <UserPlus className="w-3.5 h-3.5 text-[#C9A66B]" /> Manage Sales Users
-        </Link>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs">
+            <span className="text-slate-400">Agent:</span>
+            <select
+              value={selectedAgent}
+              onChange={(e) => setSelectedAgent(e.target.value)}
+              className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
+            >
+              <option value="all" className="bg-slate-900 text-white">All Agents</option>
+              {orgAgents.map((ag) => (
+                <option key={ag.email} value={ag.email.toLowerCase()} className="bg-slate-900 text-white">
+                  {ag.full_name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Link
+            href={`/admin/organizations/${org.slug}/sales/users`}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-200"
+          >
+            <UserPlus className="w-3.5 h-3.5 text-[#C9A66B]" /> Manage Sales Users
+          </Link>
+        </div>
       </div>
 
       <CRMPipelineBoard
@@ -119,6 +147,7 @@ export default function DynamicOrganizationDepartmentPage() {
         orgId={org.id}
         excludeEmails={['atulah@cillah.dev']}
         currencyPrefix="KES "
+        externalAgentFilter={selectedAgent}
       />
     </div>
   )
