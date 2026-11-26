@@ -45,6 +45,8 @@ interface MarketingPostComposerProps {
   permissions: RoleTierPermissions
   posts: MarketingPostRecord[]
   loadingPosts: boolean
+  selectedChannels?: MarketingChannelId[]
+  onToggleChannel?: (channelId: MarketingChannelId) => void
   connectedChannels?: string[]
   onOpenConnections?: () => void
   onPostsChanged: () => void
@@ -55,35 +57,35 @@ export default function MarketingPostComposer({
   permissions,
   posts,
   loadingPosts,
+  selectedChannels: controlledChannels,
+  onToggleChannel,
   connectedChannels = [],
   onOpenConnections,
   onPostsChanged,
 }: MarketingPostComposerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Step 1: Uploaded files (images, videos, PDFs/docs)
+  // Uploaded files (images, videos, PDFs/docs)
   const [mediaFiles, setMediaFiles] = useState<MarketingMediaFile[]>([])
   const [uploading, setUploading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
 
-  // Step 2: Selected Channels
-  const [selectedChannels, setSelectedChannels] = useState<MarketingChannelId[]>([
+  // Selected Channels (controlled from Channel ▾ dropdown in MarketingHub, with local fallback)
+  const [localChannels, setLocalChannels] = useState<MarketingChannelId[]>([
     'instagram',
     'whatsapp_status',
   ])
+  const selectedChannels = controlledChannels ?? localChannels
 
-  // Step 3: Post Copy & Adaptive Website Metadata
+  // Post Copy (Website slug, read time & teaser are generated automatically!)
   const [title, setTitle] = useState('')
   const [caption, setCaption] = useState('')
   const [hashtags, setHashtags] = useState('')
   const [ctaUrl, setCtaUrl] = useState('')
-  const [websiteTeaser, setWebsiteTeaser] = useState('')
   const [websiteCategory, setWebsiteCategory] = useState('Marketing & Automation')
-  const [websiteSlug, setWebsiteSlug] = useState('')
-  const [websiteReadTime, setWebsiteReadTime] = useState('4 min read')
   const [websiteFeatured, setWebsiteFeatured] = useState(false)
 
-  // Step 4: Publish Mode & Schedule
+  // Publish Mode & Schedule
   const [publishMode, setPublishMode] = useState<'now' | 'schedule' | 'draft'>('now')
   const [scheduledAt, setScheduledAt] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -101,11 +103,15 @@ export default function MarketingPostComposer({
   }, 25000)
 
   const toggleChannel = (channelId: MarketingChannelId) => {
-    setSelectedChannels((prev) =>
-      prev.includes(channelId)
-        ? prev.filter((id) => id !== channelId)
-        : [...prev, channelId]
-    )
+    if (onToggleChannel) {
+      onToggleChannel(channelId)
+    } else {
+      setLocalChannels((prev) =>
+        prev.includes(channelId)
+          ? prev.filter((id) => id !== channelId)
+          : [...prev, channelId]
+      )
+    }
   }
 
   const handleUploadFiles = async (fileList: FileList | null) => {
@@ -161,8 +167,6 @@ export default function MarketingPostComposer({
     setCaption('')
     setHashtags('')
     setCtaUrl('')
-    setWebsiteTeaser('')
-    setWebsiteSlug('')
     setWebsiteFeatured(false)
     setScheduledAt('')
     setPublishMode('now')
@@ -176,7 +180,7 @@ export default function MarketingPostComposer({
       return
     }
     if (selectedChannels.length === 0) {
-      toast.error('Choose at least one channel to publish to.')
+      toast.error('Choose at least one channel from the Channel dropdown above.')
       return
     }
     if (!title.trim() || !caption.trim()) {
@@ -188,6 +192,14 @@ export default function MarketingPostComposer({
       return
     }
 
+    // Automatically compute SEO slug, teaser & read time so the user never deals with technical fields!
+    const cleanCaption = caption.trim()
+    const wordCount = cleanCaption.split(/\s+/).filter(Boolean).length
+    const autoReadTime = `${Math.max(1, Math.ceil(wordCount / 200))} min read`
+    const autoTeaser =
+      cleanCaption.replace(/[#*_`>-]/g, '').replace(/\s+/g, ' ').slice(0, 155) +
+      (cleanCaption.length > 155 ? '...' : '')
+
     setSubmitting(true)
     try {
       const res = await fetch('/api/marketing/posts', {
@@ -196,17 +208,17 @@ export default function MarketingPostComposer({
         body: JSON.stringify({
           organization_slug: organizationSlug,
           title: title.trim(),
-          caption: caption.trim(),
+          caption: cleanCaption,
           hashtags: hashtags.trim(),
           cta_url: ctaUrl.trim(),
           channels: selectedChannels,
           media_files: mediaFiles,
           publish_mode: publishMode,
           scheduled_at: publishMode === 'schedule' ? scheduledAt : null,
-          website_slug: websiteSlug.trim() || slugifyTitle(title),
-          website_teaser: websiteTeaser.trim(),
+          website_slug: slugifyTitle(title),
+          website_teaser: autoTeaser,
           website_category: websiteCategory,
-          website_read_time: websiteReadTime,
+          website_read_time: autoReadTime,
           website_featured: websiteFeatured,
         }),
       })
@@ -322,427 +334,226 @@ export default function MarketingPostComposer({
         </div>
       )}
 
-      {/* GUIDED INTERACTIVE MULTI-STEP POST FORM */}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* STEP 1: UPLOAD MEDIA OR DOCUMENT */}
-        <section className="rounded-2xl bg-slate-900/80 border border-slate-800 p-5 sm:p-6 space-y-4 shadow-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <span className="w-7 h-7 rounded-full bg-[#C9A66B]/20 border border-[#C9A66B]/40 text-[#E5C992] text-xs font-extrabold flex items-center justify-center">
-                1
-              </span>
-              <div>
-                <h3 className="text-base font-bold text-white">Upload Media or Document</h3>
-                <p className="text-xs text-slate-400">
-                  Choose images, videos, brochures, PDFs, or decks from your phone, tablet, or laptop.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 text-[11px] text-slate-400">
-              <Smartphone className="w-3.5 h-3.5 text-[#C9A66B]" />
-              <Tablet className="w-3.5 h-3.5 text-[#C9A66B]" />
-              <Laptop className="w-3.5 h-3.5 text-[#C9A66B]" />
-              <span>Up to 50 MB / file</span>
-            </div>
-          </div>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            disabled={!permissions.canUploadAndDraft || uploading}
-            accept="image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx,.txt,.md"
-            onChange={(e) => handleUploadFiles(e.target.files)}
-            className="hidden"
-          />
-
-          <div
-            onClick={() => {
-              if (permissions.canUploadAndDraft && !uploading) {
-                fileInputRef.current?.click()
-              }
-            }}
-            onDragOver={(e) => {
-              e.preventDefault()
-              if (permissions.canUploadAndDraft) setIsDragging(true)
-            }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault()
-              setIsDragging(false)
-              if (permissions.canUploadAndDraft) {
-                handleUploadFiles(e.dataTransfer.files)
-              }
-            }}
-            className={`rounded-xl border-2 border-dashed p-6 sm:p-8 text-center transition-all ${
-              !permissions.canUploadAndDraft
-                ? 'border-slate-800 bg-slate-950/40 opacity-50 cursor-not-allowed'
-                : isDragging
-                ? 'border-[#C9A66B] bg-[#C9A66B]/10 cursor-pointer'
-                : 'border-slate-700 hover:border-[#C9A66B]/60 bg-slate-950/60 hover:bg-slate-950 cursor-pointer'
-            }`}
-          >
-            {uploading ? (
-              <div className="flex flex-col items-center gap-2 text-[#C9A66B]">
-                <Loader2 className="w-8 h-8 animate-spin" />
-                <p className="text-sm font-semibold">Uploading to secure cloud storage...</p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-12 h-12 rounded-2xl bg-[#C9A66B]/15 border border-[#C9A66B]/30 flex items-center justify-center text-[#C9A66B]">
-                  <UploadCloud className="w-6 h-6" />
-                </div>
-                <p className="text-sm font-semibold text-white">
-                  Tap to choose files from your device or drag &amp; drop here
-                </p>
-                <p className="text-xs text-slate-400">
-                  Supports JPG, PNG, WebP, MP4, MOV, PDF, DOCX, PPTX, and Markdown
-                </p>
-              </div>
-            )}
-          </div>
-
-          {mediaFiles.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-              {mediaFiles.map((file) => (
-                <div
-                  key={file.path}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-slate-950 border border-slate-800"
+      {/* STREAMLINED COMPOSER: Selected Channels pills -> Upload Media -> Title & Caption -> Schedule or Post Now */}
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Compact Selected Channels Strip (managed from top Channel ▾ dropdown) */}
+        {selectedChannels.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {selectedChannels.map((chId) => {
+              const cfg = getChannelConfig(chId)
+              if (!cfg) return null
+              return (
+                <span
+                  key={chId}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0F1422] border border-white/10 text-[11px] font-semibold text-slate-200"
                 >
-                  {file.kind === 'image' ? (
-                    <img
-                      src={file.url}
-                      alt={file.name}
-                      className="w-12 h-12 rounded-lg object-cover border border-slate-800 shrink-0"
-                    />
-                  ) : file.kind === 'video' ? (
-                    <div className="w-12 h-12 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-300 shrink-0">
-                      <Film className="w-5 h-5" />
-                    </div>
-                  ) : (
-                    <div className="w-12 h-12 rounded-lg bg-[#C9A66B]/15 border border-[#C9A66B]/30 flex items-center justify-center text-[#C9A66B] shrink-0">
-                      <FileText className="w-5 h-5" />
-                    </div>
-                  )}
-
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-slate-100 truncate">{file.name}</p>
-                    <p className="text-[11px] text-slate-400 capitalize">
-                      {file.kind} &bull; {formatFileSize(file.size_bytes)}
-                    </p>
-                  </div>
-
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: cfg.accentHex }}
+                  />
+                  {cfg.label}
                   <button
                     type="button"
-                    onClick={() => removeMediaFile(file.path)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                    aria-label={`Remove ${file.name}`}
+                    onClick={() => toggleChannel(chId)}
+                    className="text-slate-400 hover:text-white cursor-pointer"
+                    aria-label={`Remove ${cfg.label}`}
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-3 h-3" />
                   </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* STEP 2: SELECT CHANNELS */}
-        <section className="rounded-2xl bg-slate-900/80 border border-slate-800 p-5 sm:p-6 space-y-4 shadow-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="w-7 h-7 rounded-full bg-[#C9A66B]/20 border border-[#C9A66B]/40 text-[#E5C992] text-xs font-extrabold flex items-center justify-center">
-                2
-              </span>
-              <div>
-                <h3 className="text-base font-bold text-white">
-                  Choose Publishing Channels ({selectedChannels.length} selected)
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Post to one platform or distribute across multiple Nairobi channels simultaneously.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setSelectedChannels(ACTIVE_MARKETING_CHANNELS.map((c) => c.id))}
-                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer"
-              >
-                Select All ({ACTIVE_MARKETING_CHANNELS.length})
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedChannels([
-                    'instagram',
-                    'facebook',
-                    'tiktok',
-                    'linkedin',
-                    'whatsapp_status',
-                    'youtube',
-                  ])
-                }
-                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer"
-              >
-                Social &amp; Video
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedChannels(['website_articles', 'website_use_cases'])}
-                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer"
-              >
-                Website Only
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedChannels([])}
-                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {ACTIVE_MARKETING_CHANNELS.map((channel) => {
-              const isSelected = selectedChannels.includes(channel.id)
-              return (
-                <button
-                  key={channel.id}
-                  type="button"
-                  disabled={!permissions.canUploadAndDraft}
-                  onClick={() => toggleChannel(channel.id)}
-                  className={`text-left p-4 rounded-xl border transition-all relative cursor-pointer ${
-                    isSelected
-                      ? channel.selectedCardClass
-                      : 'border-slate-800 bg-slate-950/70 hover:border-slate-700'
-                  } ${!permissions.canUploadAndDraft ? 'opacity-60 cursor-not-allowed' : ''}`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: channel.accentHex }}
-                      />
-                      <span className="text-sm font-bold text-white">{channel.label}</span>
-                    </div>
-                    <span
-                      className={`w-5 h-5 rounded-md flex items-center justify-center border text-xs shrink-0 ${
-                        isSelected
-                          ? 'bg-[#C9A66B] border-[#C9A66B] text-slate-950'
-                          : 'border-slate-700 bg-slate-900 text-transparent'
-                      }`}
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-400 mt-1.5 leading-snug">
-                    {channel.description}
-                  </p>
-                  <div className="flex items-center justify-between gap-2 mt-2">
-                    <p className="text-[10px] text-slate-500 font-medium truncate">
-                      {channel.acceptedMediaHint}
-                    </p>
-                    {channel.category === 'website' || connectedChannels.includes(channel.id) ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 shrink-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                        Live
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-semibold text-amber-400/80 shrink-0">
-                        Connect
-                      </span>
-                    )}
-                  </div>
-                </button>
+                </span>
               )
             })}
           </div>
+        )}
 
-          {/* Phase 2 Extensible Channels Indicator + Quick Connect Link */}
-          <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-semibold text-slate-400">Schema-Ready Next Channels:</span>
-              {FUTURE_MARKETING_CHANNELS.map((ch) => (
-                <span
-                  key={ch.id}
-                  className="px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-slate-400"
-                >
-                  {ch.label}
-                </span>
-              ))}
+        {/* UPLOAD MEDIA + WRITE TITLE & CAPTION RIGHT BELOW */}
+        <section className="rounded-2xl bg-[#0F1422] border border-white/[0.08] p-4 sm:p-6 space-y-5 shadow-xl">
+          {/* Upload Media */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-bold text-white">Upload Media</h3>
+              <span className="text-[11px] text-slate-500">Images, videos, PDFs (up to 50 MB)</span>
             </div>
-            {onOpenConnections && (
-              <button
-                type="button"
-                onClick={onOpenConnections}
-                className="text-xs font-bold text-[#C9A66B] hover:underline cursor-pointer"
-              >
-                Manage Connected Social Accounts →
-              </button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              disabled={!permissions.canUploadAndDraft || uploading}
+              accept="image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx,.txt,.md"
+              onChange={(e) => handleUploadFiles(e.target.files)}
+              className="hidden"
+            />
+
+            <div
+              onClick={() => {
+                if (permissions.canUploadAndDraft && !uploading) {
+                  fileInputRef.current?.click()
+                }
+              }}
+              onDragOver={(e) => {
+                e.preventDefault()
+                if (permissions.canUploadAndDraft) setIsDragging(true)
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault()
+                setIsDragging(false)
+                if (permissions.canUploadAndDraft) {
+                  handleUploadFiles(e.dataTransfer.files)
+                }
+              }}
+              className={`rounded-xl border-2 border-dashed p-5 text-center transition-all ${
+                !permissions.canUploadAndDraft
+                  ? 'border-slate-800 bg-slate-950/40 opacity-50 cursor-not-allowed'
+                  : isDragging
+                  ? 'border-[#C9A66B] bg-[#C9A66B]/10 cursor-pointer'
+                  : 'border-slate-700/80 hover:border-[#C9A66B]/60 bg-slate-950/60 hover:bg-slate-950 cursor-pointer'
+              }`}
+            >
+              {uploading ? (
+                <div className="flex flex-col items-center gap-2 text-[#C9A66B]">
+                  <Loader2 className="w-7 h-7 animate-spin" />
+                  <p className="text-xs font-semibold">Uploading...</p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-1.5">
+                  <div className="w-10 h-10 rounded-xl bg-[#C9A66B]/15 border border-[#C9A66B]/30 flex items-center justify-center text-[#C9A66B]">
+                    <UploadCloud className="w-5 h-5" />
+                  </div>
+                  <p className="text-xs sm:text-sm font-semibold text-white">
+                    Tap to upload photos, videos, or documents
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {mediaFiles.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {mediaFiles.map((file) => (
+                  <div
+                    key={file.path}
+                    className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-950 border border-slate-800"
+                  >
+                    {file.kind === 'image' ? (
+                      <img
+                        src={file.url}
+                        alt={file.name}
+                        className="w-11 h-11 rounded-lg object-cover border border-slate-800 shrink-0"
+                      />
+                    ) : file.kind === 'video' ? (
+                      <div className="w-11 h-11 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-300 shrink-0">
+                        <Film className="w-5 h-5" />
+                      </div>
+                    ) : (
+                      <div className="w-11 h-11 rounded-lg bg-[#C9A66B]/15 border border-[#C9A66B]/30 flex items-center justify-center text-[#C9A66B] shrink-0">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                    )}
+
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-slate-100 truncate">{file.name}</p>
+                      <p className="text-[10px] text-slate-400 capitalize">
+                        {file.kind} &bull; {formatFileSize(file.size_bytes)}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => removeMediaFile(file.path)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                      aria-label={`Remove ${file.name}`}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
-        </section>
 
-        {/* STEP 3: WRITE CAPTION / ARTICLE CONTENT */}
-        <section className="rounded-2xl bg-slate-900/80 border border-slate-800 p-5 sm:p-6 space-y-4 shadow-xl">
-          <div className="flex items-center gap-3">
-            <span className="w-7 h-7 rounded-full bg-[#C9A66B]/20 border border-[#C9A66B]/40 text-[#E5C992] text-xs font-extrabold flex items-center justify-center">
-              3
-            </span>
-            <div>
-              <h3 className="text-base font-bold text-white">Write Headline &amp; Caption</h3>
-              <p className="text-xs text-slate-400">
-                Craft your message once. Website SEO fields appear automatically when Articles or Use Cases is selected.
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
+          {/* Title / Headline & Caption directly below Upload Media */}
+          <div className="space-y-3.5 pt-2 border-t border-white/[0.06]">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Post Title / Campaign Headline <span className="text-[#C9A66B]">*</span>
+                Title / Headline <span className="text-[#C9A66B]">*</span>
               </label>
               <input
                 type="text"
                 required
                 disabled={!permissions.canUploadAndDraft}
                 value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value)
-                  if (!websiteSlug) {
-                    // keep preview synced cleanly without overwriting custom slug
-                  }
-                }}
-                placeholder="e.g. How Nairobi Real Estate Agencies Automate WhatsApp & Instagram Inquiries"
-                className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]/70 transition-colors"
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Write your post title or headline..."
+                className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]/70 transition-colors"
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-semibold text-slate-300">
-                  Caption / Post Copy / Article Body <span className="text-[#C9A66B]">*</span>
+                  Caption / Content <span className="text-[#C9A66B]">*</span>
                 </label>
                 <span
                   className={`text-[11px] font-mono ${
                     caption.length > tightestCharLimit ? 'text-amber-400' : 'text-slate-500'
                   }`}
                 >
-                  {caption.length.toLocaleString()} / {tightestCharLimit.toLocaleString()} chars
+                  {caption.length.toLocaleString()} chars
                 </span>
               </div>
               <textarea
-                rows={includesWebsiteChannel ? 8 : 5}
+                rows={includesWebsiteChannel ? 6 : 4}
                 required
                 disabled={!permissions.canUploadAndDraft}
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
-                placeholder={
-                  includesWebsiteChannel
-                    ? 'Write your full post or article content here. Use ## for headings, **bold** for highlights, and - for bullet points...'
-                    : 'Write your engaging caption, key offer, or story here...'
-                }
-                className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]/70 transition-colors leading-relaxed"
+                placeholder="Write your caption or post content here..."
+                className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]/70 transition-colors leading-relaxed"
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 mb-1.5">
-                  <Hash className="w-3.5 h-3.5 text-[#C9A66B]" /> Hashtags / Tags
-                </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="relative">
+                <Hash className="w-3.5 h-3.5 text-[#C9A66B] absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   disabled={!permissions.canUploadAndDraft}
                   value={hashtags}
                   onChange={(e) => setHashtags(e.target.value)}
-                  placeholder="#NairobiBusiness #AIAutomation #RealEstateKenya #Cillah"
-                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]/70"
+                  placeholder="Hashtags (optional)"
+                  className="w-full rounded-xl bg-slate-950 border border-slate-800 pl-9 pr-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]/70"
                 />
               </div>
 
-              <div>
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 mb-1.5">
-                  <Link2 className="w-3.5 h-3.5 text-[#C9A66B]" /> Call-to-Action Link (Optional)
-                </label>
+              <div className="relative">
+                <Link2 className="w-3.5 h-3.5 text-[#C9A66B] absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="url"
                   disabled={!permissions.canUploadAndDraft}
                   value={ctaUrl}
                   onChange={(e) => setCtaUrl(e.target.value)}
-                  placeholder="https://cillah.dev/book-consultation"
-                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]/70"
+                  placeholder="Link / CTA URL (optional)"
+                  className="w-full rounded-xl bg-slate-950 border border-slate-800 pl-9 pr-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]/70"
                 />
               </div>
             </div>
 
-            {/* Adaptive Website Publishing Options */}
+            {/* Effortless 1-line Website Auto-Publish Notice (No URL slug / technical fields!) */}
             {includesWebsiteChannel && (
-              <div className="rounded-xl bg-[#C9A66B]/5 border border-[#C9A66B]/30 p-4 space-y-4">
-                <div className="flex items-center gap-2 text-xs font-bold text-[#E5C992] uppercase tracking-wider">
-                  <Globe className="w-4 h-4" /> Website Publishing Settings (Live on cillah.dev)
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                      URL Slug
-                    </label>
-                    <input
-                      type="text"
-                      value={websiteSlug}
-                      onChange={(e) => setWebsiteSlug(e.target.value)}
-                      placeholder={slugifyTitle(title || 'your-post-url')}
-                      className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                      Category
-                    </label>
-                    <input
-                      type="text"
-                      value={websiteCategory}
-                      onChange={(e) => setWebsiteCategory(e.target.value)}
-                      className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white focus:outline-none focus:border-[#C9A66B]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                      Estimated Read Time
-                    </label>
-                    <input
-                      type="text"
-                      value={websiteReadTime}
-                      onChange={(e) => setWebsiteReadTime(e.target.value)}
-                      className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white focus:outline-none focus:border-[#C9A66B]"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                    Short Teaser / Meta Description
-                  </label>
-                  <input
-                    type="text"
-                    value={websiteTeaser}
-                    onChange={(e) => setWebsiteTeaser(e.target.value)}
-                    placeholder="A concise 1-2 sentence summary shown on the Articles or Use Cases feed card..."
-                    className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]"
-                  />
-                </div>
-
-                <label className="inline-flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
+              <div className="rounded-xl bg-[#C9A66B]/10 border border-[#C9A66B]/30 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="inline-flex items-center gap-2 text-[#E5C992] font-medium">
+                  <Globe className="w-4 h-4 shrink-0" />
+                  Publishes automatically to cillah.dev (link &amp; summary auto-generated)
+                </span>
+                <label className="inline-flex items-center gap-1.5 text-slate-200 font-semibold cursor-pointer">
                   <input
                     type="checkbox"
                     checked={websiteFeatured}
                     onChange={(e) => setWebsiteFeatured(e.target.checked)}
-                    className="rounded accent-[#C9A66B] w-4 h-4"
+                    className="rounded accent-[#C9A66B] w-3.5 h-3.5"
                   />
-                  <span>Mark as Featured Case Study / Article</span>
+                  <span>Featured</span>
                 </label>
               </div>
             )}

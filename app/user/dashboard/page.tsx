@@ -78,6 +78,7 @@ export default function UserDashboardPage() {
   const [organizationSlug, setOrganizationSlug] = useState<string>('cillah-dev')
   const [organizationName, setOrganizationName] = useState<string>('cillah.dev')
   const [assignedWorkspaces, setAssignedWorkspaces] = useState<UserWorkspaceRole[]>(['sales'])
+  const [accessLabel, setAccessLabel] = useState<string>('User')
   const [activeView, setActiveView] = useState<ActiveView>('home')
   const [deptMenuOpen, setDeptMenuOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
@@ -114,6 +115,7 @@ export default function UserDashboardPage() {
           if (cached.orgId) setOrganizationId(cached.orgId)
           if (cached.orgSlug) setOrganizationSlug(cached.orgSlug)
           if (cached.orgName) setOrganizationName(cached.orgName)
+          if (cached.accessLabel) setAccessLabel(cached.accessLabel)
           const cachedRoles = parseAssignedWorkspaces(cached.staffRole)
           setAssignedWorkspaces(cachedRoles)
           const savedTab = sessionStorage.getItem('cillah_active_workspace_tab') as ActiveView | null
@@ -188,9 +190,15 @@ export default function UserDashboardPage() {
         email.split('@')[0]
       const resolvedAvatar = profile?.avatar_url || user.user_metadata?.avatar_url || null
       const workspaces = parseAssignedWorkspaces(staff?.role)
+      const resolvedAccess =
+        String(profile?.role || '').toLowerCase() === 'admin' ||
+        String(staff?.status || '').toLowerCase() === 'admin'
+          ? 'Admin'
+          : 'User'
 
       setDisplayName(name)
       setAvatarUrl(resolvedAvatar)
+      setAccessLabel(resolvedAccess)
       setOrganizationId(resolvedOrgId)
       setOrganizationSlug(resolvedOrgSlug)
       setOrganizationName(resolvedOrgName)
@@ -204,6 +212,7 @@ export default function UserDashboardPage() {
             email,
             displayName: name,
             avatarUrl: resolvedAvatar,
+            accessLabel: resolvedAccess,
             staffRole: staff?.role || 'sales',
             orgId: resolvedOrgId,
             orgSlug: resolvedOrgSlug,
@@ -428,6 +437,9 @@ export default function UserDashboardPage() {
                     <p className="text-[11px] text-slate-400 truncate mt-0.5">
                       {currentUserEmail}
                     </p>
+                    <span className="inline-flex items-center mt-2 px-2 py-0.5 rounded-full bg-[#C9A66B]/15 border border-[#C9A66B]/35 text-[10px] font-bold text-[#E5C687]">
+                      Access: {accessLabel}
+                    </span>
                   </div>
 
                   <div className="p-1.5 space-y-0.5 text-xs">
@@ -547,6 +559,7 @@ export default function UserDashboardPage() {
             organizationName={organizationName}
             currentUserEmail={currentUserEmail}
             isAdminView={false}
+            onRoleLabelResolved={(label) => setAccessLabel(label)}
           />
         )}
 

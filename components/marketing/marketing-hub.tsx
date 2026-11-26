@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import {
-  Megaphone,
   Send,
   BarChart3,
   Shield,
@@ -14,6 +13,7 @@ import {
   Sparkles,
   Loader2,
   Link2,
+  Share2,
 } from 'lucide-react'
 import MarketingPostComposer from '@/components/marketing/marketing-post-composer'
 import MarketingInsightsView from '@/components/marketing/marketing-insights-view'
@@ -22,8 +22,10 @@ import MarketingConnectionsView, {
   type SanitizedSocialConnection,
 } from '@/components/marketing/marketing-connections-view'
 import {
+  ACTIVE_MARKETING_CHANNELS,
   MARKETING_ROLE_TIERS,
   getRolePermissions,
+  type MarketingChannelId,
   type MarketingPostRecord,
   type MarketingRoleAssignment,
   type MarketingRoleTier,
@@ -36,6 +38,7 @@ interface MarketingHubProps {
   organizationName?: string
   currentUserEmail?: string
   isAdminView?: boolean
+  onRoleLabelResolved?: (label: string) => void
 }
 
 export default function MarketingHub({
@@ -43,10 +46,18 @@ export default function MarketingHub({
   organizationName = 'Cillah',
   currentUserEmail,
   isAdminView = false,
+  onRoleLabelResolved,
 }: MarketingHubProps) {
   const [activeAction, setActiveAction] = useState<MarketingActionTab>('post')
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [channelDropdownOpen, setChannelDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const channelDropdownRef = useRef<HTMLDivElement>(null)
+
+  const [selectedChannels, setSelectedChannels] = useState<MarketingChannelId[]>([
+    'instagram',
+    'whatsapp_status',
+  ])
 
   const [posts, setPosts] = useState<MarketingPostRecord[]>([])
   const [loadingPosts, setLoadingPosts] = useState(true)
@@ -101,9 +112,24 @@ export default function MarketingHub({
   const permissions = getRolePermissions(marketingRole)
 
   useEffect(() => {
+    onRoleLabelResolved?.(permissions.label)
+  }, [permissions.label, onRoleLabelResolved])
+
+  const toggleChannel = (channelId: MarketingChannelId) => {
+    setSelectedChannels((prev) =>
+      prev.includes(channelId)
+        ? prev.filter((id) => id !== channelId)
+        : [...prev, channelId]
+    )
+  }
+
+  useEffect(() => {
     function handleOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false)
+      }
+      if (channelDropdownRef.current && !channelDropdownRef.current.contains(e.target as Node)) {
+        setChannelDropdownOpen(false)
       }
     }
     document.addEventListener('mousedown', handleOutside)
@@ -310,25 +336,188 @@ export default function MarketingHub({
           (p) => (p.author_email || '').toLowerCase() === selectedMemberFilter.toLowerCase()
         )
 
+  const connectedChannelIds = connections
+    .filter((c) => c.status === 'connected')
+    .map((c) => c.channel)
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 space-y-5">
-      {/* MINIMALIST FUNCTIONAL ACTION BAR */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800/80">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-[#C9A66B]/15 text-[#E5C992] border border-[#C9A66B]/30">
-            <Megaphone className="w-3 h-3" /> {organizationName} &bull; Marketing
-          </span>
-          <span
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${permissions.badgeClass}`}
-          >
-            <Shield className="w-3 h-3" /> {permissions.label}
-          </span>
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 space-y-4">
+      {/* CLEAN TOP BAR: Action ▾ | Channel ▾ (No redundant header badges — Access lives under Profile Avatar) */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/[0.08]">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* 1. ACTION DROPDOWN */}
+          <div className="relative flex-1 sm:flex-initial" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setDropdownOpen((o) => !o)
+                setChannelDropdownOpen(false)
+              }}
+              className={`w-full sm:w-auto inline-flex items-center justify-between sm:justify-start gap-2 h-10 px-3.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                dropdownOpen
+                  ? 'bg-[#C9A66B]/15 border-[#C9A66B]/60 text-[#E5C687]'
+                  : 'bg-[#0F1422] border-white/10 text-white hover:border-[#C9A66B]/50'
+              }`}
+            >
+              <span className="inline-flex items-center gap-2 truncate">
+                <CurrentIcon className="w-3.5 h-3.5 text-[#C9A66B] shrink-0" />
+                <span className="truncate">Action</span>
+              </span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${
+                  dropdownOpen ? 'rotate-180 text-[#C9A66B]' : ''
+                }`}
+              />
+            </button>
+
+            {dropdownOpen && (
+              <div className="absolute left-0 top-full mt-1.5 w-64 max-w-[calc(100vw-24px)] z-50 rounded-xl bg-[#0E131F] border border-[#C9A66B]/40 shadow-2xl overflow-hidden divide-y divide-white/[0.06]">
+                {visibleActions.map((opt) => {
+                  const Icon = opt.icon
+                  const selected = opt.id === activeAction
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveAction(opt.id)
+                        setDropdownOpen(false)
+                      }}
+                      className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors cursor-pointer ${
+                        selected ? 'bg-[#C9A66B]/15' : 'hover:bg-white/[0.05]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Icon
+                          className={`w-4 h-4 shrink-0 ${
+                            selected ? 'text-[#C9A66B]' : 'text-slate-400'
+                          }`}
+                        />
+                        <span className="text-xs font-bold text-white truncate">{opt.label}</span>
+                      </div>
+                      {selected && <Check className="w-4 h-4 text-[#C9A66B] shrink-0" />}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 2. CHANNEL DROPDOWN (Right next to Action!) */}
+          <div className="relative flex-1 sm:flex-initial" ref={channelDropdownRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setChannelDropdownOpen((o) => !o)
+                setDropdownOpen(false)
+              }}
+              className={`w-full sm:w-auto inline-flex items-center justify-between sm:justify-start gap-2 h-10 px-3.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                channelDropdownOpen || selectedChannels.length > 0
+                  ? 'bg-[#C9A66B]/15 border-[#C9A66B]/60 text-[#E5C687]'
+                  : 'bg-[#0F1422] border-white/10 text-white hover:border-[#C9A66B]/50'
+              }`}
+            >
+              <span className="inline-flex items-center gap-2 truncate">
+                <Share2 className="w-3.5 h-3.5 text-[#C9A66B] shrink-0" />
+                <span className="truncate">
+                  Channel{selectedChannels.length > 0 ? ` (${selectedChannels.length})` : ''}
+                </span>
+              </span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${
+                  channelDropdownOpen ? 'rotate-180 text-[#C9A66B]' : ''
+                }`}
+              />
+            </button>
+
+            {channelDropdownOpen && (
+              <div className="absolute right-0 sm:left-0 sm:right-auto top-full mt-1.5 w-64 max-w-[calc(100vw-24px)] max-h-[65vh] overflow-y-auto z-50 rounded-xl bg-[#0E131F] border border-[#C9A66B]/40 shadow-2xl p-1.5 space-y-0.5">
+                <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-white/[0.07] mb-1 sticky top-0 bg-[#0E131F]">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#C9A66B]">
+                    Select Channels
+                  </span>
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedChannels(ACTIVE_MARKETING_CHANNELS.map((c) => c.id))
+                      }
+                      className="text-slate-300 hover:text-white font-semibold cursor-pointer"
+                    >
+                      All
+                    </button>
+                    {selectedChannels.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedChannels([])}
+                        className="text-[#C9A66B] hover:underline font-semibold cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {ACTIVE_MARKETING_CHANNELS.map((channel) => {
+                  const isSelected = selectedChannels.includes(channel.id)
+                  const isLive =
+                    channel.category === 'website' ||
+                    (connectedChannelIds as string[]).includes(channel.id)
+                  return (
+                    <button
+                      key={channel.id}
+                      type="button"
+                      disabled={!permissions.canUploadAndDraft}
+                      onClick={() => {
+                        toggleChannel(channel.id)
+                        if (activeAction !== 'post') setActiveAction('post')
+                      }}
+                      className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-xs transition-colors cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#C9A66B]/15 text-white font-semibold'
+                          : 'text-slate-200 hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] shrink-0 ${
+                            isSelected
+                              ? 'bg-[#C9A66B] border-[#C9A66B] text-slate-950 font-bold'
+                              : 'border-slate-600 bg-slate-950'
+                          }`}
+                        >
+                          {isSelected ? '✓' : ''}
+                        </span>
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: channel.accentHex }}
+                        />
+                        <span className="truncate">{channel.label}</span>
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold shrink-0 ${
+                          isLive ? 'text-emerald-400' : 'text-amber-400/70'
+                        }`}
+                      >
+                        {isLive ? 'Live' : 'Link'}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
-          {/* Team Member / Agent Filter Dropdown */}
-          {isAdminView && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs">
+        {/* Admin-only Agent filter + Access indicator */}
+        {isAdminView && (
+          <div className="flex items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${permissions.badgeClass}`}
+            >
+              <Shield className="w-3 h-3" /> {permissions.label}
+            </span>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs">
               <span className="text-slate-400">Agent:</span>
               <select
                 value={selectedMemberFilter}
@@ -336,7 +525,7 @@ export default function MarketingHub({
                 className="bg-transparent text-white font-semibold focus:outline-none cursor-pointer"
               >
                 <option value="all" className="bg-slate-900 text-white">
-                  All Members ({posts.length})
+                  All ({posts.length})
                 </option>
                 {memberOptions.map((m) => (
                   <option key={m.email} value={m.email} className="bg-slate-900 text-white">
@@ -345,59 +534,8 @@ export default function MarketingHub({
                 ))}
               </select>
             </div>
-          )}
-
-          {/* SINGLE FUNCTIONAL ACTION DROPDOWN */}
-          <div className="w-full sm:w-64 relative" ref={dropdownRef}>
-          <button
-            type="button"
-            onClick={() => setDropdownOpen((o) => !o)}
-            className="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-slate-900 border border-[#C9A66B]/45 hover:border-[#C9A66B] text-left transition-all shadow-sm cursor-pointer"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <CurrentIcon className="w-4 h-4 text-[#C9A66B] shrink-0" />
-              <span className="text-sm font-bold text-white truncate">{currentOption.label}</span>
-            </div>
-            <ChevronDown
-              className={`w-4 h-4 text-[#C9A66B] shrink-0 transition-transform ${
-                dropdownOpen ? 'rotate-180' : ''
-              }`}
-            />
-          </button>
-
-          {dropdownOpen && (
-            <div className="absolute right-0 left-0 top-12 z-40 rounded-xl bg-slate-950 border border-[#C9A66B]/40 shadow-2xl overflow-hidden divide-y divide-slate-800/80">
-              {visibleActions.map((opt) => {
-                const Icon = opt.icon
-                const selected = opt.id === activeAction
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveAction(opt.id)
-                      setDropdownOpen(false)
-                    }}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors cursor-pointer ${
-                      selected ? 'bg-[#C9A66B]/15' : 'hover:bg-slate-900'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <Icon
-                        className={`w-4 h-4 shrink-0 ${
-                          selected ? 'text-[#C9A66B]' : 'text-slate-400'
-                        }`}
-                      />
-                      <span className="text-xs font-bold text-white truncate">{opt.label}</span>
-                    </div>
-                    {selected && <Check className="w-4 h-4 text-[#C9A66B] shrink-0" />}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </div>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* ONE-TIME SCHEMA INITIALIZATION NOTICE (ONLY IF SQL NOT YET RUN) */}
@@ -422,9 +560,9 @@ export default function MarketingHub({
           permissions={permissions}
           posts={filteredPosts}
           loadingPosts={loadingPosts}
-          connectedChannels={connections
-            .filter((c) => c.status === 'connected')
-            .map((c) => c.channel)}
+          selectedChannels={selectedChannels}
+          onToggleChannel={toggleChannel}
+          connectedChannels={connectedChannelIds}
           onOpenConnections={() => setActiveAction('connections')}
           onPostsChanged={fetchPostsAndContext}
         />

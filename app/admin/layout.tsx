@@ -1134,6 +1134,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <div className="px-4 py-3 border-b border-slate-800">
                     <p className="text-xs font-semibold text-white">{adminProfile?.full_name}</p>
                     <p className="text-[10px] text-slate-400">{adminProfile?.email}</p>
+                    <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#C9A66B]/10 border border-[#C9A66B]/30 text-[10px] font-bold uppercase tracking-wider text-[#E5C687]">
+                      <span>
+                        Access:{' '}
+                        {pathname.includes('/marketing')
+                          ? 'Marketing Admin'
+                          : pathname.includes('/finance')
+                          ? 'Finance Admin'
+                          : pathname.includes('/sales') ||
+                            pathname.startsWith('/admin/dashboard') ||
+                            pathname.startsWith('/admin/pipeline')
+                          ? 'Sales Admin'
+                          : adminProfile?.isSuperAdmin
+                          ? 'Super Admin'
+                          : 'Admin'}
+                      </span>
+                    </div>
                   </div>
                   <div className="py-1">
                     <Link
