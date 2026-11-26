@@ -450,7 +450,7 @@ export default function LeadDocumentsAndBilling({
                       <span className="font-mono font-bold text-[#E5C687]">{inv.invoice_number}</span>
                       {isPaid ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold">
-                          <CheckCircle2 className="w-3 h-3" /> Payment Made
+                          <CheckCircle2 className="w-3 h-3" /> Invoice Paid
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-300 text-[10px] font-bold">

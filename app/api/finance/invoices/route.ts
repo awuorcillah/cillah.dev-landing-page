@@ -107,13 +107,27 @@ export async function GET(request: NextRequest) {
 
     const { db, org } = auth
 
-    // Fetch invoices strictly for this org, plus staff & leads strictly for this org
-    const [invoicesRes, staffRes, leadsRes, docsRes] = await Promise.all([
+    // Fetch invoices, outflows, consultations (for cillah.dev), staff & leads IN ONE PARALLEL BATCH
+    const [invoicesRes, outflowsRes, consultsRes, staffRes, leadsRes, docsRes] = await Promise.all([
       db
         .from("finance_invoices")
         .select("*")
         .eq("org_id", org.id)
         .order("created_at", { ascending: false }),
+      db
+        .from("finance_outflows")
+        .select("*")
+        .eq("org_id", org.id)
+        .order("occurred_on", { ascending: false })
+        .order("created_at", { ascending: false }),
+      org.id === CILLAH_ORG_ID
+        ? db
+            .from("consultation_payments")
+            .select("id, full_name, email, phone, agency_name, amount_kes, status, payment_provider, mpesa_receipt, paystack_reference, paid_at, created_at")
+            .eq("status", "paid")
+            .order("paid_at", { ascending: false })
+            .limit(100)
+        : Promise.resolve({ data: [], error: null } as any),
       db
         .from("staff_members")
         .select("email, full_name, org_id")
@@ -136,8 +150,14 @@ export async function GET(request: NextRequest) {
       invoicesRes.error?.message?.toLowerCase().includes("does not exist") ||
         invoicesRes.error?.message?.toLowerCase().includes("schema cache")
     )
+    const outflowsSchemaPending = Boolean(
+      outflowsRes.error?.message?.toLowerCase().includes("does not exist") ||
+        outflowsRes.error?.message?.toLowerCase().includes("schema cache")
+    )
 
     const invoices = schemaPending ? [] : invoicesRes.data || []
+    const outflows = outflowsSchemaPending ? [] : outflowsRes.data || []
+    const paidConsults = consultsRes?.error ? [] : consultsRes?.data || []
     const documents = docsRes.error ? [] : docsRes.data || []
 
     const orgEmails = new Set(
@@ -160,8 +180,43 @@ export async function GET(request: NextRequest) {
       return orgEmails.has(assigned)
     })
 
-    // Compute live KPIs strictly for this org
+    // Nairobi (EAT UTC+3) start-of-today date string YYYY-MM-DD
+    const todayEatYmd = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Africa/Nairobi",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date())
+
+    const toEatYmd = (iso?: string | null) => {
+      if (!iso) return ""
+      try {
+        return new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Africa/Nairobi",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date(iso))
+      } catch {
+        return ""
+      }
+    }
+
+    // Unified Inflow Ledger (Paid Invoices + Paid Website Consultations for cillah.dev)
+    const inflowEntries: Array<{
+      id: string
+      source: "invoice" | "consultation"
+      client_name: string
+      title: string
+      amount_kes: number
+      payment_method: string
+      reference: string
+      paid_at: string
+      is_today: boolean
+    }> = []
+
     let totalCollectedKes = 0
+    let todayInflowKes = 0
     let pendingAmountKes = 0
     let paidCount = 0
     let unpaidCount = 0
@@ -173,32 +228,102 @@ export async function GET(request: NextRequest) {
       if (inv.status === "payment_made") {
         totalCollectedKes += amt
         paidCount += 1
+        const paidAt = inv.paid_at || inv.updated_at || inv.created_at
+        const isToday = toEatYmd(paidAt) === todayEatYmd
+        if (isToday) todayInflowKes += amt
         if (String(inv.payment_method || "").includes("card")) {
           cardCollectedKes += amt
         } else {
           mpesaCollectedKes += amt
         }
+        inflowEntries.push({
+          id: inv.id,
+          source: "invoice",
+          client_name: inv.client_name,
+          title: `${inv.invoice_number} · ${inv.title}`,
+          amount_kes: amt,
+          payment_method: String(inv.payment_method || "mpesa").includes("card") ? "Card" : "M-Pesa",
+          reference: inv.payment_reference || inv.invoice_number,
+          paid_at: paidAt,
+          is_today: isToday,
+        })
       } else if (inv.status !== "cancelled") {
         pendingAmountKes += Number(inv.amount_kes) || 0
         unpaidCount += 1
       }
     }
 
+    for (const c of paidConsults) {
+      const amt = Number(c.amount_kes) || 0
+      const paidAt = c.paid_at || c.created_at
+      const isToday = toEatYmd(paidAt) === todayEatYmd
+      totalCollectedKes += amt
+      paidCount += 1
+      if (isToday) todayInflowKes += amt
+      const isCard = String(c.payment_provider || "").includes("card")
+      if (isCard) cardCollectedKes += amt
+      else mpesaCollectedKes += amt
+      inflowEntries.push({
+        id: c.id,
+        source: "consultation",
+        client_name: c.full_name,
+        title: `Consultation${c.agency_name ? ` · ${c.agency_name}` : ""}`,
+        amount_kes: amt,
+        payment_method: isCard ? "Card" : "M-Pesa",
+        reference: c.mpesa_receipt || c.paystack_reference || "PAID",
+        paid_at: paidAt,
+        is_today: isToday,
+      })
+    }
+
+    inflowEntries.sort(
+      (a, b) => new Date(b.paid_at).getTime() - new Date(a.paid_at).getTime()
+    )
+
+    // Outflows totals (Subscriptions + Salary + Expenses)
+    let subscriptionsMonthlyKes = 0
+    let salaryTotalKes = 0
+    let expensesTotalKes = 0
+    let totalOutflowKes = 0
+
+    for (const out of outflows) {
+      const amt = Number(out.amount_kes) || 0
+      if (out.entry_type === "subscription" && out.status !== "paused") {
+        subscriptionsMonthlyKes += amt
+        totalOutflowKes += amt
+      } else if (out.entry_type === "salary" && out.status === "paid") {
+        salaryTotalKes += amt
+        totalOutflowKes += amt
+      } else if (out.entry_type === "expense" && out.status !== "paused") {
+        expensesTotalKes += amt
+        totalOutflowKes += amt
+      }
+    }
+
     return NextResponse.json({
       org,
       schemaPending,
+      outflowsSchemaPending,
       paystackConfigured: isPaystackConfigured(),
       paystackLiveMode: isPaystackLiveMode(),
       kpis: {
         totalCollectedKes,
+        todayInflowKes,
+        totalOutflowKes,
+        netCashflowKes: totalCollectedKes - totalOutflowKes,
         pendingAmountKes,
         paidCount,
         unpaidCount,
         mpesaCollectedKes,
         cardCollectedKes,
+        subscriptionsMonthlyKes,
+        salaryTotalKes,
+        expensesTotalKes,
         totalInvoices: invoices.length,
       },
       invoices,
+      inflowEntries,
+      outflows,
       leads: orgLeads,
       documents,
     })

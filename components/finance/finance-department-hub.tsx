@@ -1,11 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo } from "react"
-import Link from "next/link"
+import { createClient } from "@/lib/supabase/client"
 import {
-  DollarSign,
-  CreditCard,
-  Smartphone,
   Plus,
   Send,
   Copy,
@@ -17,16 +14,18 @@ import {
   Mail,
   MessageCircle,
   MessageSquare,
-  RefreshCw,
-  Building2,
-  UserPlus,
-  ShieldCheck,
-  AlertCircle,
   X,
   Loader2,
   Search,
   Receipt,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Repeat,
+  Users,
+  Wallet,
+  Trash2,
   Sparkles,
+  AlertCircle,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -63,6 +62,33 @@ export interface FinanceInvoice {
   created_at: string
 }
 
+interface InflowEntry {
+  id: string
+  source: "invoice" | "consultation"
+  client_name: string
+  title: string
+  amount_kes: number
+  payment_method: string
+  reference: string
+  paid_at: string
+  is_today: boolean
+}
+
+interface OutflowEntry {
+  id: string
+  entry_type: "subscription" | "salary" | "expense"
+  title: string
+  vendor_or_person: string | null
+  category: string
+  amount_kes: number
+  billing_cycle: string
+  status: string
+  occurred_on: string
+  payment_method: string
+  notes: string | null
+  is_demo_seed: boolean
+}
+
 interface OrgLeadOption {
   id: string
   full_name: string
@@ -71,8 +97,9 @@ interface OrgLeadOption {
   company_name: string | null
   stage: string
   estimated_value: number | null
-  assigned_agent_email: string | null
 }
+
+type FinanceTab = "inflow" | "invoices" | "subscriptions" | "salary" | "expenses"
 
 interface FinanceDepartmentHubProps {
   orgSlug: string
@@ -88,37 +115,41 @@ export default function FinanceDepartmentHub({
   orgSlug,
   orgName,
   isDemoOrg = false,
-  showManageUsersLink = true,
 }: FinanceDepartmentHubProps) {
+  const supabase = createClient()
+
+  const [activeTab, setActiveTab] = useState<FinanceTab>("inflow")
+  const [inflowScope, setInflowScope] = useState<"today" | "all">("today")
+  const [invoiceFilter, setInvoiceFilter] = useState<"all" | "unpaid" | "payment_made">("all")
+  const [search, setSearch] = useState("")
+
   const [loading, setLoading] = useState(true)
-  const [schemaPending, setSchemaPending] = useState(false)
-  const [paystackConfigured, setPaystackConfigured] = useState(false)
-  const [paystackLiveMode, setPaystackLiveMode] = useState(false)
+  const [outflowsSchemaPending, setOutflowsSchemaPending] = useState(false)
   const [invoices, setInvoices] = useState<FinanceInvoice[]>([])
+  const [inflowEntries, setInflowEntries] = useState<InflowEntry[]>([])
+  const [outflows, setOutflows] = useState<OutflowEntry[]>([])
   const [leads, setLeads] = useState<OrgLeadOption[]>([])
   const [kpis, setKpis] = useState({
     totalCollectedKes: 0,
+    todayInflowKes: 0,
+    totalOutflowKes: 0,
+    netCashflowKes: 0,
     pendingAmountKes: 0,
     paidCount: 0,
     unpaidCount: 0,
-    mpesaCollectedKes: 0,
-    cardCollectedKes: 0,
-    totalInvoices: 0,
+    subscriptionsMonthlyKes: 0,
+    salaryTotalKes: 0,
+    expensesTotalKes: 0,
   })
 
-  // Filters
-  const [statusFilter, setStatusFilter] = useState<"all" | "unpaid" | "payment_made">("all")
-  const [search, setSearch] = useState("")
-
-  // Bill Client Modal State
-  const [showBillModal, setShowBillModal] = useState(false)
-  const [selectedLeadId, setSelectedLeadId] = useState<string>("")
+  // Create Invoice (Pay Now) Modal
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+  const [selectedLeadId, setSelectedLeadId] = useState("")
   const [clientName, setClientName] = useState("")
   const [clientEmail, setClientEmail] = useState("")
   const [clientPhone, setClientPhone] = useState("")
   const [clientCompany, setClientCompany] = useState("")
   const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
   const [invoiceType, setInvoiceType] = useState("deposit")
   const [amountKes, setAmountKes] = useState("")
   const [dueDate, setDueDate] = useState("")
@@ -130,30 +161,43 @@ export default function FinanceDepartmentHub({
   const [uploadingContract, setUploadingContract] = useState(false)
   const [creatingInvoice, setCreatingInvoice] = useState(false)
 
-  // Send Pay Now Link Modal State
+  // Send Pay Now Link Modal
   const [sendTarget, setSendTarget] = useState<FinanceInvoice | null>(null)
   const [customSendMessage, setCustomSendMessage] = useState("")
   const [sendingChannel, setSendingChannel] = useState<"email" | "whatsapp" | "sms" | null>(null)
 
+  // Add Outflow Modal (Subscription / Salary / Expense)
+  const [outflowModalType, setOutflowModalType] = useState<
+    "subscription" | "salary" | "expense" | null
+  >(null)
+  const [outTitle, setOutTitle] = useState("")
+  const [outVendor, setOutVendor] = useState("")
+  const [outCategory, setOutCategory] = useState("Software")
+  const [outAmount, setOutAmount] = useState("")
+  const [outDate, setOutDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [outMethod, setOutMethod] = useState("mpesa")
+  const [outStatus, setOutStatus] = useState("paid")
+  const [outNotes, setOutNotes] = useState("")
+  const [savingOutflow, setSavingOutflow] = useState(false)
+
   const fetchFinanceData = useCallback(async () => {
-    setLoading(true)
     try {
       const res = await fetch(`/api/finance/invoices?orgSlug=${encodeURIComponent(orgSlug)}`, {
         cache: "no-store",
       })
       const data = await res.json()
       if (!res.ok) {
-        toast.error(data.error || "Could not load finance workspace")
+        toast.error(data.error || "Could not load finance")
         return
       }
-      setSchemaPending(Boolean(data.schemaPending))
-      setPaystackConfigured(Boolean(data.paystackConfigured))
-      setPaystackLiveMode(Boolean(data.paystackLiveMode))
+      setOutflowsSchemaPending(Boolean(data.outflowsSchemaPending))
       setInvoices(data.invoices || [])
+      setInflowEntries(data.inflowEntries || [])
+      setOutflows(data.outflows || [])
       setLeads(data.leads || [])
       if (data.kpis) setKpis(data.kpis)
     } catch (err: any) {
-      toast.error(err?.message || "Failed to load finance data")
+      toast.error(err?.message || "Failed to load finance")
     } finally {
       setLoading(false)
     }
@@ -161,12 +205,26 @@ export default function FinanceDepartmentHub({
 
   useEffect(() => {
     fetchFinanceData()
-  }, [fetchFinanceData])
+    // Live realtime listener: immediately updates Invoice Paid + Inflow when client pays!
+    const channel = supabase
+      .channel(`finance_live_${orgSlug}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "finance_invoices" }, () => {
+        fetchFinanceData()
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "finance_outflows" }, () => {
+        fetchFinanceData()
+      })
+      .subscribe()
 
-  const getPayUrl = (token: string) => {
-    if (typeof window === "undefined") return `https://www.cillah.dev/pay/${token}`
-    return `${window.location.origin}/pay/${token}`
-  }
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [fetchFinanceData, orgSlug, supabase])
+
+  const getPayUrl = (token: string) =>
+    typeof window === "undefined"
+      ? `https://www.cillah.dev/pay/${token}`
+      : `${window.location.origin}/pay/${token}`
 
   const handleSelectLead = (leadId: string) => {
     setSelectedLeadId(leadId)
@@ -180,11 +238,7 @@ export default function FinanceDepartmentHub({
         setAmountKes(String(found.estimated_value))
       }
       if (!title) {
-        setTitle(
-          found.company_name
-            ? `${found.company_name} — Project Agreement & Deposit`
-            : `Project Agreement & Deposit — ${found.full_name}`
-        )
+        setTitle(found.company_name || `Project — ${found.full_name}`)
       }
     }
   }
@@ -199,17 +253,12 @@ export default function FinanceDepartmentHub({
       fd.append("orgSlug", orgSlug)
       fd.append("docType", "contract")
       fd.append("title", file.name)
-      const res = await fetch("/api/finance/upload-document", {
-        method: "POST",
-        body: fd,
-      })
+      const res = await fetch("/api/finance/upload-document", { method: "POST", body: fd })
       const data = await res.json()
-      if (!res.ok || !data.file?.url) {
-        throw new Error(data.error || "Could not upload contract")
-      }
+      if (!res.ok || !data.file?.url) throw new Error(data.error || "Upload failed")
       setContractUrl(data.file.url)
       setContractName(data.file.name)
-      toast.success(`Contract "${data.file.name}" attached!`)
+      toast.success(`Attached "${data.file.name}"`)
     } catch (err: any) {
       toast.error(err?.message || "Upload failed")
     } finally {
@@ -225,10 +274,9 @@ export default function FinanceDepartmentHub({
       ...(allowCard ? ["card"] : []),
     ]
     if (allowedMethods.length === 0) {
-      toast.error("Please enable at least one payment option (M-Pesa or Card).")
+      toast.error("Select M-Pesa or Card.")
       return
     }
-
     setCreatingInvoice(true)
     try {
       const res = await fetch("/api/finance/invoices", {
@@ -242,7 +290,6 @@ export default function FinanceDepartmentHub({
           clientPhone,
           clientCompany,
           title,
-          description,
           invoiceType,
           amountKes: Number(amountKes),
           allowedMethods,
@@ -253,34 +300,28 @@ export default function FinanceDepartmentHub({
         }),
       })
       const data = await res.json()
-      if (!res.ok || !data.invoice) {
-        throw new Error(data.error || "Failed to create invoice")
-      }
+      if (!res.ok || !data.invoice) throw new Error(data.error || "Could not create invoice")
 
-      toast.success(`Invoice ${data.invoice.invoice_number} created! Ready to send with Pay Now button.`)
-      setShowBillModal(false)
+      toast.success(`Invoice ${data.invoice.invoice_number} ready!`)
+      setShowInvoiceModal(false)
       setSendTarget(data.invoice)
       setCustomSendMessage("")
+      setActiveTab("invoices")
 
-      // Reset form
       setSelectedLeadId("")
       setClientName("")
       setClientEmail("")
       setClientPhone("")
       setClientCompany("")
       setTitle("")
-      setDescription("")
       setAmountKes("")
       setContractUrl("")
       setContractName("")
       setContractNotes("")
       setDueDate("")
-      setAllowMpesa(true)
-      setAllowCard(true)
-
       await fetchFinanceData()
     } catch (err: any) {
-      toast.error(err?.message || "Could not create invoice")
+      toast.error(err?.message || "Failed to create invoice")
     } finally {
       setCreatingInvoice(false)
     }
@@ -302,390 +343,477 @@ export default function FinanceDepartmentHub({
         }),
       })
       const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to prepare message")
-      }
+      if (!res.ok) throw new Error(data.error || "Failed to send")
 
       if (data.deliveredDirectly) {
-        toast.success(data.deliveryNote || `Sent via ${channel.toUpperCase()}!`)
+        toast.success(data.deliveryNote || `Sent via ${channel.toUpperCase()}`)
       } else if (channel === "whatsapp") {
         window.open(data.whatsappUrl, "_blank", "noopener,noreferrer")
-        toast.success("WhatsApp opened with your contract & Pay Now link ready to send!")
       } else if (channel === "email") {
         window.open(data.gmailComposeUrl, "_blank", "noopener,noreferrer")
-        toast.success("Email composer opened with your invoice, contract & Pay Now link!")
-      } else if (channel === "sms") {
+      } else {
         await navigator.clipboard.writeText(data.plainMessage).catch(() => {})
         window.location.href = data.smsUrl
-        toast.success("SMS opened & message copied to clipboard!")
+        toast.success("SMS opened & link copied")
       }
-
       fetchFinanceData()
     } catch (err: any) {
-      toast.error(err?.message || "Could not send invoice")
+      toast.error(err?.message || "Failed to send")
     } finally {
       setSendingChannel(null)
     }
   }
 
-  const copyPayLink = async (inv: FinanceInvoice) => {
-    const url = getPayUrl(inv.public_token)
-    await navigator.clipboard.writeText(url)
-    toast.success(`Copied Pay Now link for ${inv.invoice_number}!`)
+  const openOutflowModal = (type: "subscription" | "salary" | "expense") => {
+    setOutflowModalType(type)
+    setOutTitle("")
+    setOutVendor("")
+    setOutAmount("")
+    setOutNotes("")
+    setOutDate(new Date().toISOString().slice(0, 10))
+    setOutCategory(
+      type === "subscription" ? "Software" : type === "salary" ? "Payroll" : "Operations"
+    )
+    setOutStatus(type === "subscription" ? "active" : "paid")
+    setOutMethod(type === "subscription" ? "card" : type === "salary" ? "bank" : "mpesa")
   }
 
-  const filteredInvoices = useMemo(() => {
-    return invoices.filter((inv) => {
-      if (statusFilter === "payment_made" && inv.status !== "payment_made") return false
-      if (statusFilter === "unpaid" && inv.status === "payment_made") return false
+  const handleSaveOutflow = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!outflowModalType) return
+    setSavingOutflow(true)
+    try {
+      const res = await fetch("/api/finance/outflows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgSlug,
+          entryType: outflowModalType,
+          title: outTitle,
+          vendorOrPerson: outVendor,
+          category: outCategory,
+          amountKes: Number(outAmount),
+          billingCycle:
+            outflowModalType === "subscription" || outflowModalType === "salary"
+              ? "monthly"
+              : "one_time",
+          status: outStatus,
+          occurredOn: outDate,
+          paymentMethod: outMethod,
+          notes: outNotes,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to save")
+      toast.success("Saved!")
+      setOutflowModalType(null)
+      await fetchFinanceData()
+    } catch (err: any) {
+      toast.error(err?.message || "Could not save")
+    } finally {
+      setSavingOutflow(false)
+    }
+  }
+
+  const toggleOutflowStatus = async (item: OutflowEntry) => {
+    const nextStatus =
+      item.entry_type === "subscription"
+        ? item.status === "active"
+          ? "paused"
+          : "active"
+        : item.status === "paid"
+        ? "pending"
+        : "paid"
+
+    const res = await fetch("/api/finance/outflows", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgSlug, id: item.id, status: nextStatus }),
+    })
+    if (res.ok) {
+      toast.success(`Marked ${nextStatus}`)
+      fetchFinanceData()
+    }
+  }
+
+  const deleteOutflow = async (id: string) => {
+    const res = await fetch(
+      `/api/finance/outflows?id=${encodeURIComponent(id)}&orgSlug=${encodeURIComponent(orgSlug)}`,
+      { method: "DELETE" }
+    )
+    if (res.ok) {
+      toast.success("Removed")
+      fetchFinanceData()
+    }
+  }
+
+  const filteredInflow = useMemo(() => {
+    return inflowEntries.filter((e) => {
+      if (inflowScope === "today" && !e.is_today) return false
       if (search.trim()) {
         const q = search.toLowerCase()
-        const hay = `${inv.invoice_number} ${inv.client_name} ${inv.client_email || ""} ${
-          inv.client_company || ""
-        } ${inv.title}`.toLowerCase()
-        if (!hay.includes(q)) return false
+        return `${e.client_name} ${e.title} ${e.reference}`.toLowerCase().includes(q)
       }
       return true
     })
-  }, [invoices, statusFilter, search])
+  }, [inflowEntries, inflowScope, search])
+
+  const filteredInvoices = useMemo(() => {
+    return invoices.filter((inv) => {
+      if (invoiceFilter === "payment_made" && inv.status !== "payment_made") return false
+      if (invoiceFilter === "unpaid" && inv.status === "payment_made") return false
+      if (search.trim()) {
+        const q = search.toLowerCase()
+        return `${inv.invoice_number} ${inv.client_name} ${inv.title}`.toLowerCase().includes(q)
+      }
+      return true
+    })
+  }, [invoices, invoiceFilter, search])
+
+  const subscriptions = useMemo(
+    () => outflows.filter((o) => o.entry_type === "subscription"),
+    [outflows]
+  )
+  const salaries = useMemo(
+    () => outflows.filter((o) => o.entry_type === "salary"),
+    [outflows]
+  )
+  const expenses = useMemo(
+    () => outflows.filter((o) => o.entry_type === "expense"),
+    [outflows]
+  )
+
+  const TABS: Array<{ id: FinanceTab; label: string; icon: any }> = [
+    { id: "inflow", label: "Inflow", icon: ArrowDownLeft },
+    { id: "invoices", label: "Invoices", icon: Receipt },
+    { id: "subscriptions", label: "Subscriptions", icon: Repeat },
+    { id: "salary", label: "Salary", icon: Users },
+    { id: "expenses", label: "Expenses", icon: ArrowUpRight },
+  ]
 
   return (
-    <div className="min-h-screen bg-[#0E131F] text-slate-100 p-4 md:p-6 space-y-6 font-sans">
-      {/* HEADER */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
-        <div>
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider mb-1">
-            <Building2 className="w-3.5 h-3.5 text-[#C9A66B]" />
-            <span className="text-[#C9A66B]">{orgName} &bull; Finance Department</span>
-            {isDemoOrg ? (
-              <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-300 text-[9px] uppercase">
-                Demo Ledger &bull; Live Billing Enabled
-              </span>
-            ) : (
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 text-[9px] uppercase">
-                Live Production Data
-              </span>
-            )}
-          </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2.5">
-            <DollarSign className="w-6 h-6 text-emerald-400" />
-            Client Billing, Contracts &amp; Paystack Settlement
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            {isDemoOrg
-              ? "Safe demo ledger for client showcases — sample records stay isolated here while Bill Client triggers real M-Pesa & Card Paystack payments."
-              : "Live accurate revenue & invoices for cillah.dev. Paid invoices automatically move leads to Ongoing Project / Full Payment Made and update Won Deals in KES."}
-          </p>
-        </div>
+    <div className="min-h-screen bg-[#090B12] text-slate-100 px-3 pt-3 pb-10 sm:p-5 md:p-6 space-y-4 font-sans">
+      {/* 1. COMPACT CASHFLOW STRIP (INFLOW | OUTFLOW | NET) — ZERO CLUTTER */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <button
+          type="button"
+          onClick={() => setActiveTab("inflow")}
+          className="text-left p-3 sm:p-4 rounded-2xl bg-[#0F1422] border border-emerald-500/25 hover:border-emerald-400/50 transition-all cursor-pointer"
+        >
+          <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-400 block">
+            Inflow
+          </span>
+          <span className="text-sm sm:text-xl font-black text-white font-mono block mt-1 truncate">
+            {formatKES(kpis.totalCollectedKes)}
+          </span>
+          <span className="text-[10px] text-emerald-300/80 block mt-0.5 truncate">
+            Today: {formatKES(kpis.todayInflowKes)}
+          </span>
+        </button>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setShowBillModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#C9A66B] hover:bg-[#d8b77c] text-slate-950 font-extrabold text-xs shadow-lg shadow-[#C9A66B]/20 transition-all cursor-pointer"
+        <button
+          type="button"
+          onClick={() => setActiveTab("expenses")}
+          className="text-left p-3 sm:p-4 rounded-2xl bg-[#0F1422] border border-rose-500/20 hover:border-rose-400/50 transition-all cursor-pointer"
+        >
+          <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-rose-400 block">
+            Outflow
+          </span>
+          <span className="text-sm sm:text-xl font-black text-white font-mono block mt-1 truncate">
+            {formatKES(kpis.totalOutflowKes)}
+          </span>
+          <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
+            Subs · Salary · Exp
+          </span>
+        </button>
+
+        <div className="p-3 sm:p-4 rounded-2xl bg-[#0F1422] border border-[#C9A66B]/30">
+          <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#C9A66B] block">
+            Net
+          </span>
+          <span
+            className={`text-sm sm:text-xl font-black font-mono block mt-1 truncate ${
+              kpis.netCashflowKes >= 0 ? "text-[#E5C687]" : "text-rose-400"
+            }`}
           >
-            <Plus className="w-4 h-4" />
-            Bill Client / Send Contract
-          </button>
+            {formatKES(kpis.netCashflowKes)}
+          </span>
+          <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
+            {isDemoOrg ? `${orgName} Demo` : orgName}
+          </span>
+        </div>
+      </div>
 
-          {showManageUsersLink && (
-            <Link
-              href={`/admin/organizations/${orgSlug}/finance/users`}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-200 transition-colors"
+      {/* 2. TOP ACTION ROW: + Pay Now / Invoice + CLEAN MODULE TABS */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <button
+          type="button"
+          onClick={() => setShowInvoiceModal(true)}
+          className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-[#C9A66B] hover:bg-[#d8b77c] active:scale-[0.97] text-slate-950 font-black text-xs shrink-0 shadow-md shadow-[#C9A66B]/20 cursor-pointer"
+        >
+          <Plus className="w-4 h-4 stroke-[2.5]" />
+          <span>Pay Now</span>
+        </button>
+
+        {TABS.map((t) => {
+          const Icon = t.icon
+          const active = activeTab === t.id
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => {
+                setActiveTab(t.id)
+                setSearch("")
+              }}
+              className={`inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl border text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                active
+                  ? "bg-white/[0.1] border-[#C9A66B]/70 text-white"
+                  : "bg-[#0F1422] border-white/10 text-slate-400 hover:text-white"
+              }`}
             >
-              <UserPlus className="w-3.5 h-3.5 text-[#C9A66B]" />
-              Finance Users
-            </Link>
+              <Icon className={`w-3.5 h-3.5 ${active ? "text-[#C9A66B]" : ""}`} />
+              <span>{t.label}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* OPTIONAL SQL NOTICE ONLY WHEN OUTFLOWS TABLE NOT YET CREATED */}
+      {outflowsSchemaPending &&
+        (activeTab === "subscriptions" ||
+          activeTab === "salary" ||
+          activeTab === "expenses") && (
+          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/35 flex items-start gap-2.5 text-xs text-amber-200">
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <span>
+              Run <code className="text-amber-300">supabase/finance_outflows_schema.sql</code> in
+              Supabase SQL Editor once to enable Subscriptions, Salary &amp; Expenses.
+            </span>
+          </div>
+        )}
+
+      {/* 3. TAB CONTENT */}
+      {loading ? (
+        <div className="py-16 flex items-center justify-center gap-2 text-xs text-[#C9A66B]">
+          <Sparkles className="w-4 h-4 animate-spin" /> Loading...
+        </div>
+      ) : (
+        <>
+          {/* ===================== TAB 1: INFLOW ===================== */}
+          {activeTab === "inflow" && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="inline-flex bg-[#0F1422] border border-white/10 rounded-xl p-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setInflowScope("today")}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
+                      inflowScope === "today"
+                        ? "bg-emerald-500/20 text-emerald-300"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    Today ({formatKES(kpis.todayInflowKes)})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInflowScope("all")}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
+                      inflowScope === "all"
+                        ? "bg-emerald-500/20 text-emerald-300"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    All ({inflowEntries.length})
+                  </button>
+                </div>
+
+                <div className="relative flex-1 max-w-xs">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search inflow..."
+                    className="w-full bg-[#0F1422] border border-white/10 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-[#C9A66B]"
+                  />
+                </div>
+              </div>
+
+              {filteredInflow.length === 0 ? (
+                <div className="p-10 rounded-2xl bg-[#0F1422] border border-white/[0.07] text-center space-y-2">
+                  <p className="text-sm font-bold text-slate-200">
+                    {inflowScope === "today" ? "KES 0 received today" : "No inflow recorded yet"}
+                  </p>
+                  {inflowScope === "today" && inflowEntries.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setInflowScope("all")}
+                      className="text-xs text-[#C9A66B] font-semibold hover:underline cursor-pointer"
+                    >
+                      View all {inflowEntries.length} payments →
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredInflow.map((entry) => (
+                    <div
+                      key={`${entry.source}-${entry.id}`}
+                      className="p-3.5 rounded-2xl bg-[#0F1422] border border-white/[0.08] flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-white truncate">
+                            {entry.client_name}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-bold shrink-0">
+                            {entry.payment_method}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 truncate mt-0.5">{entry.title}</p>
+                        <p className="text-[10px] font-mono text-slate-500 mt-0.5">
+                          Ref: {entry.reference} &bull;{" "}
+                          {new Date(entry.paid_at).toLocaleString([], {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </div>
+                      <span className="text-sm sm:text-base font-black font-mono text-emerald-400 shrink-0">
+                        +{formatKES(entry.amount_kes)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
-          <button
-            type="button"
-            onClick={fetchFinanceData}
-            className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-medium text-slate-300 cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-[#C9A66B]" : ""}`} />
-            Refresh
-          </button>
-        </div>
-      </div>
+          {/* ===================== TAB 2: INVOICES ===================== */}
+          {activeTab === "invoices" && (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="inline-flex bg-[#0F1422] border border-white/10 rounded-xl p-1 text-xs">
+                  {(
+                    [
+                      { id: "all", label: `All (${invoices.length})` },
+                      { id: "unpaid", label: `Unpaid (${kpis.unpaidCount})` },
+                      { id: "payment_made", label: "Invoice Paid" },
+                    ] as const
+                  ).map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setInvoiceFilter(f.id)}
+                      className={`px-2.5 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
+                        invoiceFilter === f.id
+                          ? "bg-[#C9A66B] text-slate-950"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
 
-      {/* SETUP / PAYSTACK CONNECTION STATUS BANNER */}
-      {schemaPending && (
-        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/40 flex items-start gap-3 text-xs text-amber-200">
-          <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-bold text-amber-100">One-Time Database Setup Needed</p>
-            <p className="mt-0.5 text-amber-200/85">
-              Run <code className="px-1.5 py-0.5 rounded bg-black/40 text-amber-300">supabase/finance_paystack_and_documents_schema.sql</code> in your Supabase SQL Editor to activate <code className="text-amber-300">finance_invoices</code>, <code className="text-amber-300">lead_documents</code>, and the <code className="text-amber-300">client-documents</code> storage bucket.
-            </p>
-          </div>
-        </div>
-      )}
+                <div className="relative flex-1 min-w-[160px] max-w-xs">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search invoice..."
+                    className="w-full bg-[#0F1422] border border-white/10 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-[#C9A66B]"
+                  />
+                </div>
+              </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-900/70 border border-slate-800 text-xs">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-300">
-            <Smartphone className="w-4 h-4" /> M-Pesa Express: <strong className="text-white">Active (Till 3513268)</strong>
-          </span>
-          <span className="text-slate-700">|</span>
-          <span className="inline-flex items-center gap-1.5 font-semibold text-[#E5C687]">
-            <CreditCard className="w-4 h-4" /> Paystack Card &amp; Global:
-            {paystackConfigured ? (
-              <strong className="text-emerald-400">
-                {paystackLiveMode ? "Live Connected" : "Test Mode Connected"}
-              </strong>
-            ) : (
-              <strong className="text-amber-300">Add PAYSTACK_SECRET_KEY in Vercel / .env.local</strong>
-            )}
-          </span>
-        </div>
-        <span className="text-[11px] text-slate-400 inline-flex items-center gap-1">
-          <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-          M-Pesa cap: KES 150,000/tx &bull; Card: Unlimited (Local &amp; International)
-        </span>
-      </div>
-
-      {/* 4 FINANCE KPI CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 rounded-2xl bg-slate-900/85 border border-emerald-500/25">
-          <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>Total Collected (Payment Made)</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="mt-2 text-2xl font-black text-emerald-400 font-mono">
-            {formatKES(kpis.totalCollectedKes)}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">
-            {kpis.paidCount} verified {kpis.paidCount === 1 ? "payment" : "payments"}
-          </p>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-slate-900/85 border border-amber-500/25">
-          <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>Outstanding Invoices</span>
-            <Clock className="w-4 h-4 text-amber-400" />
-          </div>
-          <div className="mt-2 text-2xl font-black text-amber-300 font-mono">
-            {formatKES(kpis.pendingAmountKes)}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">
-            {kpis.unpaidCount} awaiting client payment
-          </p>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-slate-900/85 border border-slate-800">
-          <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>Collected via M-Pesa</span>
-            <Smartphone className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="mt-2 text-2xl font-black text-white font-mono">
-            {formatKES(kpis.mpesaCollectedKes)}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">STK Push &amp; Paystack Mobile Money</p>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-slate-900/85 border border-slate-800">
-          <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>Collected via Card (Global)</span>
-            <CreditCard className="w-4 h-4 text-[#C9A66B]" />
-          </div>
-          <div className="mt-2 text-2xl font-black text-[#E5C687] font-mono">
-            {formatKES(kpis.cardCollectedKes)}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Visa, Mastercard &amp; Apple Pay</p>
-        </div>
-      </div>
-
-      {/* INVOICE LEDGER TABLE */}
-      <div className="rounded-2xl bg-slate-900/75 border border-slate-800 overflow-hidden shadow-xl">
-        <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <Receipt className="w-4 h-4 text-[#C9A66B]" />
-              Client Invoices &amp; Contract Payment Links
-            </h2>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              Every invoice comes with a unique Pay Now link, attached contract, and automatic CRM stage updates.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search client or invoice..."
-                className="bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#C9A66B]"
-              />
-            </div>
-
-            <div className="flex items-center bg-slate-950 border border-slate-800 rounded-xl p-1 text-[11px]">
-              {(["all", "unpaid", "payment_made"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setStatusFilter(tab)}
-                  className={`px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${
-                    statusFilter === tab
-                      ? "bg-[#C9A66B] text-slate-950"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  {tab === "all" ? "All" : tab === "unpaid" ? "Awaiting" : "Payment Made"}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="py-16 flex flex-col items-center justify-center gap-2 text-xs text-slate-400">
-            <Sparkles className="w-5 h-5 animate-spin text-[#C9A66B]" />
-            Loading {orgName} invoices...
-          </div>
-        ) : filteredInvoices.length === 0 ? (
-          <div className="py-16 text-center space-y-3 px-4">
-            <Receipt className="w-10 h-10 text-slate-700 mx-auto" />
-            <p className="text-sm font-semibold text-slate-200">No invoices yet for {orgName}</p>
-            <p className="text-xs text-slate-400 max-w-md mx-auto">
-              Click <strong>&ldquo;Bill Client / Send Contract&rdquo;</strong> above to attach a contract, set the agreed KES amount, and send a Pay Now link via Email, WhatsApp, or SMS.
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowBillModal(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#C9A66B] text-slate-950 font-bold text-xs cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" /> Create First Invoice
-            </button>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/90 border-b border-slate-800 text-[10px] uppercase tracking-wider text-slate-400">
-                <tr>
-                  <th className="py-3.5 px-4">Invoice &amp; Milestone</th>
-                  <th className="py-3.5 px-4">Client</th>
-                  <th className="py-3.5 px-4">Agreed Amount</th>
-                  <th className="py-3.5 px-4">Contract</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4 text-right">Send / Pay Link</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/70">
-                {filteredInvoices.map((inv) => {
-                  const isPaid = inv.status === "payment_made"
-                  return (
-                    <tr key={inv.id} className="hover:bg-slate-800/35 transition-colors">
-                      <td className="py-4 px-4">
-                        <div className="font-mono font-bold text-[#E5C687] flex items-center gap-1.5">
-                          {inv.invoice_number}
-                          {inv.is_demo_seed && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-sans">
-                              DEMO
-                            </span>
-                          )}
-                        </div>
-                        <div className="font-semibold text-white mt-0.5 max-w-[240px] truncate">
-                          {inv.title}
-                        </div>
-                        <div className="text-[10px] text-slate-400 capitalize mt-0.5">
-                          {inv.invoice_type.replace(/_/g, " ")} &bull;{" "}
-                          {new Date(inv.created_at).toLocaleDateString()}
-                        </div>
-                      </td>
-
-                      <td className="py-4 px-4">
-                        <div className="font-semibold text-slate-100">{inv.client_name}</div>
-                        {inv.client_company && (
-                          <div className="text-[11px] text-slate-400">{inv.client_company}</div>
-                        )}
-                        <div className="text-[10px] text-slate-500">
-                          {inv.client_email || inv.client_phone || "—"}
-                        </div>
-                      </td>
-
-                      <td className="py-4 px-4">
-                        <div className="font-mono font-bold text-white text-sm">
-                          {formatKES(inv.paid_amount || inv.amount_kes)}
-                        </div>
-                        <div className="flex items-center gap-1 mt-1">
-                          {(inv.allowed_methods || ["mpesa", "card"]).map((m) => (
-                            <span
-                              key={m}
-                              className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-[9px] uppercase font-bold text-slate-300"
-                            >
-                              {m}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-
-                      <td className="py-4 px-4">
-                        {inv.contract_url ? (
-                          <a
-                            href={inv.contract_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-300 hover:bg-sky-500/20 text-[11px] font-semibold"
-                          >
-                            <FileText className="w-3 h-3" />
-                            <span className="max-w-[130px] truncate">
-                              {inv.contract_name || "View Contract"}
-                            </span>
-                          </a>
-                        ) : inv.contract_name ? (
-                          <span className="text-[11px] text-slate-300">{inv.contract_name}</span>
-                        ) : (
-                          <span className="text-slate-500">—</span>
-                        )}
-                      </td>
-
-                      <td className="py-4 px-4">
-                        {isPaid ? (
-                          <div className="space-y-1">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-bold text-[10px] uppercase">
-                              <CheckCircle2 className="w-3 h-3" /> Payment Made
-                            </span>
+              {filteredInvoices.length === 0 ? (
+                <div className="p-10 rounded-2xl bg-[#0F1422] border border-white/[0.07] text-center space-y-3">
+                  <p className="text-sm font-bold text-slate-200">No invoices yet</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowInvoiceModal(true)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#C9A66B] text-slate-950 font-black text-xs cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> New Invoice
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {filteredInvoices.map((inv) => {
+                    const isPaid = inv.status === "payment_made"
+                    return (
+                      <div
+                        key={inv.id}
+                        className="p-4 rounded-2xl bg-[#0F1422] border border-white/[0.08] space-y-3"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono text-xs font-bold text-[#E5C687]">
+                                {inv.invoice_number}
+                              </span>
+                              {isPaid ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold">
+                                  <CheckCircle2 className="w-3 h-3" /> Invoice Paid
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-300 text-[10px] font-bold">
+                                  <Clock className="w-3 h-3" /> Unpaid
+                                </span>
+                              )}
+                            </div>
+                            <p className="font-bold text-sm text-white mt-1 truncate">
+                              {inv.client_name}
+                            </p>
+                            <p className="text-xs text-slate-400 truncate">{inv.title}</p>
                             {inv.payment_reference && (
-                              <div className="text-[10px] font-mono text-slate-400">
+                              <p className="text-[10px] font-mono text-emerald-400 mt-0.5">
                                 Ref: {inv.payment_reference}
-                              </div>
+                              </p>
                             )}
                           </div>
-                        ) : (
-                          <div className="space-y-1">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-300 font-bold text-[10px] uppercase">
-                              <Clock className="w-3 h-3" /> {inv.status === "sent" ? "Sent • Unpaid" : "Unpaid"}
-                            </span>
-                            {inv.sent_via?.length > 0 && (
-                              <div className="text-[10px] text-slate-500">
-                                Sent via {inv.sent_via.join(", ")}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </td>
+                          <span className="font-mono font-black text-base text-white shrink-0">
+                            {formatKES(inv.paid_amount || inv.amount_kes)}
+                          </span>
+                        </div>
 
-                      <td className="py-4 px-4 text-right">
-                        <div className="inline-flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5 pt-2.5 border-t border-white/[0.06]">
                           <button
                             type="button"
                             onClick={() => {
                               setSendTarget(inv)
                               setCustomSendMessage("")
                             }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 border border-[#C9A66B]/40 text-[#E5C687] font-bold text-[11px] cursor-pointer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 border border-[#C9A66B]/40 text-[#E5C687] font-bold text-xs cursor-pointer"
                           >
-                            <Send className="w-3 h-3" /> Send Pay Now
+                            <Send className="w-3.5 h-3.5" /> Send Pay Now
                           </button>
+
+                          {inv.contract_url && (
+                            <a
+                              href={inv.contract_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-300 text-xs font-semibold"
+                            >
+                              <FileText className="w-3.5 h-3.5" /> Contract
+                            </a>
+                          )}
 
                           <button
                             type="button"
-                            onClick={() => copyPayLink(inv)}
-                            title="Copy Pay Now link"
-                            className="p-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 cursor-pointer"
+                            onClick={async () => {
+                              await navigator.clipboard.writeText(getPayUrl(inv.public_token))
+                              toast.success("Pay Now link copied!")
+                            }}
+                            className="p-2 rounded-xl bg-slate-950 border border-white/10 text-slate-300 cursor-pointer"
+                            title="Copy Pay Now Link"
                           >
                             <Copy className="w-3.5 h-3.5" />
                           </button>
@@ -694,208 +822,355 @@ export default function FinanceDepartmentHub({
                             href={`/pay/${inv.public_token}`}
                             target="_blank"
                             rel="noreferrer"
-                            title="Preview Client Checkout Page"
-                            className="p-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300"
+                            className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-slate-300 hover:text-[#C9A66B]"
                           >
-                            <ExternalLink className="w-3.5 h-3.5" />
+                            Pay Page <ExternalLink className="w-3.5 h-3.5" />
                           </a>
                         </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
-      {/* MODAL 1: BILL CLIENT / CREATE INVOICE + CONTRACT */}
-      {showBillModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col shadow-2xl">
-            <div className="p-5 border-b border-slate-800 bg-slate-950/70 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-[#C9A66B]" />
-                  Bill Client &amp; Attach Contract ({orgName})
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Creates a verified Pay Now link (M-Pesa / Card) and saves the contract directly in the lead&apos;s drawer.
-                </p>
+          {/* ===================== TAB 3: SUBSCRIPTIONS ===================== */}
+          {activeTab === "subscriptions" && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
+                    Monthly Total
+                  </span>
+                  <p className="text-lg font-black font-mono text-white">
+                    {formatKES(kpis.subscriptionsMonthlyKes)}
+                    <span className="text-xs font-normal text-slate-400"> / mo</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openOutflowModal("subscription")}
+                  className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-[#C9A66B] text-slate-950 font-black text-xs cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" /> Subscription
+                </button>
               </div>
+
+              {subscriptions.length === 0 ? (
+                <div className="p-10 rounded-2xl bg-[#0F1422] border border-white/[0.07] text-center text-xs text-slate-400">
+                  No monthly subscriptions added yet.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {subscriptions.map((sub) => (
+                    <div
+                      key={sub.id}
+                      className="p-3.5 rounded-2xl bg-[#0F1422] border border-white/[0.08] flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-white truncate">{sub.title}</span>
+                          <button
+                            type="button"
+                            onClick={() => toggleOutflowStatus(sub)}
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase cursor-pointer ${
+                              sub.status === "active"
+                                ? "bg-emerald-500/15 text-emerald-300"
+                                : "bg-slate-800 text-slate-400"
+                            }`}
+                          >
+                            {sub.status}
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {sub.vendor_or_person || sub.category} &bull; {sub.payment_method.toUpperCase()} &bull; {sub.occurred_on}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-mono font-black text-sm text-rose-300">
+                          -{formatKES(sub.amount_kes)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => deleteOutflow(sub.id)}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===================== TAB 4: SALARY ===================== */}
+          {activeTab === "salary" && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
+                    Paid Payroll
+                  </span>
+                  <p className="text-lg font-black font-mono text-white">
+                    {formatKES(kpis.salaryTotalKes)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openOutflowModal("salary")}
+                  className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-[#C9A66B] text-slate-950 font-black text-xs cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" /> Salary
+                </button>
+              </div>
+
+              {salaries.length === 0 ? (
+                <div className="p-10 rounded-2xl bg-[#0F1422] border border-white/[0.07] text-center text-xs text-slate-400">
+                  No salaries recorded yet.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {salaries.map((sal) => (
+                    <div
+                      key={sal.id}
+                      className="p-3.5 rounded-2xl bg-[#0F1422] border border-white/[0.08] flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-white truncate">
+                            {sal.vendor_or_person || sal.title}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleOutflowStatus(sal)}
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase cursor-pointer ${
+                              sal.status === "paid"
+                                ? "bg-emerald-500/15 text-emerald-300"
+                                : "bg-amber-500/15 text-amber-300"
+                            }`}
+                          >
+                            {sal.status}
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                          {sal.title} &bull; {sal.occurred_on}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-mono font-black text-sm text-rose-300">
+                          -{formatKES(sal.amount_kes)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => deleteOutflow(sal.id)}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===================== TAB 5: EXPENSES ===================== */}
+          {activeTab === "expenses" && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
+                    Total Expenses
+                  </span>
+                  <p className="text-lg font-black font-mono text-white">
+                    {formatKES(kpis.expensesTotalKes)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openOutflowModal("expense")}
+                  className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-[#C9A66B] text-slate-950 font-black text-xs cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" /> Expense
+                </button>
+              </div>
+
+              {expenses.length === 0 ? (
+                <div className="p-10 rounded-2xl bg-[#0F1422] border border-white/[0.07] text-center text-xs text-slate-400">
+                  No expenses logged yet.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {expenses.map((exp) => (
+                    <div
+                      key={exp.id}
+                      className="p-3.5 rounded-2xl bg-[#0F1422] border border-white/[0.08] flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-white truncate">{exp.title}</span>
+                          <span className="px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-300 text-[10px] font-bold shrink-0">
+                            {exp.category}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                          {exp.payment_method.toUpperCase()} &bull; {exp.occurred_on}
+                          {exp.notes ? ` · ${exp.notes}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-mono font-black text-sm text-rose-300">
+                          -{formatKES(exp.amount_kes)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => deleteOutflow(exp.id)}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* MODAL 1: CREATE INVOICE + CONTRACT (PAY NOW) */}
+      {showInvoiceModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
+          <div className="bg-[#0E131F] border border-white/15 rounded-2xl w-full max-w-lg max-h-[92vh] overflow-hidden flex flex-col shadow-2xl">
+            <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
+              <h3 className="text-base font-bold text-white">New Invoice &amp; Pay Now Link</h3>
               <button
                 type="button"
-                onClick={() => setShowBillModal(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+                onClick={() => setShowInvoiceModal(false)}
+                className="p-1.5 text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateInvoice} className="p-5 overflow-y-auto space-y-4 text-xs">
-              {/* Link to CRM Lead */}
-              <div>
-                <label className="block font-semibold text-slate-300 mb-1.5">
-                  Link to CRM Lead (Auto-updates pipeline stage &amp; drawer documents on payment)
-                </label>
+            <form onSubmit={handleCreateInvoice} className="p-5 overflow-y-auto space-y-3.5 text-xs">
+              <select
+                value={selectedLeadId}
+                onChange={(e) => handleSelectLead(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
+              >
+                <option value="">Link CRM Lead (optional)</option>
+                {leads.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.full_name} {l.company_name ? `(${l.company_name})` : ""}
+                  </option>
+                ))}
+              </select>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <input
+                  type="text"
+                  required
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  placeholder="Client Name *"
+                  className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
+                />
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  value={amountKes}
+                  onChange={(e) => setAmountKes(e.target.value)}
+                  placeholder="Amount (KES) *"
+                  className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-mono font-bold focus:outline-none focus:border-[#C9A66B]"
+                />
+              </div>
+
+              <input
+                type="text"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Invoice Title (e.g. Website Deposit) *"
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
+              />
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <input
+                  type="email"
+                  value={clientEmail}
+                  onChange={(e) => setClientEmail(e.target.value)}
+                  placeholder="Client Email"
+                  className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
+                />
+                <input
+                  type="tel"
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                  placeholder="WhatsApp / Phone"
+                  className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
                 <select
-                  value={selectedLeadId}
-                  onChange={(e) => handleSelectLead(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
+                  value={invoiceType}
+                  onChange={(e) => setInvoiceType(e.target.value)}
+                  className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
                 >
-                  <option value="">— Select a {orgName} lead (or type client manually below) —</option>
-                  {leads.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.full_name} {l.company_name ? `(${l.company_name})` : ""} — {l.stage.replace(/_/g, " ")}
-                    </option>
-                  ))}
+                  <option value="deposit">Deposit → Ongoing Project</option>
+                  <option value="milestone">Milestone → Ongoing Project</option>
+                  <option value="final_balance">Final → Full Payment Made</option>
+                  <option value="full_payment">Full → Full Payment Made</option>
+                  <option value="retainer">Monthly Retainer</option>
                 </select>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white [color-scheme:dark] focus:outline-none focus:border-[#C9A66B]"
+                />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block font-semibold text-slate-300 mb-1">Client Full Name *</label>
+              <div className="flex items-center gap-4 p-3 rounded-xl bg-slate-950 border border-slate-800">
+                <label className="inline-flex items-center gap-2 cursor-pointer text-emerald-300 font-bold">
                   <input
-                    type="text"
-                    required
-                    value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
-                    placeholder="e.g. Eng. Benson Kamau"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
+                    type="checkbox"
+                    checked={allowMpesa}
+                    onChange={(e) => setAllowMpesa(e.target.checked)}
+                    className="accent-emerald-500"
                   />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-300 mb-1">Company / Project</label>
+                  M-Pesa
+                </label>
+                <label className="inline-flex items-center gap-2 cursor-pointer text-[#E5C687] font-bold">
                   <input
-                    type="text"
-                    value={clientCompany}
-                    onChange={(e) => setClientCompany(e.target.value)}
-                    placeholder="e.g. Rift Investments Ltd"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
+                    type="checkbox"
+                    checked={allowCard}
+                    onChange={(e) => setAllowCard(e.target.checked)}
+                    className="accent-[#C9A66B]"
                   />
-                </div>
+                  Card
+                </label>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block font-semibold text-slate-300 mb-1">Client Email</label>
-                  <input
-                    type="email"
-                    value={clientEmail}
-                    onChange={(e) => setClientEmail(e.target.value)}
-                    placeholder="client@company.com"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-300 mb-1">WhatsApp / Phone</label>
-                  <input
-                    type="tel"
-                    value={clientPhone}
-                    onChange={(e) => setClientPhone(e.target.value)}
-                    placeholder="+254712345678"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                <div className="sm:col-span-2">
-                  <label className="block font-semibold text-slate-300 mb-1">Invoice / Agreement Title *</label>
-                  <input
-                    type="text"
-                    required
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. AI CRM & Website Build — 50% Kickoff Deposit"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-300 mb-1">Agreed Amount (KES) *</label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    step="1"
-                    value={amountKes}
-                    onChange={(e) => setAmountKes(e.target.value)}
-                    placeholder="50000"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-mono font-bold focus:outline-none focus:border-[#C9A66B]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block font-semibold text-slate-300 mb-1">Payment Milestone (Controls CRM Stage)</label>
-                  <select
-                    value={invoiceType}
-                    onChange={(e) => setInvoiceType(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
-                  >
-                    <option value="deposit">Deposit / Kickoff → Moves to Ongoing Project</option>
-                    <option value="milestone">Milestone Payment → Moves to Ongoing Project</option>
-                    <option value="final_balance">Final Balance → Moves to Full Payment Made</option>
-                    <option value="full_payment">Full Payment Upfront → Moves to Full Payment Made</option>
-                    <option value="retainer">Monthly Retainer → Moves to Ongoing Project</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-300 mb-1">Due Date (Optional)</label>
-                  <input
-                    type="date"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white [color-scheme:dark] focus:outline-none focus:border-[#C9A66B]"
-                  />
-                </div>
-              </div>
-
-              {/* Payment Options Toggle */}
-              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                <p className="font-semibold text-slate-300">Payment Methods Shown on Client&apos;s Pay Now Page:</p>
-                <div className="flex flex-wrap gap-3">
-                  <label className="inline-flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={allowMpesa}
-                      onChange={(e) => setAllowMpesa(e.target.checked)}
-                      className="accent-emerald-500 w-4 h-4"
-                    />
-                    <span className="text-emerald-300 font-semibold">M-Pesa (STK Push / Paystack)</span>
-                  </label>
-                  <label className="inline-flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={allowCard}
-                      onChange={(e) => setAllowCard(e.target.checked)}
-                      className="accent-[#C9A66B] w-4 h-4"
-                    />
-                    <span className="text-[#E5C687] font-semibold">Card (Visa / Mastercard / Apple Pay — International)</span>
-                  </label>
-                </div>
-                {Number(amountKes) > 150000 && allowMpesa && (
-                  <p className="text-[11px] text-amber-300">
-                    Note: Amounts over KES 150,000 exceed Safaricom&apos;s single M-Pesa limit — Card will be automatically prioritized for the client.
-                  </p>
-                )}
-              </div>
-
-              {/* Attach Contract / Proposal File */}
-              <div className="p-4 rounded-xl bg-sky-500/[0.05] border border-sky-500/25 space-y-3">
-                <div className="flex items-center justify-between gap-2">
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
                   <span className="font-bold text-sky-300 flex items-center gap-1.5">
-                    <FileText className="w-4 h-4" /> Attach Contract / Proposal Document
+                    <FileText className="w-3.5 h-3.5" /> Contract / Proposal
                   </span>
-                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/40 text-sky-200 font-bold cursor-pointer">
+                  <label className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-500/20 text-sky-200 font-bold cursor-pointer">
                     {uploadingContract ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <Loader2 className="w-3 h-3 animate-spin" />
                     ) : (
-                      <Upload className="w-3.5 h-3.5" />
+                      <Upload className="w-3 h-3" />
                     )}
-                    {uploadingContract ? "Uploading..." : "Upload PDF / Doc"}
+                    Upload
                     <input
                       type="file"
                       accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
@@ -904,180 +1179,231 @@ export default function FinanceDepartmentHub({
                     />
                   </label>
                 </div>
-
-                {contractUrl && (
-                  <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-950 border border-sky-500/30">
-                    <span className="text-sky-200 font-semibold truncate">{contractName}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setContractUrl("")
-                        setContractName("")
-                      }}
-                      className="text-rose-400 hover:text-rose-300 text-[11px] font-bold cursor-pointer"
-                    >
-                      Remove
-                    </button>
-                  </div>
+                {contractName && (
+                  <p className="text-[11px] text-sky-200 truncate">{contractName}</p>
                 )}
-
-                <textarea
-                  rows={2}
+                <input
+                  type="text"
                   value={contractNotes}
                   onChange={(e) => setContractNotes(e.target.value)}
-                  placeholder="Contract summary / key deliverables / payment terms shown alongside the Pay Now button..."
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-white focus:outline-none focus:border-sky-400 resize-none"
+                  placeholder="Contract terms / notes (optional)"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-2 text-white"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowBillModal(false)}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creatingInvoice}
-                  className="px-5 py-2.5 rounded-xl bg-[#C9A66B] hover:bg-[#d8b77c] text-slate-950 font-extrabold flex items-center gap-2 disabled:opacity-50 cursor-pointer"
-                >
-                  {creatingInvoice ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" /> Creating Invoice...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4" /> Create Invoice &amp; Get Pay Now Link
-                    </>
-                  )}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={creatingInvoice}
+                className="w-full py-3 rounded-xl bg-[#C9A66B] hover:bg-[#d8b77c] text-slate-950 font-black flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                {creatingInvoice ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                Create Invoice &amp; Get Pay Now Link
+              </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL 2: SEND CONTRACT + PAY NOW BUTTON VIA EMAIL / WHATSAPP / SMS */}
+      {/* MODAL 2: SEND PAY NOW LINK */}
       {sendTarget && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-[#C9A66B]/40 rounded-2xl w-full max-w-lg p-6 space-y-5 shadow-2xl">
-            <div className="flex items-start justify-between gap-3">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
+          <div className="bg-[#0E131F] border border-[#C9A66B]/40 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+            <div className="flex items-start justify-between gap-2">
               <div>
-                <span className="text-[10px] font-mono font-bold text-[#C9A66B]">
+                <p className="text-xs font-mono font-bold text-[#C9A66B]">
                   {sendTarget.invoice_number} &bull; {formatKES(sendTarget.amount_kes)}
-                </span>
-                <h3 className="text-lg font-bold text-white mt-0.5">
-                  Send Contract &amp; Pay Now Link
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  To: <strong className="text-slate-200">{sendTarget.client_name}</strong>{" "}
-                  ({sendTarget.client_email || sendTarget.client_phone || "Direct link"})
                 </p>
+                <h3 className="text-base font-bold text-white">{sendTarget.client_name}</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setSendTarget(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+                className="p-1 text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Pay Now URL preview */}
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-              <div className="flex items-center justify-between text-[11px] text-slate-400">
-                <span>Client Checkout &amp; Contract Link</span>
-                <button
-                  type="button"
-                  onClick={() => copyPayLink(sendTarget)}
-                  className="text-[#C9A66B] font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
-                >
-                  <Copy className="w-3 h-3" /> Copy Link
-                </button>
-              </div>
-              <p className="font-mono text-xs text-sky-300 break-all">
+            <div className="p-3 rounded-xl bg-slate-950 border border-white/10 flex items-center justify-between gap-2">
+              <span className="font-mono text-[11px] text-sky-300 truncate">
                 {getPayUrl(sendTarget.public_token)}
-              </p>
+              </span>
+              <button
+                type="button"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(getPayUrl(sendTarget.public_token))
+                  toast.success("Copied!")
+                }}
+                className="text-xs font-bold text-[#C9A66B] shrink-0 cursor-pointer"
+              >
+                Copy
+              </button>
             </div>
 
-            {/* Optional Custom Message */}
-            <div className="text-xs">
-              <label className="block font-semibold text-slate-300 mb-1.5">
-                Optional Personal Note (Included above the Pay Now button)
-              </label>
-              <textarea
-                rows={3}
-                value={customSendMessage}
-                onChange={(e) => setCustomSendMessage(e.target.value)}
-                placeholder={`Hi ${sendTarget.client_name.split(" ")[0]}, great speaking with you! Here is our agreed contract and Pay Now link so we can kick off right away.`}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-[#C9A66B] resize-none"
-              />
-            </div>
+            <textarea
+              rows={2}
+              value={customSendMessage}
+              onChange={(e) => setCustomSendMessage(e.target.value)}
+              placeholder="Optional note above Pay Now button..."
+              className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white resize-none"
+            />
 
-            {/* 3 Channel Dispatch Buttons */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 disabled={sendingChannel !== null}
                 onClick={() => handleDispatchChannel(sendTarget, "email")}
-                className="flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-200 font-bold text-xs cursor-pointer"
+                className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-purple-500/20 text-purple-200 font-bold text-xs cursor-pointer"
               >
-                {sendingChannel === "email" ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Mail className="w-4 h-4" />
-                )}
-                Send Email
+                <Mail className="w-3.5 h-3.5" /> Email
               </button>
-
               <button
                 type="button"
                 disabled={sendingChannel !== null}
                 onClick={() => handleDispatchChannel(sendTarget, "whatsapp")}
-                className="flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-200 font-bold text-xs cursor-pointer"
+                className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-500/20 text-emerald-200 font-bold text-xs cursor-pointer"
               >
-                {sendingChannel === "whatsapp" ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <MessageCircle className="w-4 h-4" />
-                )}
-                WhatsApp
+                <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
               </button>
-
               <button
                 type="button"
                 disabled={sendingChannel !== null}
                 onClick={() => handleDispatchChannel(sendTarget, "sms")}
-                className="flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-200 font-bold text-xs cursor-pointer"
+                className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-sky-500/20 text-sky-200 font-bold text-xs cursor-pointer"
               >
-                {sendingChannel === "sms" ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <MessageSquare className="w-4 h-4" />
-                )}
-                Normal SMS
+                <MessageSquare className="w-3.5 h-3.5" /> SMS
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: ADD SUBSCRIPTION / SALARY / EXPENSE */}
+      {outflowModalType && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
+          <div className="bg-[#0E131F] border border-white/15 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-white capitalize flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-[#C9A66B]" />
+                Add {outflowModalType}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setOutflowModalType(null)}
+                className="p-1 text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-xs">
-              <a
-                href={`/pay/${sendTarget.public_token}`}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[#C9A66B] font-semibold hover:underline inline-flex items-center gap-1"
-              >
-                Open Live Checkout Page <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+            <form onSubmit={handleSaveOutflow} className="space-y-3 text-xs">
+              <input
+                type="text"
+                required
+                value={outTitle}
+                onChange={(e) => setOutTitle(e.target.value)}
+                placeholder={
+                  outflowModalType === "subscription"
+                    ? "Tool / Plan (e.g. Vercel Pro, Supabase) *"
+                    : outflowModalType === "salary"
+                    ? "Role / Month (e.g. Sales Salary — Nov) *"
+                    : "Expense description *"
+                }
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
+              />
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <input
+                  type="text"
+                  value={outVendor}
+                  onChange={(e) => setOutVendor(e.target.value)}
+                  placeholder={outflowModalType === "salary" ? "Staff Name" : "Vendor / Payee"}
+                  className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[#C9A66B]"
+                />
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  value={outAmount}
+                  onChange={(e) => setOutAmount(e.target.value)}
+                  placeholder="Amount (KES) *"
+                  className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-mono font-bold focus:outline-none focus:border-[#C9A66B]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <select
+                  value={outCategory}
+                  onChange={(e) => setOutCategory(e.target.value)}
+                  className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white"
+                >
+                  <option value="Software">Software</option>
+                  <option value="Payroll">Payroll</option>
+                  <option value="Marketing">Marketing / Ads</option>
+                  <option value="Operations">Operations</option>
+                  <option value="Transport">Transport</option>
+                  <option value="Tax">Tax / KRA</option>
+                  <option value="Other">Other</option>
+                </select>
+                <select
+                  value={outMethod}
+                  onChange={(e) => setOutMethod(e.target.value)}
+                  className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white"
+                >
+                  <option value="mpesa">M-Pesa</option>
+                  <option value="card">Card</option>
+                  <option value="bank">Bank</option>
+                  <option value="cash">Cash</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <input
+                  type="date"
+                  value={outDate}
+                  onChange={(e) => setOutDate(e.target.value)}
+                  className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white [color-scheme:dark]"
+                />
+                <select
+                  value={outStatus}
+                  onChange={(e) => setOutStatus(e.target.value)}
+                  className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white"
+                >
+                  {outflowModalType === "subscription" ? (
+                    <>
+                      <option value="active">Active</option>
+                      <option value="paused">Paused</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="paid">Paid</option>
+                      <option value="pending">Pending</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              <input
+                type="text"
+                value={outNotes}
+                onChange={(e) => setOutNotes(e.target.value)}
+                placeholder="Notes (optional)"
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white"
+              />
+
               <button
-                type="button"
-                onClick={() => setSendTarget(null)}
-                className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold cursor-pointer"
+                type="submit"
+                disabled={savingOutflow}
+                className="w-full py-3 rounded-xl bg-[#C9A66B] text-slate-950 font-black flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
               >
-                Done
+                {savingOutflow && <Loader2 className="w-4 h-4 animate-spin" />}
+                Save {outflowModalType}
               </button>
-            </div>
+            </form>
           </div>
         </div>
       )}

@@ -320,7 +320,7 @@ export default function PublicInvoicePayPage() {
               </span>
               {isPaid ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs font-bold">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Payment Made
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Invoice Paid
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 text-xs font-semibold">
@@ -596,42 +596,24 @@ export default function PublicInvoicePayPage() {
                         </div>
 
                         {mpesaPhase !== "waiting" && (
-                          <div className="space-y-2.5">
-                            <button
-                              type="button"
-                              disabled={mpesaPhase === "sending" || !mpesaPhone.trim()}
-                              onClick={handleDirectMpesaStk}
-                              className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs tracking-wide transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 disabled:opacity-45 cursor-pointer"
-                            >
-                              {mpesaPhase === "sending" ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  Sending M-Pesa PIN Prompt...
-                                </>
-                              ) : (
-                                <>
-                                  Pay Now — {formattedAmount} via M-Pesa
-                                  <ArrowRight className="w-4 h-4" />
-                                </>
-                              )}
-                            </button>
-
-                            {paystackConfigured && (
-                              <button
-                                type="button"
-                                disabled={payingPaystackMpesa}
-                                onClick={() => handlePaystackCheckout("mpesa")}
-                                className="w-full py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-slate-300 text-[11px] font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                              >
-                                {payingPaystackMpesa ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                                )}
-                                Or Pay via Paystack M-Pesa Hosted Page
-                              </button>
+                          <button
+                            type="button"
+                            disabled={mpesaPhase === "sending" || !mpesaPhone.trim()}
+                            onClick={handleDirectMpesaStk}
+                            className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs tracking-wide transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 disabled:opacity-45 cursor-pointer"
+                          >
+                            {mpesaPhase === "sending" ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Sending M-Pesa PIN Prompt...
+                              </>
+                            ) : (
+                              <>
+                                Pay {formattedAmount} via M-Pesa
+                                <ArrowRight className="w-4 h-4" />
+                              </>
                             )}
-                          </div>
+                          </button>
                         )}
 
                         {mpesaPhase === "waiting" && (
