@@ -727,6 +727,8 @@ export default function CRMPipelineBoard({
         const s = (lead.source || '').toLowerCase()
         const bucket = s.includes('whatsapp')
           ? 'whatsapp'
+          : s.includes('linkedin')
+          ? 'linkedin'
           : s.includes('facebook') || s === 'fb'
           ? 'facebook'
           : s.includes('instagram') || s.includes('ig_')
@@ -3152,17 +3154,35 @@ export default function CRMPipelineBoard({
                     onChange={(e) => setAddSource(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#C9A66B] cursor-pointer"
                   >
-                    <option value="microsoft_365_email">Microsoft 365 Email</option>
-                    <option value="event_forum">Event / Forum</option>
-                    <option value="tender_rfp">Tender / RFP</option>
-                    <option value="email_campaign">Email Campaign</option>
-                    <option value="website_enquiry">Website Enquiry</option>
-                    <option value="whatsapp">WhatsApp Inbound</option>
-                    <option value="instagram_dm">Instagram DM</option>
-                    <option value="facebook_ad">Facebook Ad</option>
-                    <option value="phone_call">Phone Call</option>
-                    <option value="referral">Referral</option>
-                    <option value="direct_outreach">Direct Outreach</option>
+                    {currentOrg.slug === 'cillah-dev' ||
+                    currentOrgId === 'a1b2c3d4-e5f6-7890-abcd-222222222222' ? (
+                      <>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="event_forum">Event</option>
+                        <option value="email_campaign">Email Campaign</option>
+                        <option value="website_enquiry">Website Enquiry</option>
+                        <option value="whatsapp">WhatsApp Inbound</option>
+                        <option value="instagram_dm">Instagram DM</option>
+                        <option value="facebook_ad">Facebook Ad</option>
+                        <option value="phone_call">Phone Call</option>
+                        <option value="referral">Referral</option>
+                        <option value="direct_outreach">Direct Outreach</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="microsoft_365_email">Microsoft 365 Email</option>
+                        <option value="event_forum">Event / Forum</option>
+                        <option value="tender_rfp">Tender / RFP</option>
+                        <option value="email_campaign">Email Campaign</option>
+                        <option value="website_enquiry">Website Enquiry</option>
+                        <option value="whatsapp">WhatsApp Inbound</option>
+                        <option value="instagram_dm">Instagram DM</option>
+                        <option value="facebook_ad">Facebook Ad</option>
+                        <option value="phone_call">Phone Call</option>
+                        <option value="referral">Referral</option>
+                        <option value="direct_outreach">Direct Outreach</option>
+                      </>
+                    )}
                   </select>
                 </div>
               </div>

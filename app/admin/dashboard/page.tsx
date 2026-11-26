@@ -9,9 +9,9 @@ import {
   MessageCircle,
   Globe,
   Calendar,
-  FileText,
   Share2,
   Instagram,
+  Linkedin,
   Users,
   TrendingUp,
   Trophy,
@@ -59,7 +59,7 @@ interface StaffRow {
   org_id: string | null
 }
 
-type PlatformKey = 'email' | 'whatsapp' | 'facebook' | 'events' | 'tenders' | 'website' | 'instagram' | 'other'
+type PlatformKey = 'email' | 'whatsapp' | 'linkedin' | 'facebook' | 'events' | 'website' | 'instagram' | 'other'
 
 interface PlatformMeta {
   key: PlatformKey
@@ -70,28 +70,31 @@ interface PlatformMeta {
 }
 
 const PLATFORMS: PlatformMeta[] = [
+  { key: 'linkedin', label: 'LinkedIn', shortLabel: 'LinkedIn', accent: 'text-sky-300', barColor: 'bg-sky-500' },
   { key: 'email', label: 'Email', shortLabel: 'Email', accent: 'text-sky-400', barColor: 'bg-sky-400' },
   { key: 'whatsapp', label: 'WhatsApp', shortLabel: 'WhatsApp', accent: 'text-emerald-400', barColor: 'bg-emerald-400' },
   { key: 'facebook', label: 'Facebook', shortLabel: 'Facebook', accent: 'text-blue-400', barColor: 'bg-blue-400' },
   { key: 'instagram', label: 'Instagram', shortLabel: 'Instagram', accent: 'text-pink-400', barColor: 'bg-pink-400' },
   { key: 'website', label: 'Website', shortLabel: 'Website', accent: 'text-cyan-400', barColor: 'bg-cyan-400' },
-  { key: 'events', label: 'Events', shortLabel: 'Events', accent: 'text-amber-400', barColor: 'bg-amber-400' },
+  { key: 'events', label: 'Event', shortLabel: 'Event', accent: 'text-amber-400', barColor: 'bg-amber-400' },
 ]
 
 function classifyPlatform(source?: string | null): PlatformKey {
   const s = (source || '').toLowerCase().trim()
+  if (s.includes('linkedin')) return 'linkedin'
   if (s.includes('whatsapp')) return 'whatsapp'
   if (s.includes('facebook') || s === 'fb') return 'facebook'
   if (s.includes('instagram') || s.includes('ig_')) return 'instagram'
-  if (s.includes('tender') || s.includes('rfp')) return 'tenders'
   if (s.includes('event') || s.includes('forum')) return 'events'
   if (s.includes('website') || s.includes('web_') || s.includes('landing')) return 'website'
-  if (s.includes('email') || s.includes('outlook') || s.includes('microsoft_365') || s.includes('gmail')) return 'email'
+  if (s.includes('email') || s.includes('gmail')) return 'email'
   return 'other'
 }
 
 function PlatformIcon({ platform, className = 'w-4 h-4' }: { platform: PlatformKey; className?: string }) {
   switch (platform) {
+    case 'linkedin':
+      return <Linkedin className={className} />
     case 'email':
       return <Mail className={className} />
     case 'whatsapp':
@@ -100,8 +103,6 @@ function PlatformIcon({ platform, className = 'w-4 h-4' }: { platform: PlatformK
       return <Share2 className={className} />
     case 'events':
       return <Calendar className={className} />
-    case 'tenders':
-      return <FileText className={className} />
     case 'website':
       return <Globe className={className} />
     case 'instagram':
@@ -512,7 +513,7 @@ export default function CillahSalesDashboardPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
           {platformStats.map((p) => {
             const isSelected = selectedPlatform === p.key
             return (
