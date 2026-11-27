@@ -25,6 +25,11 @@ import {
   TrendingUp,
   Layers,
   Loader2,
+  Youtube,
+  Clock,
+  ThumbsUp,
+  UserPlus,
+  AlertCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -90,6 +95,53 @@ interface MarketingInsightsViewProps {
   permissions: RoleTierPermissions
 }
 
+interface YouTubeAnalyticsResponse {
+  connected: boolean
+  range?: string
+  startDate?: string
+  endDate?: string
+  syncedAt?: string
+  syncedDays?: number
+  error?: string
+  message?: string
+  channel?: {
+    id: string
+    title: string
+    handle?: string | null
+    avatarUrl?: string | null
+    subscriberCount: number
+    totalViews: number
+    videoCount: number
+  } | null
+  analytics?: {
+    views: number
+    estimatedMinutesWatched: number
+    averageViewDurationSec: number
+    likes: number
+    comments: number
+    shares: number
+    subscribersGained: number
+    subscribersLost: number
+    netSubscribers: number
+    engagements: number
+  } | null
+}
+
+function formatDurationSec(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds || 0))
+  const mins = Math.floor(s / 60)
+  const rem = s % 60
+  return mins > 0 ? `${mins}m ${rem}s` : `${rem}s`
+}
+
+function formatWatchMinutes(minutes: number): string {
+  const m = Math.max(0, Math.round(minutes || 0))
+  if (m >= 60) {
+    return `${(m / 60).toFixed(1)} hrs`
+  }
+  return `${m.toLocaleString()} min`
+}
+
 export default function MarketingInsightsView({
   organizationSlug,
   permissions,
@@ -98,6 +150,9 @@ export default function MarketingInsightsView({
   const [range, setRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d')
   const [data, setData] = useState<InsightsResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [ytData, setYtData] = useState<YouTubeAnalyticsResponse | null>(null)
+  const [loadingYt, setLoadingYt] = useState(false)
+  const [syncingYt, setSyncingYt] = useState(false)
 
   // Quick Metric Snapshot Modal
   const [logModalOpen, setLogModalOpen] = useState(false)
@@ -133,9 +188,56 @@ export default function MarketingInsightsView({
     }
   }, [organizationSlug, selectedChannel, range])
 
+  const fetchYouTubeAnalytics = useCallback(async () => {
+    setLoadingYt(true)
+    try {
+      const res = await fetch(
+        `/api/marketing/insights/youtube?org=${encodeURIComponent(organizationSlug)}&range=${encodeURIComponent(range)}`
+      )
+      const json = await res.json()
+      if (res.ok || json.connected) {
+        setYtData(json)
+      }
+    } catch {
+      // keep main insights resilient
+    } finally {
+      setLoadingYt(false)
+    }
+  }, [organizationSlug, range])
+
+  const handleSyncYouTubeAnalytics = async () => {
+    setSyncingYt(true)
+    try {
+      const res = await fetch('/api/marketing/insights/youtube', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ organization_slug: organizationSlug, range }),
+      })
+      const json: YouTubeAnalyticsResponse = await res.json()
+      setYtData(json)
+      if (!res.ok || json.error) {
+        toast.error(json.error || 'Could not sync YouTube Analytics.')
+        return
+      }
+      if (!json.connected) {
+        toast.info('Connect YouTube in Connected Accounts first.')
+        return
+      }
+      toast.success(
+        `Synced YouTube Analytics (${json.syncedDays || 0} days · ${(json.analytics?.views || 0).toLocaleString()} views)`
+      )
+      fetchInsights()
+    } catch {
+      toast.error('Failed to sync YouTube Analytics.')
+    } finally {
+      setSyncingYt(false)
+    }
+  }
+
   useEffect(() => {
     fetchInsights()
-  }, [fetchInsights])
+    fetchYouTubeAnalytics()
+  }, [fetchInsights, fetchYouTubeAnalytics])
 
   const handleSaveMetric = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -220,6 +322,18 @@ export default function MarketingInsightsView({
               ))}
             </div>
 
+            {ytData?.connected && (
+              <button
+                type="button"
+                onClick={handleSyncYouTubeAnalytics}
+                disabled={syncingYt}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/35 text-red-200 text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <Youtube className={`w-3.5 h-3.5 text-red-400 ${syncingYt ? 'animate-pulse' : ''}`} />
+                <span>{syncingYt ? 'Syncing...' : 'Sync YouTube'}</span>
+              </button>
+            )}
+
             {permissions.canPublishDirectly && (
               <button
                 type="button"
@@ -232,11 +346,14 @@ export default function MarketingInsightsView({
 
             <button
               type="button"
-              onClick={fetchInsights}
-              disabled={loading}
+              onClick={() => {
+                fetchInsights()
+                fetchYouTubeAnalytics()
+              }}
+              disabled={loading || loadingYt}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${loading || loadingYt ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
@@ -308,6 +425,132 @@ export default function MarketingInsightsView({
                   <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">{item.detail}</p>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* LIVE YOUTUBE ANALYTICS API PANEL (yt-analytics.readonly + youtube.readonly) */}
+          {(selectedChannel === 'all' || selectedChannel === 'youtube') && ytData?.connected && (
+            <div className="rounded-2xl bg-slate-900/80 border border-red-500/25 p-5 space-y-4 shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  {ytData.channel?.avatarUrl ? (
+                    <img
+                      src={ytData.channel.avatarUrl}
+                      alt={ytData.channel.title}
+                      className="w-10 h-10 rounded-full border border-red-500/40 object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center shrink-0">
+                      <Youtube className="w-5 h-5 text-red-400" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="text-sm font-extrabold text-white truncate">
+                        {ytData.channel?.title || 'YouTube Channel'} — Live Analytics
+                      </h4>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/15 text-red-300 border border-red-500/30">
+                        YouTube Analytics API
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {(ytData.channel?.subscriberCount || 0).toLocaleString()} subscribers &bull;{' '}
+                      {(ytData.channel?.videoCount || 0).toLocaleString()} videos &bull;{' '}
+                      {(ytData.channel?.totalViews || 0).toLocaleString()} lifetime views
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSyncYouTubeAnalytics}
+                  disabled={syncingYt}
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/35 text-red-200 text-xs font-bold transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${syncingYt ? 'animate-spin' : ''}`} />
+                  <span>{syncingYt ? 'Syncing to Scorecard...' : 'Sync to Scorecard'}</span>
+                </button>
+              </div>
+
+              {ytData.error ? (
+                <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 p-3.5 flex items-start gap-2.5 text-xs text-amber-200">
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold">YouTube Analytics API Notice</p>
+                    <p className="text-amber-100/80 mt-0.5">{ytData.error}</p>
+                  </div>
+                </div>
+              ) : ytData.analytics ? (
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                  <div className="rounded-xl bg-slate-950/80 border border-slate-800 p-3.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+                      <span>Period Views</span>
+                      <Eye className="w-3.5 h-3.5 text-red-400" />
+                    </div>
+                    <p className="text-xl font-black text-white mt-1.5">
+                      {ytData.analytics.views.toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {ytData.startDate} → {ytData.endDate}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-950/80 border border-slate-800 p-3.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+                      <span>Watch Time</span>
+                      <Clock className="w-3.5 h-3.5 text-[#C9A66B]" />
+                    </div>
+                    <p className="text-xl font-black text-white mt-1.5">
+                      {formatWatchMinutes(ytData.analytics.estimatedMinutesWatched)}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {ytData.analytics.estimatedMinutesWatched.toLocaleString()} est. mins
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-950/80 border border-slate-800 p-3.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+                      <span>Avg Duration</span>
+                      <TrendingUp className="w-3.5 h-3.5 text-sky-400" />
+                    </div>
+                    <p className="text-xl font-black text-white mt-1.5">
+                      {formatDurationSec(ytData.analytics.averageViewDurationSec)}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Per view retention</p>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-950/80 border border-slate-800 p-3.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+                      <span>YT Engagements</span>
+                      <ThumbsUp className="w-3.5 h-3.5 text-pink-400" />
+                    </div>
+                    <p className="text-xl font-black text-white mt-1.5">
+                      {ytData.analytics.engagements.toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {ytData.analytics.likes} likes · {ytData.analytics.comments} cmts · {ytData.analytics.shares} shares
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-950/80 border border-slate-800 p-3.5 col-span-2 lg:col-span-1">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+                      <span>Net Subscribers</span>
+                      <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
+                    </div>
+                    <p
+                      className={`text-xl font-black mt-1.5 ${
+                        ytData.analytics.netSubscribers >= 0 ? 'text-emerald-400' : 'text-red-400'
+                      }`}
+                    >
+                      {ytData.analytics.netSubscribers >= 0 ? '+' : ''}
+                      {ytData.analytics.netSubscribers.toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      +{ytData.analytics.subscribersGained} gained / -{ytData.analytics.subscribersLost} lost
+                    </p>
+                  </div>
+                </div>
+              ) : null}
             </div>
           )}
 

@@ -35,7 +35,7 @@ function buildFullCopy(post: PublishPostInput): string {
   return parts.filter(Boolean).join('\n\n')
 }
 
-async function refreshYouTubeAccessToken(
+export async function refreshYouTubeAccessToken(
   conn: SocialConnectionRow,
   db: any
 ): Promise<string | null> {
