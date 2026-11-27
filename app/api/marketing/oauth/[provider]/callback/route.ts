@@ -94,25 +94,62 @@ export async function GET(
         : null
 
       // Fetch managed Facebook Pages & their linked Instagram Business Accounts
-      const pagesUrl = new URL('https://graph.facebook.com/v21.0/me/accounts')
-      pagesUrl.searchParams.set(
-        'fields',
+      const pageFields =
         'id,name,access_token,picture{url},instagram_business_account{id,username,name,profile_picture_url}'
-      )
+      const pagesUrl = new URL('https://graph.facebook.com/v21.0/me/accounts')
+      pagesUrl.searchParams.set('fields', pageFields)
+      pagesUrl.searchParams.set('limit', '50')
       pagesUrl.searchParams.set('access_token', userAccessToken)
 
       const pagesRes = await fetch(pagesUrl.toString())
       const pagesData = await pagesRes.json()
-      const pages = Array.isArray(pagesData.data) ? pagesData.data : []
+      if (pagesData.error) {
+        throw new Error(
+          `Meta Graph API (me/accounts): ${pagesData.error.message || 'Permission or token error'}`
+        )
+      }
+
+      let pages: any[] = Array.isArray(pagesData.data) ? pagesData.data : []
+
+      // Fallback for Meta Business Portfolio-owned Pages (when me/accounts returns empty)
+      if (pages.length === 0) {
+        const bizUrl = new URL('https://graph.facebook.com/v21.0/me/businesses')
+        bizUrl.searchParams.set(
+          'fields',
+          `id,name,owned_pages{${pageFields}},client_pages{${pageFields}}`
+        )
+        bizUrl.searchParams.set('access_token', userAccessToken)
+        const bizRes = await fetch(bizUrl.toString())
+        const bizData = await bizRes.json().catch(() => ({}))
+        const businesses = Array.isArray(bizData.data) ? bizData.data : []
+        const seen = new Set<string>()
+        for (const biz of businesses) {
+          const owned = Array.isArray(biz?.owned_pages?.data) ? biz.owned_pages.data : []
+          const client = Array.isArray(biz?.client_pages?.data) ? biz.client_pages.data : []
+          for (const p of [...owned, ...client]) {
+            if (p?.id && !seen.has(String(p.id))) {
+              seen.add(String(p.id))
+              pages.push(p)
+            }
+          }
+        }
+      }
 
       if (pages.length === 0) {
+        const permRes = await fetch(
+          `https://graph.facebook.com/v21.0/me/permissions?access_token=${encodeURIComponent(userAccessToken)}`
+        )
+        const permJson = await permRes.json().catch(() => ({}))
+        const granted = Array.isArray(permJson.data)
+          ? permJson.data.filter((p: any) => p.status === 'granted').map((p: any) => p.permission)
+          : []
         return redirectBack(origin, returnTo, {
-          oauth_error:
-            'No Facebook Pages found on this Meta account. Create or select a Facebook Page (and link your Instagram Business account to it) and try again.',
+          oauth_error: `Meta login succeeded, but Meta returned 0 Facebook Pages (granted scopes: ${granted.join(', ') || 'none'}). Click Connect Meta again → click "Edit access" in the Facebook popup and select your Facebook Page & Instagram account.`,
         })
       }
 
       let connectedCount = 0
+      const dbErrors: string[] = []
       for (const page of pages) {
         const pageToken = page.access_token || userAccessToken
         const { error: fbErr } = await db
@@ -138,7 +175,11 @@ export async function GET(
             { onConflict: 'organization_slug,channel,account_id' }
           )
 
-        if (!fbErr) connectedCount += 1
+        if (fbErr) {
+          dbErrors.push(`FB(${page.name}): ${fbErr.message}`)
+        } else {
+          connectedCount += 1
+        }
 
         const ig = page.instagram_business_account
         if (ig?.id) {
@@ -168,8 +209,18 @@ export async function GET(
               },
               { onConflict: 'organization_slug,channel,account_id' }
             )
-          if (!igErr) connectedCount += 1
+          if (igErr) {
+            dbErrors.push(`IG(${ig.username || ig.id}): ${igErr.message}`)
+          } else {
+            connectedCount += 1
+          }
         }
+      }
+
+      if (connectedCount === 0) {
+        return redirectBack(origin, returnTo, {
+          oauth_error: `Could not save Meta connection to database: ${dbErrors.join('; ') || 'Unknown DB error'}`,
+        })
       }
 
       return redirectBack(origin, returnTo, {

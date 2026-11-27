@@ -75,6 +75,7 @@ export default function MarketingHub({
   const [providerConfig, setProviderConfig] = useState<ProviderReadinessMap>({})
   const [connectionsSchemaPending, setConnectionsSchemaPending] = useState(false)
   const [loadingConnections, setLoadingConnections] = useState(false)
+  const [oauthBanner, setOauthBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   // Handle OAuth callback return query params (?marketing_tab=connections&oauth_success=...)
   useEffect(() => {
@@ -88,9 +89,11 @@ export default function MarketingHub({
       setActiveAction('connections')
     }
     if (oauthSuccess) {
+      setOauthBanner({ type: 'success', message: oauthSuccess })
       toast.success(oauthSuccess)
     }
     if (oauthError) {
+      setOauthBanner({ type: 'error', message: oauthError })
       toast.error(oauthError)
     }
     if (tab || oauthSuccess || oauthError) {
@@ -543,6 +546,32 @@ export default function MarketingHub({
               Run <code className="px-1.5 py-0.5 rounded bg-slate-950 text-[#E5C992]">supabase/marketing_hub_schema.sql</code> in your Supabase SQL Editor to activate persistent post storage, file uploads (<code className="px-1 rounded bg-slate-950">marketing-media</code> bucket), and team role tiers.
             </p>
           </div>
+        </div>
+      )}
+
+      {oauthBanner && (
+        <div
+          className={`rounded-2xl border p-4 flex items-start justify-between gap-3 text-xs ${
+            oauthBanner.type === 'error'
+              ? 'border-red-500/40 bg-red-500/10 text-red-200'
+              : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+          }`}
+        >
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle
+              className={`w-4 h-4 shrink-0 mt-0.5 ${
+                oauthBanner.type === 'error' ? 'text-red-400' : 'text-emerald-400'
+              }`}
+            />
+            <p className="leading-relaxed font-medium">{oauthBanner.message}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOauthBanner(null)}
+            className="text-slate-300 hover:text-white font-bold px-2 cursor-pointer shrink-0"
+          >
+            ✕
+          </button>
         </div>
       )}
 

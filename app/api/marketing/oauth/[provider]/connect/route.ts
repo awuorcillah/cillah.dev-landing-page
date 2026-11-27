@@ -75,6 +75,7 @@ export async function GET(
       'instagram_basic',
       'instagram_content_publish',
       'instagram_manage_insights',
+      'business_management',
     ].join(',')
 
     const authUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth')
@@ -82,6 +83,7 @@ export async function GET(
     authUrl.searchParams.set('redirect_uri', callbackUrl)
     authUrl.searchParams.set('scope', scopes)
     authUrl.searchParams.set('response_type', 'code')
+    authUrl.searchParams.set('auth_type', 'rerequest')
     authUrl.searchParams.set('state', state)
 
     return NextResponse.redirect(authUrl.toString())
