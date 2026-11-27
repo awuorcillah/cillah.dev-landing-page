@@ -67,8 +67,15 @@ export default function MarketingPostComposer({
 
   // Uploaded files (images, videos, PDFs/docs)
   const [mediaFiles, setMediaFiles] = useState<MarketingMediaFile[]>([])
+  const [directVideoFile, setDirectVideoFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadingLabel, setUploadingLabel] = useState('')
+  const [ytUploadProgress, setYtUploadProgress] = useState<{
+    pct: number
+    uploadedBytes: number
+    totalBytes: number
+    statusText: string
+  } | null>(null)
   const [isDragging, setIsDragging] = useState(false)
 
   // Selected Channels (controlled from Channel ▾ dropdown in MarketingHub, with local fallback)
@@ -115,6 +122,9 @@ export default function MarketingPostComposer({
     }
   }
 
+  const isVideoFile = (file: File) =>
+    file.type.startsWith('video/') || /\.(mp4|mov|webm|mkv|m4v|avi)$/i.test(file.name)
+
   const handleUploadFiles = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return
     if (!permissions.canUploadAndDraft) {
@@ -125,10 +135,29 @@ export default function MarketingPostComposer({
     setUploading(true)
     try {
       const uploaded: MarketingMediaFile[] = []
+      let attachedLargeYouTubeVideo = false
+
       for (const file of Array.from(fileList)) {
-        if (file.size > 50 * 1024 * 1024) {
-          toast.error(`${file.name} is ${formatFileSize(file.size)} — max upload size is 50 MB.`)
+        const video = isVideoFile(file)
+
+        // Large videos (> 50 MB) stream directly from browser -> YouTube (up to 256 GB, zero server limit!)
+        if (video && file.size > 50 * 1024 * 1024) {
+          setDirectVideoFile(file)
+          attachedLargeYouTubeVideo = true
+          toast.success(
+            `${file.name} (${formatFileSize(file.size)}) attached for Direct YouTube Upload — it will stream straight to YouTube with a live progress bar when you post or schedule.`
+          )
           continue
+        }
+
+        if (file.size > 50 * 1024 * 1024) {
+          toast.error(`${file.name} is ${formatFileSize(file.size)} — max upload size for non-video files is 50 MB.`)
+          continue
+        }
+
+        if (video) {
+          // Keep local video reference too so YouTube uploads directly with a live progress bar
+          setDirectVideoFile(file)
         }
 
         setUploadingLabel(`Uploading ${file.name} (${formatFileSize(file.size)})...`)
@@ -174,9 +203,11 @@ export default function MarketingPostComposer({
 
       if (uploaded.length > 0) {
         setMediaFiles((prev) => [...prev, ...uploaded])
-        toast.success(
-          `Uploaded ${uploaded.length} file${uploaded.length > 1 ? 's' : ''} ready for publishing`
-        )
+        if (!attachedLargeYouTubeVideo) {
+          toast.success(
+            `Uploaded ${uploaded.length} file${uploaded.length > 1 ? 's' : ''} ready for publishing`
+          )
+        }
       }
     } catch {
       toast.error('Upload failed. Check your connection and try again.')
@@ -188,11 +219,19 @@ export default function MarketingPostComposer({
   }
 
   const removeMediaFile = (path: string) => {
-    setMediaFiles((prev) => prev.filter((f) => f.path !== path))
+    setMediaFiles((prev) => {
+      const target = prev.find((f) => f.path === path)
+      if (target && directVideoFile && target.name === directVideoFile.name) {
+        setDirectVideoFile(null)
+      }
+      return prev.filter((f) => f.path !== path)
+    })
   }
 
   const resetForm = () => {
     setMediaFiles([])
+    setDirectVideoFile(null)
+    setYtUploadProgress(null)
     setTitle('')
     setCaption('')
     setHashtags('')
@@ -200,6 +239,160 @@ export default function MarketingPostComposer({
     setWebsiteFeatured(false)
     setScheduledAt('')
     setPublishMode('now')
+  }
+
+  const uploadVideoDirectToYouTube = async (
+    file: File,
+    params: {
+      title: string
+      description: string
+      hashtags: string
+      ctaUrl: string
+      publishMode: 'now' | 'schedule'
+      scheduledAt: string | null
+    }
+  ): Promise<{
+    videoId: string
+    url: string
+    channelName: string
+    scheduled: boolean
+    publishAt: string | null
+  }> => {
+    const mimeType = file.type || 'video/mp4'
+    setYtUploadProgress({
+      pct: 0,
+      uploadedBytes: 0,
+      totalBytes: file.size,
+      statusText: 'Initializing direct YouTube upload session...',
+    })
+
+    // Step 1: Server initializes CORS-enabled Resumable Upload session with Google (token stays secret on server)
+    const sessionRes = await fetch('/api/marketing/youtube/upload-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        organization_slug: organizationSlug,
+        title: params.title,
+        description: params.description,
+        hashtags: params.hashtags,
+        cta_url: params.ctaUrl,
+        mime_type: mimeType,
+        size_bytes: file.size,
+        publish_mode: params.publishMode,
+        scheduled_at: params.scheduledAt,
+      }),
+    })
+    const sessionJson = await sessionRes.json().catch(() => ({}))
+    if (!sessionRes.ok || !sessionJson.uploadUrl) {
+      throw new Error(sessionJson.error || 'Could not initialize direct YouTube upload session.')
+    }
+
+    const uploadUrl: string = sessionJson.uploadUrl
+    const CHUNK_SIZE = 16 * 1024 * 1024 // 16 MB (exact multiple of Google's 256 KB chunk unit)
+    const total = file.size
+    let offset = 0
+    let retries = 0
+
+    const uploadChunk = (start: number, end: number): Promise<{ status: number; rangeHeader: string | null; responseText: string }> =>
+      new Promise((resolve, reject) => {
+        const chunk = file.slice(start, end + 1)
+        const xhr = new XMLHttpRequest()
+        xhr.open('PUT', uploadUrl, true)
+        xhr.setRequestHeader('Content-Type', mimeType)
+        xhr.setRequestHeader('Content-Range', `bytes ${start}-${end}/${total}`)
+
+        xhr.upload.onprogress = (ev) => {
+          if (ev.lengthComputable) {
+            const uploadedBytes = Math.min(total, start + ev.loaded)
+            const pct = Math.min(99, Math.round((uploadedBytes / total) * 100))
+            setYtUploadProgress({
+              pct,
+              uploadedBytes,
+              totalBytes: total,
+              statusText: `Streaming directly to YouTube (${formatFileSize(uploadedBytes)} / ${formatFileSize(total)})`,
+            })
+          }
+        }
+
+        xhr.onload = () => {
+          resolve({
+            status: xhr.status,
+            rangeHeader: xhr.getResponseHeader('Range'),
+            responseText: xhr.responseText || '',
+          })
+        }
+        xhr.onerror = () => reject(new Error('Network error while uploading video chunk to YouTube.'))
+        xhr.send(chunk)
+      })
+
+    while (offset < total) {
+      const end = Math.min(offset + CHUNK_SIZE - 1, total - 1)
+      try {
+        const res = await uploadChunk(offset, end)
+
+        if (res.status === 200 || res.status === 201) {
+          const data = JSON.parse(res.responseText || '{}')
+          if (!data.id) {
+            throw new Error('YouTube completed upload but did not return a video ID.')
+          }
+          setYtUploadProgress({
+            pct: 100,
+            uploadedBytes: total,
+            totalBytes: total,
+            statusText: 'Upload complete! Finalizing on YouTube...',
+          })
+          return {
+            videoId: data.id,
+            url: `https://youtu.be/${data.id}`,
+            channelName: sessionJson.channelName || 'YouTube',
+            scheduled: Boolean(sessionJson.scheduled),
+            publishAt: sessionJson.publishAt || null,
+          }
+        }
+
+        if (res.status === 308) {
+          retries = 0
+          if (res.rangeHeader) {
+            const match = res.rangeHeader.match(/bytes=0-(\d+)/)
+            if (match) {
+              offset = Number(match[1]) + 1
+              continue
+            }
+          }
+          offset = end + 1
+          continue
+        }
+
+        if (res.status >= 500 && retries < 3) {
+          retries += 1
+          await new Promise((r) => setTimeout(r, 1500 * retries))
+          continue
+        }
+
+        let errMsg = `YouTube upload failed (HTTP ${res.status}).`
+        try {
+          const parsedErr = JSON.parse(res.responseText)
+          if (parsedErr?.error?.message) errMsg = parsedErr.error.message
+        } catch {
+          // ignore non-json
+        }
+        throw new Error(errMsg)
+      } catch (err) {
+        if (retries < 3) {
+          retries += 1
+          setYtUploadProgress((prev) =>
+            prev
+              ? { ...prev, statusText: `Connection blip — retrying chunk (${retries}/3)...` }
+              : prev
+          )
+          await new Promise((r) => setTimeout(r, 1500 * retries))
+          continue
+        }
+        throw err
+      }
+    }
+
+    throw new Error('YouTube upload stream ended unexpectedly.')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -221,18 +414,29 @@ export default function MarketingPostComposer({
       toast.error('Pick a date and time to schedule this post.')
       return
     }
-    const hasVideo = mediaFiles.some((f) => f.kind === 'video')
+
+    const hasStoredVideo = mediaFiles.some((f) => f.kind === 'video')
+    const hasAnyVideo = hasStoredVideo || Boolean(directVideoFile)
     const hasImageOrVideo = mediaFiles.some((f) => f.kind === 'image' || f.kind === 'video')
-    if (publishMode === 'now' && selectedChannels.includes('youtube') && !hasVideo) {
+
+    if ((publishMode === 'now' || publishMode === 'schedule') && selectedChannels.includes('youtube') && !hasAnyVideo) {
       toast.error('YouTube requires a video file (MP4, MOV, or WebM) — images cannot be posted to YouTube.')
       return
     }
-    if (publishMode === 'now' && selectedChannels.includes('tiktok') && !hasVideo) {
-      toast.error('TikTok requires a video file (MP4 or MOV).')
+    if (publishMode === 'now' && selectedChannels.includes('tiktok') && !hasStoredVideo) {
+      toast.error(
+        directVideoFile && directVideoFile.size > 50 * 1024 * 1024
+          ? 'Videos over 50 MB currently upload directly to YouTube only. Uncheck TikTok or upload a shorter clip.'
+          : 'TikTok requires a video file (MP4 or MOV).'
+      )
       return
     }
     if (publishMode === 'now' && selectedChannels.includes('instagram') && !hasImageOrVideo) {
-      toast.error('Instagram requires at least one uploaded image or video.')
+      toast.error(
+        directVideoFile && directVideoFile.size > 50 * 1024 * 1024
+          ? 'Videos over 50 MB currently upload directly to YouTube only. Uncheck Instagram or attach an image/clip under 50 MB.'
+          : 'Instagram requires at least one uploaded image or video.'
+      )
       return
     }
 
@@ -246,6 +450,57 @@ export default function MarketingPostComposer({
 
     setSubmitting(true)
     try {
+      let prepublishedStatuses:
+        | Record<string, { state: 'live' | 'scheduled'; url?: string; note?: string; updated_at: string }>
+        | undefined
+      let finalMediaFiles = [...mediaFiles]
+
+      // Direct Browser-to-YouTube Resumable Upload (supports 285 MB -> 256 GB with live progress bar!)
+      const shouldDirectUploadYouTube =
+        selectedChannels.includes('youtube') &&
+        Boolean(directVideoFile) &&
+        ((publishMode === 'now' && permissions.canPublishDirectly) ||
+          (publishMode === 'schedule' && permissions.canSchedule))
+
+      if (shouldDirectUploadYouTube && directVideoFile) {
+        try {
+          const ytRes = await uploadVideoDirectToYouTube(directVideoFile, {
+            title: title.trim(),
+            description: cleanCaption,
+            hashtags: hashtags.trim(),
+            ctaUrl: ctaUrl.trim(),
+            publishMode: publishMode === 'schedule' ? 'schedule' : 'now',
+            scheduledAt: publishMode === 'schedule' ? scheduledAt : null,
+          })
+
+          prepublishedStatuses = {
+            youtube: {
+              state: ytRes.scheduled ? 'scheduled' : 'live',
+              url: ytRes.url,
+              note: ytRes.scheduled
+                ? `Uploaded & scheduled on YouTube (${ytRes.channelName})`
+                : `Uploaded live to YouTube (${ytRes.channelName})`,
+              updated_at: new Date().toISOString(),
+            },
+          }
+
+          if (!finalMediaFiles.some((f) => f.kind === 'video')) {
+            finalMediaFiles.push({
+              name: directVideoFile.name,
+              url: ytRes.url,
+              path: `youtube-direct/${ytRes.videoId}`,
+              mime_type: directVideoFile.type || 'video/mp4',
+              size_bytes: directVideoFile.size,
+              kind: 'video',
+            })
+          }
+        } catch (ytErr: any) {
+          toast.error(ytErr?.message || 'Direct YouTube upload failed.')
+          setYtUploadProgress(null)
+          return
+        }
+      }
+
       const res = await fetch('/api/marketing/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -256,7 +511,7 @@ export default function MarketingPostComposer({
           hashtags: hashtags.trim(),
           cta_url: ctaUrl.trim(),
           channels: selectedChannels,
-          media_files: mediaFiles,
+          media_files: finalMediaFiles,
           publish_mode: publishMode,
           scheduled_at: publishMode === 'schedule' ? scheduledAt : null,
           website_slug: slugifyTitle(title),
@@ -264,6 +519,7 @@ export default function MarketingPostComposer({
           website_category: websiteCategory,
           website_read_time: autoReadTime,
           website_featured: websiteFeatured,
+          prepublished_channel_statuses: prepublishedStatuses,
         }),
       })
 
@@ -310,6 +566,7 @@ export default function MarketingPostComposer({
       toast.error('Network error while saving post.')
     } finally {
       setSubmitting(false)
+      setYtUploadProgress(null)
     }
   }
 
@@ -433,7 +690,9 @@ export default function MarketingPostComposer({
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-bold text-white">Upload Media</h3>
-              <span className="text-[11px] text-slate-500">Images, videos, PDFs (up to 50 MB)</span>
+              <span className="text-[11px] text-slate-500">
+                Direct YouTube video (multi-GB) • Images/PDFs (up to 50 MB)
+              </span>
             </div>
 
             <input
@@ -489,8 +748,32 @@ export default function MarketingPostComposer({
               )}
             </div>
 
-            {mediaFiles.length > 0 && (
+            {(mediaFiles.length > 0 || (directVideoFile && directVideoFile.size > 50 * 1024 * 1024)) && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {directVideoFile && directVideoFile.size > 50 * 1024 * 1024 && (
+                  <div className="flex items-center gap-3 p-2.5 rounded-xl bg-red-500/10 border border-red-500/35">
+                    <div className="w-11 h-11 rounded-lg bg-red-500/20 border border-red-500/35 flex items-center justify-center text-red-300 shrink-0">
+                      <Film className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-white truncate">
+                        {directVideoFile.name}
+                      </p>
+                      <p className="text-[10px] text-red-300 font-semibold">
+                        Direct to YouTube &bull; {formatFileSize(directVideoFile.size)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDirectVideoFile(null)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                      aria-label={`Remove ${directVideoFile.name}`}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
                 {mediaFiles.map((file) => (
                   <div
                     key={file.path}
@@ -716,6 +999,29 @@ export default function MarketingPostComposer({
             </div>
           )}
 
+          {ytUploadProgress && (
+            <div className="rounded-xl bg-slate-950 border border-red-500/35 p-4 space-y-2.5">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="font-bold text-white flex items-center gap-2">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-red-400" />
+                  <span>{ytUploadProgress.statusText}</span>
+                </span>
+                <span className="font-mono font-extrabold text-[#E5C992]">
+                  {ytUploadProgress.pct}%
+                </span>
+              </div>
+              <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-red-500 via-[#C9A66B] to-emerald-400 transition-all duration-300"
+                  style={{ width: `${ytUploadProgress.pct}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Keep this tab open until upload hits 100% — streaming directly to YouTube in 16 MB chunks.
+              </p>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-slate-800">
             <div className="text-xs text-slate-400">
               Active Tier:{' '}
@@ -905,7 +1211,7 @@ export default function MarketingPostComposer({
                               </span>
                             )
                           }
-                          if (st.state === 'live' && st.url) {
+                          if ((st.state === 'live' || st.state === 'scheduled') && st.url) {
                             const isExternal = st.url.startsWith('http')
                             return isExternal ? (
                               <a
@@ -915,7 +1221,8 @@ export default function MarketingPostComposer({
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/35 text-[11px] font-bold text-emerald-300 hover:bg-emerald-500/25"
                               >
-                                <ExternalLink className="w-3 h-3" /> View Live on {label}
+                                <ExternalLink className="w-3 h-3" />{' '}
+                                {st.state === 'scheduled' ? `View Scheduled on ${label}` : `View Live on ${label}`}
                               </a>
                             ) : (
                               <Link

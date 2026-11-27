@@ -28,6 +28,13 @@ const mediaFileSchema = z.object({
   kind: z.enum(['image', 'video', 'document']),
 })
 
+const channelStatusOverrideSchema = z.object({
+  state: z.enum(['live', 'scheduled', 'queued_webhook', 'dispatched', 'pending_approval', 'draft', 'failed']),
+  url: z.string().optional(),
+  note: z.string().optional(),
+  updated_at: z.string(),
+})
+
 const createPostSchema = z.object({
   organization_slug: z.string().default('cillah-dev'),
   title: z.string().trim().min(2, 'Please provide a post title or headline').max(220),
@@ -49,6 +56,7 @@ const createPostSchema = z.object({
   website_category: z.string().optional().default('Marketing & Automation'),
   website_read_time: z.string().optional().default('4 min read'),
   website_featured: z.boolean().optional().default(false),
+  prepublished_channel_statuses: z.record(z.string(), channelStatusOverrideSchema).optional(),
 })
 
 const patchPostSchema = z.object({
@@ -269,12 +277,21 @@ export async function POST(request: NextRequest) {
 
     const webhookConfigured = Boolean(process.env.MARKETING_PUBLISH_WEBHOOK_URL)
     const nowIso = new Date().toISOString()
-    const channelStatuses = buildChannelStatuses(
+    const baseChannelStatuses = buildChannelStatuses(
       input.channels,
       finalStatus,
       websiteSlug,
       webhookConfigured
     )
+    const prepublishedStatuses =
+      (finalStatus === 'published' || finalStatus === 'scheduled') &&
+      input.prepublished_channel_statuses
+        ? input.prepublished_channel_statuses
+        : {}
+    const channelStatuses: Record<string, ChannelDeliveryStatus> = {
+      ...baseChannelStatuses,
+      ...prepublishedStatuses,
+    }
 
     const db = getServiceRoleClient() || supabase
     const insertPayload = {
@@ -327,14 +344,24 @@ export async function POST(request: NextRequest) {
 
     let finalPost = created
     if (finalStatus === 'published') {
+      const remainingSocialChannels = input.channels.filter(
+        (ch) => !prepublishedStatuses[ch]
+      )
       const [socialResults] = await Promise.all([
-        dispatchToConnectedSocialChannels(db, input.organization_slug, input.channels, {
-          title: created.title,
-          caption: created.caption,
-          hashtags: created.hashtags,
-          cta_url: created.cta_url,
-          media_files: created.media_files || [],
-        }),
+        remainingSocialChannels.length > 0
+          ? dispatchToConnectedSocialChannels(
+              db,
+              input.organization_slug,
+              remainingSocialChannels,
+              {
+                title: created.title,
+                caption: created.caption,
+                hashtags: created.hashtags,
+                cta_url: created.cta_url,
+                media_files: created.media_files || [],
+              }
+            )
+          : Promise.resolve({} as Record<string, ChannelDeliveryStatus>),
         dispatchSocialWebhookIfConfigured(created),
       ])
 
