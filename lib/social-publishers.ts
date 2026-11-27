@@ -361,7 +361,8 @@ async function publishToYouTube(
   if (!videoRes.ok) {
     return { state: 'failed', note: 'Could not download uploaded video for YouTube.', updated_at: now }
   }
-  const videoBytes = Buffer.from(await videoRes.arrayBuffer())
+  const videoBytes = await videoRes.arrayBuffer()
+  const mimeType = firstVideo.mime_type || 'video/mp4'
 
   const metadata = {
     snippet: {
@@ -378,32 +379,47 @@ async function publishToYouTube(
     },
   }
 
-  const boundary = `cillah_yt_${Date.now()}`
-  const metaPart = Buffer.from(
-    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: ${firstVideo.mime_type || 'video/mp4'}\r\n\r\n`,
-    'utf8'
-  )
-  const endPart = Buffer.from(`\r\n--${boundary}--`, 'utf8')
-  const multipartBody = Buffer.concat([metaPart, videoBytes, endPart])
-
-  const uploadRes = await fetch(
-    'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=multipart&part=snippet,status',
+  // Step 1: Initialize a YouTube Resumable Upload session (reliable for videos up to 50 MB+)
+  const initRes = await fetch(
+    'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status',
     {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': `multipart/related; boundary=${boundary}`,
-        'Content-Length': String(multipartBody.length),
+        'Content-Type': 'application/json; charset=UTF-8',
+        'X-Upload-Content-Length': String(videoBytes.byteLength),
+        'X-Upload-Content-Type': mimeType,
       },
-      body: multipartBody,
+      body: JSON.stringify(metadata),
     }
   )
 
-  const data = await uploadRes.json()
+  const uploadLocation = initRes.headers.get('location')
+  if (!initRes.ok || !uploadLocation) {
+    const errJson = await initRes.json().catch(() => ({}))
+    return {
+      state: 'failed',
+      note: errJson?.error?.message || `YouTube upload init failed (HTTP ${initRes.status}).`,
+      updated_at: now,
+    }
+  }
+
+  // Step 2: Upload the raw video bytes directly to Google's resumable upload URI
+  const uploadRes = await fetch(uploadLocation, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': mimeType,
+      'Content-Length': String(videoBytes.byteLength),
+    },
+    body: videoBytes,
+  })
+
+  const data = await uploadRes.json().catch(() => ({}))
   if (!uploadRes.ok || !data.id) {
     return {
       state: 'failed',
-      note: data?.error?.message || 'YouTube upload failed.',
+      note: data?.error?.message || `YouTube video upload failed (HTTP ${uploadRes.status}).`,
       updated_at: now,
     }
   }

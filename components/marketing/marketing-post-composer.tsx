@@ -68,6 +68,7 @@ export default function MarketingPostComposer({
   // Uploaded files (images, videos, PDFs/docs)
   const [mediaFiles, setMediaFiles] = useState<MarketingMediaFile[]>([])
   const [uploading, setUploading] = useState(false)
+  const [uploadingLabel, setUploadingLabel] = useState('')
   const [isDragging, setIsDragging] = useState(false)
 
   // Selected Channels (controlled from Channel ▾ dropdown in MarketingHub, with local fallback)
@@ -125,22 +126,50 @@ export default function MarketingPostComposer({
     try {
       const uploaded: MarketingMediaFile[] = []
       for (const file of Array.from(fileList)) {
-        const fd = new FormData()
-        fd.append('file', file)
-
-        const res = await fetch(
-          `/api/marketing/upload?org=${encodeURIComponent(organizationSlug)}`,
-          { method: 'POST', body: fd }
-        )
-        const json = await res.json()
-
-        if (!res.ok) {
-          toast.error(json.error || `Failed to upload ${file.name}`)
+        if (file.size > 50 * 1024 * 1024) {
+          toast.error(`${file.name} is ${formatFileSize(file.size)} — max upload size is 50 MB.`)
           continue
         }
-        if (json.file) {
-          uploaded.push(json.file)
+
+        setUploadingLabel(`Uploading ${file.name} (${formatFileSize(file.size)})...`)
+
+        // Step 1: Request a direct-to-Supabase signed upload URL (bypasses Vercel's 4.5 MB body limit!)
+        const signRes = await fetch(
+          `/api/marketing/upload?org=${encodeURIComponent(organizationSlug)}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename: file.name,
+              content_type: file.type || 'application/octet-stream',
+              size_bytes: file.size,
+            }),
+          }
+        )
+        const signJson = await signRes.json().catch(() => ({}))
+
+        if (!signRes.ok || !signJson.signedUrl || !signJson.file) {
+          toast.error(signJson.error || `Failed to prepare upload for ${file.name}`)
+          continue
         }
+
+        // Step 2: PUT file directly to Supabase Storage
+        const putRes = await fetch(signJson.signedUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': file.type || 'application/octet-stream',
+            'x-upsert': 'true',
+          },
+          body: file,
+        })
+
+        if (!putRes.ok) {
+          const errText = await putRes.text().catch(() => '')
+          toast.error(`Storage upload failed for ${file.name}${errText ? `: ${errText.slice(0, 120)}` : ''}`)
+          continue
+        }
+
+        uploaded.push(signJson.file)
       }
 
       if (uploaded.length > 0) {
@@ -153,6 +182,7 @@ export default function MarketingPostComposer({
       toast.error('Upload failed. Check your connection and try again.')
     } finally {
       setUploading(false)
+      setUploadingLabel('')
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
@@ -189,6 +219,20 @@ export default function MarketingPostComposer({
     }
     if (publishMode === 'schedule' && !scheduledAt) {
       toast.error('Pick a date and time to schedule this post.')
+      return
+    }
+    const hasVideo = mediaFiles.some((f) => f.kind === 'video')
+    const hasImageOrVideo = mediaFiles.some((f) => f.kind === 'image' || f.kind === 'video')
+    if (publishMode === 'now' && selectedChannels.includes('youtube') && !hasVideo) {
+      toast.error('YouTube requires a video file (MP4, MOV, or WebM) — images cannot be posted to YouTube.')
+      return
+    }
+    if (publishMode === 'now' && selectedChannels.includes('tiktok') && !hasVideo) {
+      toast.error('TikTok requires a video file (MP4 or MOV).')
+      return
+    }
+    if (publishMode === 'now' && selectedChannels.includes('instagram') && !hasImageOrVideo) {
+      toast.error('Instagram requires at least one uploaded image or video.')
       return
     }
 
@@ -232,9 +276,26 @@ export default function MarketingPostComposer({
       if (json.roleNotice) {
         toast.info(json.roleNotice)
       } else if (publishMode === 'now') {
-        toast.success(
-          `Published successfully across ${selectedChannels.length} channel${selectedChannels.length > 1 ? 's' : ''}!`
-        )
+        const statuses = (json.post?.channel_statuses || {}) as Record<
+          string,
+          { state?: string; note?: string; url?: string }
+        >
+        const failedEntries = Object.entries(statuses).filter(([, s]) => s?.state === 'failed')
+        const liveEntries = Object.entries(statuses).filter(([, s]) => s?.state === 'live')
+
+        if (failedEntries.length > 0 && liveEntries.length === 0) {
+          const [ch, st] = failedEntries[0]
+          toast.error(`${getChannelConfig(ch)?.label || ch}: ${st?.note || 'Publishing failed.'}`)
+        } else if (failedEntries.length > 0) {
+          const failedList = failedEntries
+            .map(([ch, st]) => `${getChannelConfig(ch)?.shortLabel || ch}: ${st?.note || 'Failed'}`)
+            .join(' • ')
+          toast.warning(`Published to ${liveEntries.length} channel(s), but failed on: ${failedList}`)
+        } else {
+          toast.success(
+            `Published live across ${selectedChannels.length} channel${selectedChannels.length > 1 ? 's' : ''}!`
+          )
+        }
       } else if (publishMode === 'schedule') {
         toast.success(
           `Scheduled for ${new Date(scheduledAt).toLocaleString()} across ${selectedChannels.length} channel${selectedChannels.length > 1 ? 's' : ''}.`
@@ -414,7 +475,7 @@ export default function MarketingPostComposer({
               {uploading ? (
                 <div className="flex flex-col items-center gap-2 text-[#C9A66B]">
                   <Loader2 className="w-7 h-7 animate-spin" />
-                  <p className="text-xs font-semibold">Uploading...</p>
+                  <p className="text-xs font-semibold">{uploadingLabel || 'Uploading...'}</p>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-1.5">
@@ -824,7 +885,57 @@ export default function MarketingPostComposer({
                       )}
                     </div>
 
-                    {(hasArticleLive || hasUseCaseLive) && (
+                    {/* Per-Channel Delivery Results (Live Links + Exact Failure Reasons) */}
+                    {post.channel_statuses && Object.keys(post.channel_statuses).length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2 pt-1.5">
+                        {Object.entries(post.channel_statuses).map(([chId, st]) => {
+                          if (!st) return null
+                          const cfg = getChannelConfig(chId)
+                          const label = cfg?.shortLabel || chId
+                          if (st.state === 'failed') {
+                            return (
+                              <span
+                                key={chId}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/10 border border-red-500/30 text-[11px] text-red-300"
+                              >
+                                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                <span>
+                                  <strong>{label} failed:</strong> {st.note || 'Upload error'}
+                                </span>
+                              </span>
+                            )
+                          }
+                          if (st.state === 'live' && st.url) {
+                            const isExternal = st.url.startsWith('http')
+                            return isExternal ? (
+                              <a
+                                key={chId}
+                                href={st.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/35 text-[11px] font-bold text-emerald-300 hover:bg-emerald-500/25"
+                              >
+                                <ExternalLink className="w-3 h-3" /> View Live on {label}
+                              </a>
+                            ) : (
+                              <Link
+                                key={chId}
+                                href={st.url}
+                                target="_blank"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#C9A66B]/15 border border-[#C9A66B]/35 text-[11px] font-bold text-[#E5C992] hover:bg-[#C9A66B]/25"
+                              >
+                                <ExternalLink className="w-3 h-3" /> View Live {label}
+                              </Link>
+                            )
+                          }
+                          return null
+                        })}
+                      </div>
+                    )}
+
+                    {(hasArticleLive || hasUseCaseLive) &&
+                      !post.channel_statuses?.website_articles?.url &&
+                      !post.channel_statuses?.website_use_cases?.url && (
                       <div className="flex flex-wrap items-center gap-3 pt-1">
                         {hasArticleLive && (
                           <Link

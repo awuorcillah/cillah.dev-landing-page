@@ -15,6 +15,8 @@ import {
 } from '@/lib/marketing-config'
 import { dispatchToConnectedSocialChannels } from '@/lib/social-publishers'
 
+export const maxDuration = 60
+
 const validChannelIds = ACTIVE_MARKETING_CHANNELS.map((c) => c.id)
 
 const mediaFileSchema = z.object({
