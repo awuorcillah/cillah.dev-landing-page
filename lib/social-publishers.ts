@@ -81,7 +81,7 @@ export async function refreshYouTubeAccessToken(
   return data.access_token
 }
 
-async function refreshTikTokAccessToken(
+export async function refreshTikTokAccessToken(
   conn: SocialConnectionRow,
   db: any
 ): Promise<string | null> {
@@ -92,8 +92,8 @@ async function refreshTikTokAccessToken(
   }
 
   const refreshToken = decryptToken(conn.refresh_token_enc)
-  const clientKey = process.env.TIKTOK_CLIENT_KEY
-  const clientSecret = process.env.TIKTOK_CLIENT_SECRET
+  const clientKey = process.env.TIKTOK_CLIENT_KEY?.trim()
+  const clientSecret = process.env.TIKTOK_CLIENT_SECRET?.trim()
   if (!refreshToken || !clientKey || !clientSecret) return current
 
   const res = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
@@ -452,28 +452,42 @@ async function publishToTikTok(
     return { state: 'failed', note: 'TikTok OAuth token missing or expired.', updated_at: now }
   }
 
-  // Use TikTok Inbox/Drafts Pull-from-URL (works immediately before & after full TikTok direct audit)
+  // Download uploaded video bytes and stream via TikTok FILE_UPLOAD (avoids URL ownership verification issues)
+  const videoRes = await fetch(firstVideo.url)
+  if (!videoRes.ok) {
+    return {
+      state: 'failed',
+      note: 'Could not download uploaded video for TikTok.',
+      updated_at: now,
+    }
+  }
+  const videoBytes = await videoRes.arrayBuffer()
+  const videoSize = videoBytes.byteLength
+  const mimeType = firstVideo.mime_type || 'video/mp4'
+
+  // Use TikTok Inbox/Drafts FILE_UPLOAD (or Direct Post once TIKTOK_DIRECT_POST_APPROVED=true)
   const useDirectPost = process.env.TIKTOK_DIRECT_POST_APPROVED === 'true'
   const endpoint = useDirectPost
     ? 'https://open.tiktokapis.com/v2/post/publish/video/init/'
     : 'https://open.tiktokapis.com/v2/post/publish/inbox/video/init/'
 
+  const sourceInfo = {
+    source: 'FILE_UPLOAD',
+    video_size: videoSize,
+    chunk_size: videoSize,
+    total_chunk_count: 1,
+  }
+
   const payload = useDirectPost
     ? {
         post_info: {
           title: `${post.title} ${post.hashtags || ''}`.trim().slice(0, 2200),
-          privacy_level: 'PUBLIC_TO_EVERYONE',
+          privacy_level: 'SELF_ONLY',
         },
-        source_info: {
-          source: 'PULL_FROM_URL',
-          video_url: firstVideo.url,
-        },
+        source_info: sourceInfo,
       }
     : {
-        source_info: {
-          source: 'PULL_FROM_URL',
-          video_url: firstVideo.url,
-        },
+        source_info: sourceInfo,
       }
 
   const res = await fetch(endpoint, {
@@ -484,21 +498,43 @@ async function publishToTikTok(
     },
     body: JSON.stringify(payload),
   })
-  const data = await res.json()
+  const data = await res.json().catch(() => ({}))
 
-  if (!res.ok || (data.error && data.error.code !== 'ok')) {
+  if (!res.ok || (data.error && data.error.code !== 'ok') || !data.data?.upload_url) {
     return {
       state: 'failed',
-      note: data?.error?.message || 'TikTok Content Posting API failed.',
+      note: data?.error?.message || `TikTok Content Posting API init failed (HTTP ${res.status}).`,
+      updated_at: now,
+    }
+  }
+
+  // Step 2: PUT the video binary directly to TikTok's signed upload_url
+  const putRes = await fetch(data.data.upload_url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': mimeType,
+      'Content-Length': String(videoSize),
+      'Content-Range': `bytes 0-${videoSize - 1}/${videoSize}`,
+    },
+    body: videoBytes,
+  })
+
+  if (!putRes.ok) {
+    return {
+      state: 'failed',
+      note: `TikTok binary video upload failed (HTTP ${putRes.status}).`,
       updated_at: now,
     }
   }
 
   return {
     state: useDirectPost ? 'live' : 'dispatched',
+    url: conn.account_handle
+      ? `https://www.tiktok.com/${conn.account_handle.startsWith('@') ? conn.account_handle : `@${conn.account_handle}`}`
+      : undefined,
     note: useDirectPost
-      ? `Published live to TikTok (${conn.account_name})`
-      : `Sent to TikTok Inbox/Drafts (${conn.account_name}) — tap to post in TikTok app`,
+      ? `Uploaded directly to TikTok (${conn.account_name})`
+      : `Sent to TikTok Inbox/Drafts (${conn.account_name}) — open TikTok app notifications to publish`,
     updated_at: now,
   }
 }

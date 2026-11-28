@@ -100,7 +100,7 @@ const OAUTH_PROVIDERS = [
     badgeClass: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
     description:
       'Connect TikTok via PKCE OAuth v2 to send vertical videos straight to TikTok Inbox/Drafts or Direct Post.',
-    scopesSummary: 'user.info.basic, video.upload, video.publish',
+    scopesSummary: 'user.info.basic, user.info.stats, video.list, video.upload, video.publish',
     portalLabel: 'TikTok for Developers',
   },
 ]

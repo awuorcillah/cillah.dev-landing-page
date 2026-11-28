@@ -372,8 +372,8 @@ export async function GET(
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
-          client_key: process.env.TIKTOK_CLIENT_KEY!,
-          client_secret: process.env.TIKTOK_CLIENT_SECRET!,
+          client_key: process.env.TIKTOK_CLIENT_KEY!.trim(),
+          client_secret: process.env.TIKTOK_CLIENT_SECRET!.trim(),
           code,
           grant_type: 'authorization_code',
           redirect_uri: callbackUrl,
@@ -413,7 +413,7 @@ export async function GET(
               ? encryptToken(tokenData.refresh_token)
               : null,
             token_expires_at: expiresAt,
-            scopes: ['user.info.basic', 'video.upload', 'video.publish'],
+            scopes: ['user.info.basic', 'user.info.stats', 'video.list', 'video.upload', 'video.publish'],
             metadata: { tiktok_open_id: String(openId) },
             connected_by: state.email,
             status: 'connected',

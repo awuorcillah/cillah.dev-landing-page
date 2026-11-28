@@ -156,8 +156,8 @@ export async function GET(
   }
 
   if (provider === 'tiktok') {
-    const clientKey = process.env.TIKTOK_CLIENT_KEY
-    const clientSecret = process.env.TIKTOK_CLIENT_SECRET
+    const clientKey = process.env.TIKTOK_CLIENT_KEY?.trim()
+    const clientSecret = process.env.TIKTOK_CLIENT_SECRET?.trim()
     if (!clientKey || !clientSecret) {
       return redirectWithError(
         origin,
@@ -179,7 +179,10 @@ export async function GET(
     const authUrl = new URL('https://www.tiktok.com/v2/auth/authorize/')
     authUrl.searchParams.set('client_key', clientKey)
     authUrl.searchParams.set('response_type', 'code')
-    authUrl.searchParams.set('scope', 'user.info.basic,video.upload,video.publish')
+    authUrl.searchParams.set(
+      'scope',
+      'user.info.basic,user.info.stats,video.list,video.upload,video.publish'
+    )
     authUrl.searchParams.set('redirect_uri', callbackUrl)
     authUrl.searchParams.set('state', state)
     authUrl.searchParams.set('code_challenge', codeChallenge)

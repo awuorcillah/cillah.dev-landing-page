@@ -30,6 +30,9 @@ import {
   ThumbsUp,
   UserPlus,
   AlertCircle,
+  Film,
+  MessageSquare,
+  Share2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -142,6 +145,33 @@ function formatWatchMinutes(minutes: number): string {
   return `${m.toLocaleString()} min`
 }
 
+interface TikTokInsightsResponse {
+  connected: boolean
+  syncedAt?: string
+  syncedDays?: number
+  error?: string
+  warning?: string | null
+  message?: string
+  profile?: {
+    openId: string
+    displayName: string
+    username?: string | null
+    avatarUrl?: string | null
+    followerCount: number
+    followingCount: number
+    lifetimeLikes: number
+    videoCount: number
+  } | null
+  analytics?: {
+    views: number
+    likes: number
+    comments: number
+    shares: number
+    engagements: number
+    videosAnalyzed: number
+  } | null
+}
+
 export default function MarketingInsightsView({
   organizationSlug,
   permissions,
@@ -153,6 +183,9 @@ export default function MarketingInsightsView({
   const [ytData, setYtData] = useState<YouTubeAnalyticsResponse | null>(null)
   const [loadingYt, setLoadingYt] = useState(false)
   const [syncingYt, setSyncingYt] = useState(false)
+  const [ttData, setTtData] = useState<TikTokInsightsResponse | null>(null)
+  const [loadingTt, setLoadingTt] = useState(false)
+  const [syncingTt, setSyncingTt] = useState(false)
 
   // Quick Metric Snapshot Modal
   const [logModalOpen, setLogModalOpen] = useState(false)
@@ -234,10 +267,57 @@ export default function MarketingInsightsView({
     }
   }
 
+  const fetchTikTokInsights = useCallback(async () => {
+    setLoadingTt(true)
+    try {
+      const res = await fetch(
+        `/api/marketing/insights/tiktok?org=${encodeURIComponent(organizationSlug)}`
+      )
+      const json = await res.json()
+      if (res.ok || json.connected) {
+        setTtData(json)
+      }
+    } catch {
+      // keep main insights resilient
+    } finally {
+      setLoadingTt(false)
+    }
+  }, [organizationSlug])
+
+  const handleSyncTikTokInsights = async () => {
+    setSyncingTt(true)
+    try {
+      const res = await fetch('/api/marketing/insights/tiktok', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ organization_slug: organizationSlug }),
+      })
+      const json: TikTokInsightsResponse = await res.json()
+      setTtData(json)
+      if (!res.ok || json.error) {
+        toast.error(json.error || 'Could not sync TikTok Insights.')
+        return
+      }
+      if (!json.connected) {
+        toast.info('Connect TikTok in Connected Accounts first.')
+        return
+      }
+      toast.success(
+        `Synced TikTok Insights (${(json.analytics?.views || 0).toLocaleString()} video views · ${(json.profile?.followerCount || 0).toLocaleString()} followers)`
+      )
+      fetchInsights()
+    } catch {
+      toast.error('Failed to sync TikTok Insights.')
+    } finally {
+      setSyncingTt(false)
+    }
+  }
+
   useEffect(() => {
     fetchInsights()
     fetchYouTubeAnalytics()
-  }, [fetchInsights, fetchYouTubeAnalytics])
+    fetchTikTokInsights()
+  }, [fetchInsights, fetchYouTubeAnalytics, fetchTikTokInsights])
 
   const handleSaveMetric = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -334,6 +414,18 @@ export default function MarketingInsightsView({
               </button>
             )}
 
+            {ttData?.connected && (
+              <button
+                type="button"
+                onClick={handleSyncTikTokInsights}
+                disabled={syncingTt}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/35 text-cyan-200 text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <Film className={`w-3.5 h-3.5 text-cyan-300 ${syncingTt ? 'animate-pulse' : ''}`} />
+                <span>{syncingTt ? 'Syncing...' : 'Sync TikTok'}</span>
+              </button>
+            )}
+
             {permissions.canPublishDirectly && (
               <button
                 type="button"
@@ -349,11 +441,12 @@ export default function MarketingInsightsView({
               onClick={() => {
                 fetchInsights()
                 fetchYouTubeAnalytics()
+                fetchTikTokInsights()
               }}
-              disabled={loading || loadingYt}
+              disabled={loading || loadingYt || loadingTt}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading || loadingYt ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${loading || loadingYt || loadingTt ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
@@ -547,6 +640,125 @@ export default function MarketingInsightsView({
                     </p>
                     <p className="text-[10px] text-slate-500 mt-0.5">
                       +{ytData.analytics.subscribersGained} gained / -{ytData.analytics.subscribersLost} lost
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {/* LIVE TIKTOK INSIGHTS PANEL (Display API: user.info.stats + video.list) */}
+          {(selectedChannel === 'all' || selectedChannel === 'tiktok') && ttData?.connected && (
+            <div className="rounded-2xl bg-slate-900/80 border border-cyan-400/25 p-5 space-y-4 shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  {ttData.profile?.avatarUrl ? (
+                    <img
+                      src={ttData.profile.avatarUrl}
+                      alt={ttData.profile.displayName}
+                      className="w-10 h-10 rounded-full border border-cyan-400/40 object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center shrink-0">
+                      <Film className="w-5 h-5 text-cyan-300" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="text-sm font-extrabold text-white truncate">
+                        {ttData.profile?.displayName || 'TikTok Account'} — Live Insights
+                      </h4>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-400/30">
+                        TikTok Display API
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {(ttData.profile?.followerCount || 0).toLocaleString()} followers &bull;{' '}
+                      {(ttData.profile?.videoCount || 0).toLocaleString()} videos &bull;{' '}
+                      {(ttData.profile?.lifetimeLikes || 0).toLocaleString()} lifetime likes
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSyncTikTokInsights}
+                  disabled={syncingTt}
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/35 text-cyan-200 text-xs font-bold transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${syncingTt ? 'animate-spin' : ''}`} />
+                  <span>{syncingTt ? 'Syncing to Scorecard...' : 'Sync to Scorecard'}</span>
+                </button>
+              </div>
+
+              {ttData.error ? (
+                <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 p-3.5 flex items-start gap-2.5 text-xs text-amber-200">
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold">TikTok Display API Notice</p>
+                    <p className="text-amber-100/80 mt-0.5">{ttData.error}</p>
+                  </div>
+                </div>
+              ) : ttData.analytics ? (
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                  <div className="rounded-xl bg-slate-950/80 border border-slate-800 p-3.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+                      <span>Video Views</span>
+                      <Eye className="w-3.5 h-3.5 text-cyan-400" />
+                    </div>
+                    <p className="text-xl font-black text-white mt-1.5">
+                      {ttData.analytics.views.toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      Across {ttData.analytics.videosAnalyzed} recent videos
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-950/80 border border-slate-800 p-3.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+                      <span>Video Likes</span>
+                      <ThumbsUp className="w-3.5 h-3.5 text-pink-400" />
+                    </div>
+                    <p className="text-xl font-black text-white mt-1.5">
+                      {ttData.analytics.likes.toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {(ttData.profile?.lifetimeLikes || 0).toLocaleString()} total account likes
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-950/80 border border-slate-800 p-3.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+                      <span>Comments</span>
+                      <MessageSquare className="w-3.5 h-3.5 text-[#C9A66B]" />
+                    </div>
+                    <p className="text-xl font-black text-white mt-1.5">
+                      {ttData.analytics.comments.toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Recent video replies</p>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-950/80 border border-slate-800 p-3.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+                      <span>Shares</span>
+                      <Share2 className="w-3.5 h-3.5 text-sky-400" />
+                    </div>
+                    <p className="text-xl font-black text-white mt-1.5">
+                      {ttData.analytics.shares.toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Organic reshares</p>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-950/80 border border-slate-800 p-3.5 col-span-2 lg:col-span-1">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+                      <span>Followers</span>
+                      <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
+                    </div>
+                    <p className="text-xl font-black text-emerald-400 mt-1.5">
+                      {(ttData.profile?.followerCount || 0).toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {(ttData.profile?.followingCount || 0).toLocaleString()} following
                     </p>
                   </div>
                 </div>
