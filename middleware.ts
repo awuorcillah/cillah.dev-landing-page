@@ -13,14 +13,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(callbackUrl)
   }
 
-  // 2. For logged-in team members / admins with department access, make the backend dashboard
-  //    their automatic resting page when visiting `/` (unless they explicitly pass ?view=site).
+  // 2. For logged-in team members / admins with department access, ALWAYS make the backend dashboard
+  //    their resting page when visiting `/` until they explicitly Log Out.
   //    Logged-out visitors have no `sb-*-auth-token` cookie so they bypass Supabase in 0ms!
   if (pathname === '/') {
-    if (searchParams.get('view') === 'site') {
-      return NextResponse.next()
-    }
-
     const hasAuthCookie = request.cookies
       .getAll()
       .some((c) => c.name.startsWith('sb-') && c.name.includes('auth-token'))

@@ -205,7 +205,7 @@ export function Navbar() {
                           new Promise((resolve) => setTimeout(resolve, 1200)),
                         ])
                       } catch {}
-                      window.location.replace("/login")
+                      window.location.replace("/")
                     }}
                     className="mt-1 w-full text-center border border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20 font-heading font-medium rounded-xl py-2.5 text-xs transition-colors cursor-pointer"
                   >
