@@ -62,15 +62,18 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle()
+    // Fast path: Super Admin doesn't need an extra DB roundtrip on every page load
+    if (!isAdminAccount(user.email, null)) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
 
-    if (!isUserAdmin(user, profile)) {
-      url.pathname = '/user/dashboard'
-      return NextResponse.redirect(url)
+      if (!isUserAdmin(user, profile)) {
+        url.pathname = '/user/dashboard'
+        return NextResponse.redirect(url)
+      }
     }
   }
 

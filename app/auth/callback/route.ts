@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { isAdminAccount, isSuperAdminEmail } from '@/lib/auth-roles'
 
@@ -12,11 +12,11 @@ export async function GET(request: Request) {
 
   // Resolve proper origin behind load balancers / Vercel
   const forwardedHost = request.headers.get('x-forwarded-host')
-  const origin = (process.env.NODE_ENV === 'production' && forwardedHost)
-    ? `https://${forwardedHost}`
-    : requestUrl.origin
+  const origin =
+    process.env.NODE_ENV === 'production' && forwardedHost
+      ? `https://${forwardedHost}`
+      : requestUrl.origin
 
-  // If OAuth provider returned an explicit error
   if (errorParam) {
     console.error('[OAuth Provider Error]:', errorParam, errorDesc)
     return NextResponse.redirect(
@@ -26,6 +26,8 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = await cookies()
+    const pendingCookies: Array<{ name: string; value: string; options: CookieOptions }> = []
+
     const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '')
       .replace(/\/rest\/v1\/?$/, '')
       .replace(/\/$/, '')
@@ -39,18 +41,20 @@ export async function GET(request: Request) {
             return cookieStore.getAll()
           },
           setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) => {
-                cookieStore.set(name, value, {
-                  path: '/',
-                  sameSite: 'lax',
-                  secure: process.env.NODE_ENV === 'production',
-                  ...options,
-                })
-              })
-            } catch (err) {
-              // Ignore cookie set errors in Server Component context
-            }
+            cookiesToSet.forEach(({ name, value, options }) => {
+              const mergedOptions: CookieOptions = {
+                path: '/',
+                sameSite: 'lax',
+                secure: process.env.NODE_ENV === 'production',
+                ...options,
+              }
+              pendingCookies.push({ name, value, options: mergedOptions })
+              try {
+                cookieStore.set(name, value, mergedOptions)
+              } catch {
+                // Cookie will be stamped explicitly on the redirect NextResponse below
+              }
+            })
           },
         },
       }
@@ -86,9 +90,7 @@ export async function GET(request: Request) {
 
         if (profile?.role) {
           role = profile.role
-        }
-
-        if (!profile) {
+        } else {
           await supabase.from('profiles').upsert({
             id: user.id,
             email: user.email,
@@ -96,7 +98,7 @@ export async function GET(request: Request) {
             first_name: firstName,
             last_name: lastName,
             avatar_url: avatarUrl,
-            role: role,
+            role,
             status: 'active',
             updated_at: new Date().toISOString(),
           })
@@ -109,10 +111,17 @@ export async function GET(request: Request) {
       const safeNext = next && next.startsWith('/') && next !== '/' ? next : ''
       const redirectPath = safeNext || (isUserAdmin ? '/admin' : '/user/dashboard')
 
-      return NextResponse.redirect(`${origin}${redirectPath}`)
+      // Stamp every Supabase auth cookie directly on the redirect response so the very first
+      // request to /admin or /user/dashboard is already authenticated (zero bounce back to /login!)
+      const response = NextResponse.redirect(`${origin}${redirectPath}`)
+      for (const cookie of pendingCookies) {
+        response.cookies.set(cookie.name, cookie.value, cookie.options)
+      }
+      return response
     }
   }
 
-  // Auth failed or missing code — redirect to login with error
-  return NextResponse.redirect(`${origin}/login?error=missing_code&error_description=No+authorization+code+provided`)
+  return NextResponse.redirect(
+    `${origin}/login?error=missing_code&error_description=No+authorization+code+provided`
+  )
 }

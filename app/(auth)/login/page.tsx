@@ -140,13 +140,14 @@ export default function LoginPage() {
         }
 
         toast.success(`Welcome back, ${userName}!`, { position: 'top-center' })
-        router.replace(isAdmin ? '/admin' : '/user/dashboard')
+        // Full navigation ensures fresh auth cookies are immediately visible to edge middleware with zero bounce
+        window.location.replace(isAdmin ? '/admin' : '/user/dashboard')
+        return
       }
     } catch (err: any) {
       toast.error(err.message || 'Invalid login credentials', {
         position: 'top-left',
       })
-    } finally {
       setLoading(false)
     }
   }
