@@ -25,6 +25,7 @@ import {
   LogOut,
   Check,
   ArrowLeft,
+  Settings,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -535,6 +536,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     >
                       <Building2 className="w-4 h-4 text-[#C9A66B]" />
                       <span>{isSuperAdmin ? 'Switch Organization' : 'All Departments'}</span>
+                    </Link>
+
+                    <Link
+                      href={`/admin/organizations/${encodeURIComponent(
+                        isSuperAdmin ? routeCtx.orgSlug : adminProfile?.orgSlug || 'cillah-dev'
+                      )}/settings`}
+                      onClick={() => setProfileOpen(false)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold text-slate-200 hover:bg-white/[0.05] transition-colors"
+                    >
+                      <Settings className="w-4 h-4 text-[#C9A66B]" />
+                      <span>Organization Settings</span>
                     </Link>
 
                     <Link

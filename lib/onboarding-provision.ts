@@ -163,9 +163,26 @@ export async function finalizeOnboardingSubscription(
     }
   }
 
-  // 3. Assign owner as Org Admin inside public.staff_members with ONLY their purchased departments
+  // 3. Assign owner as Org Admin inside public.staff_members with their purchased departments
   // (Protect platform Super Admin row if Cillah tests checkout with her own email)
   if (!isSuperAdminEmail(ownerEmail)) {
+    // If upgrading an existing organization, merge existing + newly purchased departments!
+    let mergedDepartments = [...finalDepartments]
+    const { data: existingStaff } = await db
+      .from("staff_members")
+      .select("role, org_id")
+      .ilike("email", ownerEmail)
+      .maybeSingle()
+
+    if (existingStaff?.org_id === organizationId && existingStaff.role) {
+      const existingDepts = normalizeDepartments(
+        String(existingStaff.role)
+          .split(/[,|/]/)
+          .map((s) => s.trim())
+      )
+      mergedDepartments = normalizeDepartments([...existingDepts, ...finalDepartments])
+    }
+
     const crmPrefix = organizationSlug.replace(/[^a-z0-9]/gi, "").slice(0, 4).toUpperCase() || "ORG"
     const { error: staffErr } = await db.from("staff_members").upsert(
       {
@@ -173,7 +190,7 @@ export async function finalizeOnboardingSubscription(
         email: ownerEmail,
         full_name: ownerName,
         phone_number: ownerPhone,
-        role: finalDepartments.join(","),
+        role: mergedDepartments.join(","),
         status: "admin",
         is_active: true,
         org_id: organizationId,

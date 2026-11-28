@@ -40,6 +40,82 @@ export async function POST(request: Request) {
     const changes = entry?.changes?.[0]
     const value = changes?.value
     const message = value?.messages?.[0]
+    const contact = value?.contacts?.[0]
+
+    // Capture every inbound WhatsApp message into the Unified Marketing Inbox (non-blocking)
+    if (message && message.from) {
+      try {
+        const fromPhone = String(message.from).trim()
+        const contactName = String(contact?.profile?.name || fromPhone)
+        const textBody =
+          message.text?.body ||
+          message.interactive?.button_reply?.title ||
+          message.button?.text ||
+          (message.type ? `[${message.type} message]` : '')
+
+        if (textBody) {
+          const sentAtIso = message.timestamp
+            ? new Date(Number(message.timestamp) * 1000).toISOString()
+            : new Date().toISOString()
+          const nowIso = new Date().toISOString()
+          const extThreadId = `wa-${fromPhone}`
+
+          const { data: existingThread } = await supabase
+            .from('marketing_inbox_threads')
+            .select('id, unread_count')
+            .eq('organization_slug', 'cillah-dev')
+            .eq('channel', 'whatsapp')
+            .eq('external_thread_id', extThreadId)
+            .maybeSingle()
+
+          const { data: savedThread } = await supabase
+            .from('marketing_inbox_threads')
+            .upsert(
+              {
+                organization_slug: 'cillah-dev',
+                channel: 'whatsapp',
+                thread_type: 'dm',
+                external_thread_id: extThreadId,
+                external_account_id: value?.metadata?.phone_number_id || null,
+                contact_id: fromPhone,
+                contact_name: contactName,
+                contact_handle: `+${fromPhone.replace(/^\+/, '')}`,
+                last_message_preview: textBody.slice(0, 280),
+                last_message_at: sentAtIso,
+                unread_count: Number(existingThread?.unread_count || 0) + 1,
+                status: 'open',
+                updated_at: nowIso,
+              },
+              { onConflict: 'organization_slug,channel,external_thread_id' }
+            )
+            .select('id')
+            .single()
+
+          if (savedThread?.id) {
+            await supabase.from('marketing_inbox_messages').upsert(
+              {
+                thread_id: savedThread.id,
+                organization_slug: 'cillah-dev',
+                channel: 'whatsapp',
+                external_message_id: String(message.id || `wa-msg-${Date.now()}`),
+                direction: 'inbound',
+                sender_name: contactName,
+                sender_id: fromPhone,
+                body: textBody,
+                sent_at: sentAtIso,
+                delivery_status: 'delivered',
+              },
+              {
+                onConflict: 'organization_slug,channel,external_message_id',
+                ignoreDuplicates: true,
+              }
+            )
+          }
+        }
+      } catch (inboxErr) {
+        console.warn('[WhatsApp Webhook] Unified inbox capture skipped:', inboxErr)
+      }
+    }
 
     if (message && message.type === 'interactive' && message.interactive?.button_reply) {
       const buttonId = message.interactive.button_reply.id // e.g. "proceed_BK-123" or "cancel_BK-123"

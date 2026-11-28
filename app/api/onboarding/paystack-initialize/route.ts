@@ -35,6 +35,11 @@ export async function POST(request: Request) {
     const body = await request.json()
     const organizationName = String(body.organizationName || "").trim()
     const website = String(body.website || "").trim()
+    const upgradeOrgId = String(body.upgradeOrganizationId || "").trim() || null
+    const upgradeOrgSlug = String(body.upgradeOrganizationSlug || "").trim() || null
+    const returnPath = String(body.returnPath || "/signup").startsWith("/")
+      ? String(body.returnPath || "/signup")
+      : "/signup"
     const fullName =
       String(body.fullName || "").trim() ||
       String(user.user_metadata?.full_name || user.user_metadata?.name || "").trim() ||
@@ -62,6 +67,8 @@ export async function POST(request: Request) {
     const { data: pendingSub, error: insertErr } = await db
       .from("organization_subscriptions")
       .insert({
+        organization_id: upgradeOrgId,
+        organization_slug: upgradeOrgSlug,
         owner_user_id: user.id,
         owner_email: user.email.toLowerCase().trim(),
         owner_name: fullName,
@@ -95,7 +102,8 @@ export async function POST(request: Request) {
     const protocol = request.headers.get("x-forwarded-proto") || "https"
     const host = request.headers.get("host") || "www.cillah.dev"
     const origin = `${protocol}://${host}`
-    const callbackUrl = `${origin}/signup?paystack_ref=${encodeURIComponent(
+    const sep = returnPath.includes("?") ? "&" : "?"
+    const callbackUrl = `${origin}${returnPath}${sep}paystack_ref=${encodeURIComponent(
       reference
     )}&subId=${encodeURIComponent(pendingSub.id)}`
 

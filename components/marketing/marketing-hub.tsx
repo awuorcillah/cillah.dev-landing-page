@@ -14,8 +14,10 @@ import {
   Loader2,
   Link2,
   Share2,
+  MessageSquare,
 } from 'lucide-react'
 import MarketingPostComposer from '@/components/marketing/marketing-post-composer'
+import MarketingInboxView from '@/components/marketing/marketing-inbox-view'
 import MarketingInsightsView from '@/components/marketing/marketing-insights-view'
 import MarketingConnectionsView, {
   type ProviderReadinessMap,
@@ -31,7 +33,7 @@ import {
   type MarketingRoleTier,
 } from '@/lib/marketing-config'
 
-type MarketingActionTab = 'post' | 'insights' | 'connections' | 'roles'
+type MarketingActionTab = 'post' | 'inbox' | 'insights' | 'connections' | 'roles'
 
 interface MarketingHubProps {
   organizationSlug?: string
@@ -87,6 +89,8 @@ export default function MarketingHub({
 
     if (tab === 'connections') {
       setActiveAction('connections')
+    } else if (tab === 'inbox') {
+      setActiveAction('inbox')
     }
     if (oauthSuccess) {
       setOauthBanner({ type: 'success', message: oauthSuccess })
@@ -284,6 +288,12 @@ export default function MarketingHub({
       label: 'Post & Schedule',
       subtitle: 'Upload media/docs, choose channels, write caption & publish',
       icon: Send,
+    },
+    {
+      id: 'inbox',
+      label: 'Unified Chats & Inbox',
+      subtitle: 'Read & reply to Instagram, Facebook, WhatsApp & YouTube in one place',
+      icon: MessageSquare,
     },
     {
       id: 'insights',
@@ -587,6 +597,14 @@ export default function MarketingHub({
           connectedChannels={connectedChannelIds}
           onOpenConnections={() => setActiveAction('connections')}
           onPostsChanged={fetchPostsAndContext}
+        />
+      )}
+
+      {activeAction === 'inbox' && (
+        <MarketingInboxView
+          organizationSlug={organizationSlug}
+          permissions={permissions}
+          onOpenConnections={() => setActiveAction('connections')}
         />
       )}
 

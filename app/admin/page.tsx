@@ -25,6 +25,7 @@ import {
   Layers,
   Video,
   UserCheck,
+  Settings,
 } from 'lucide-react'
 
 interface OrganizationOption {
@@ -470,6 +471,16 @@ function AdminWorkspaceLauncherInner() {
                   </div>
                 )
               })}
+            </div>
+
+            <div className="pt-2 flex justify-center">
+              <Link
+                href={`/admin/organizations/${encodeURIComponent(selectedOrg.slug)}/settings`}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 hover:border-[#C9A66B]/40 text-xs font-semibold text-slate-300 hover:text-white transition-colors"
+              >
+                <Settings className="w-3.5 h-3.5 text-[#C9A66B]" />
+                <span>Organization Settings, Plan &amp; Data Controls</span>
+              </Link>
             </div>
           </>
         )}
