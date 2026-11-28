@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { verifyPaystackWebhookSignature } from "@/lib/paystack"
 import { finalizeConfirmedConsultation } from "@/lib/consultation-confirm"
+import { finalizeOnboardingSubscription } from "@/lib/onboarding-provision"
 import {
   getServiceSupabase,
   settleInvoiceAndAdvancePipeline,
@@ -78,6 +79,33 @@ export async function POST(request: Request) {
       }
 
       return NextResponse.json({ received: true, kind: "finance_invoice" })
+    }
+
+    // Case 3: Self-Serve Organization Onboarding Subscription (Card OR M-Pesa via Paystack)
+    if (metadata.kind === "org_onboarding" || reference.startsWith("CIL-ORG-")) {
+      let subscriptionId: string | null = metadata.subscriptionId || null
+      if (!subscriptionId && reference) {
+        const { data: row } = await supabase
+          .from("organization_subscriptions")
+          .select("id")
+          .eq("paystack_reference", reference)
+          .maybeSingle()
+        subscriptionId = row?.id || null
+      }
+
+      if (subscriptionId) {
+        const paymentProvider =
+          channel === "mobile_money" ? "paystack_mpesa" : "paystack_card"
+        await finalizeOnboardingSubscription({
+          subscriptionId,
+          paymentProvider,
+          paymentReference: reference,
+          paidAmountKes: paidMajor,
+          resultDesc: data.gateway_response || "Verified via Paystack webhook.",
+        })
+      }
+
+      return NextResponse.json({ received: true, kind: "org_onboarding" })
     }
 
     return NextResponse.json({ received: true, kind: "unmatched" })
