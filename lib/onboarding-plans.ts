@@ -23,24 +23,28 @@ function parsePositiveInt(raw: string | undefined, fallback: number): number {
 
 export const PLAN_SALES_MONTHLY_KES = parsePositiveInt(
   process.env.NEXT_PUBLIC_PLAN_SALES_KES,
-  5000
+  15000
 )
 export const PLAN_MARKETING_MONTHLY_KES = parsePositiveInt(
   process.env.NEXT_PUBLIC_PLAN_MARKETING_KES,
-  5000
+  20000
 )
 export const PLAN_FINANCE_MONTHLY_KES = parsePositiveInt(
   process.env.NEXT_PUBLIC_PLAN_FINANCE_KES,
-  5000
+  15000
 )
 
-// Bundle price when all 3 departments are selected together (defaults to 20% off sum)
-const DEFAULT_BUNDLE_MONTHLY_KES = Math.round(
-  (PLAN_SALES_MONTHLY_KES + PLAN_MARKETING_MONTHLY_KES + PLAN_FINANCE_MONTHLY_KES) * 0.8
-)
+// Bundle price when all 3 departments are selected together (defaults to 20% off sum = KES 40,000)
+const FULL_SUM_MONTHLY_KES =
+  PLAN_SALES_MONTHLY_KES + PLAN_MARKETING_MONTHLY_KES + PLAN_FINANCE_MONTHLY_KES
+const DEFAULT_BUNDLE_MONTHLY_KES = Math.round(FULL_SUM_MONTHLY_KES * 0.8)
 export const PLAN_ALL_IN_ONE_MONTHLY_KES = parsePositiveInt(
   process.env.NEXT_PUBLIC_PLAN_BUNDLE_KES,
   DEFAULT_BUNDLE_MONTHLY_KES
+)
+export const PLAN_BUNDLE_DISCOUNT_PERCENT = Math.max(
+  0,
+  Math.round(((FULL_SUM_MONTHLY_KES - PLAN_ALL_IN_ONE_MONTHLY_KES) / FULL_SUM_MONTHLY_KES) * 100)
 )
 
 // Approximate KES -> USD conversion rate for display
@@ -63,14 +67,14 @@ export const ONBOARDING_DEPARTMENTS: DepartmentPlan[] = [
   {
     id: "marketing",
     name: "Marketing Hub",
-    tagline: "Publish & analyze across YouTube, TikTok, Instagram, Facebook & LinkedIn",
+    tagline: "Omnichannel publishing, unified platform chats & live analytics",
     monthlyKes: PLAN_MARKETING_MONTHLY_KES,
     monthlyUsd: Math.round(PLAN_MARKETING_MONTHLY_KES / KES_PER_USD),
     features: [
-      "Connect your brand's own social channels securely",
-      "Schedule & publish videos, reels, and campaigns",
-      "Live audience & performance insights dashboard",
-      "AI-assisted captioning and campaign planning",
+      "Connect your brand's own YouTube, TikTok, IG, FB & LinkedIn",
+      "Schedule & publish videos, reels, and multi-channel campaigns",
+      "Unified multi-platform social chats & engagement tracking",
+      "Live audience insights & AI-assisted campaign studio",
     ],
   },
   {

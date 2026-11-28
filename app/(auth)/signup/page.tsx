@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
   ONBOARDING_DEPARTMENTS,
+  PLAN_BUNDLE_DISCOUNT_PERCENT,
   calculateOnboardingPrice,
   formatKes,
   type BillingCycle,
@@ -1075,7 +1076,12 @@ function SignUpOnboardingInner() {
                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#C9A66B]/15 hover:bg-[#C9A66B]/25 border border-[#C9A66B]/40 text-xs font-bold text-[#E5C687] transition-colors cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Select All 3 Departments (Save 20%)</span>
+                <span>
+                  Select All 3 Departments
+                  {PLAN_BUNDLE_DISCOUNT_PERCENT > 0
+                    ? ` (Save ${PLAN_BUNDLE_DISCOUNT_PERCENT}%)`
+                    : ''}
+                </span>
               </button>
             </div>
 
@@ -1159,7 +1165,11 @@ function SignUpOnboardingInner() {
                   </span>
                   {pricing.isAllInOneBundle && (
                     <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-[10px] font-bold text-emerald-300">
-                      All-in-One 20% Bundle Applied
+                      All-in-One{' '}
+                      {PLAN_BUNDLE_DISCOUNT_PERCENT > 0
+                        ? `${PLAN_BUNDLE_DISCOUNT_PERCENT}% `
+                        : ''}
+                      Bundle Applied
                     </span>
                   )}
                 </div>
@@ -1397,7 +1407,13 @@ function SignUpOnboardingInner() {
                 })}
                 {pricing.bundleDiscountMonthlyKes > 0 && (
                   <div className="flex justify-between items-center text-emerald-400 font-semibold">
-                    <span>All-in-One 20% Bundle Savings</span>
+                    <span>
+                      All-in-One{' '}
+                      {PLAN_BUNDLE_DISCOUNT_PERCENT > 0
+                        ? `${PLAN_BUNDLE_DISCOUNT_PERCENT}% `
+                        : ''}
+                      Bundle Savings
+                    </span>
                     <span>-{formatKes(pricing.bundleDiscountMonthlyKes)}/mo</span>
                   </div>
                 )}
