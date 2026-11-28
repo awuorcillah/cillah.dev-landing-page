@@ -68,7 +68,8 @@ export async function GET(
       returnTo,
     })
 
-    const scopes = [
+    const includeMessaging = request.nextUrl.searchParams.get('includeMessaging') === 'true'
+    const baseScopes = [
       'pages_show_list',
       'pages_read_engagement',
       'pages_manage_posts',
@@ -76,7 +77,13 @@ export async function GET(
       'instagram_content_publish',
       'instagram_manage_insights',
       'business_management',
-    ].join(',')
+    ]
+    const messagingScopes = [
+      'pages_messaging',
+      'instagram_manage_messages',
+      'instagram_manage_comments',
+    ]
+    const scopes = (includeMessaging ? [...baseScopes, ...messagingScopes] : baseScopes).join(',')
 
     const authUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth')
     authUrl.searchParams.set('client_id', appId)

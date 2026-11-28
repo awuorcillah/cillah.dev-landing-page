@@ -17,18 +17,24 @@ import {
   Inbox,
   Check,
   AlertCircle,
+  Bot,
+  User,
+  Hand,
+  Sparkles,
+  MessagesSquare,
 } from 'lucide-react'
 import type { getRolePermissions } from '@/lib/marketing-config'
 import type {
   ChannelSyncSummary,
-  InboxChannel,
   InboxMessageRecord,
   InboxThreadRecord,
 } from '@/lib/social-inbox'
+import { getThreadHandlerInfo, type InboxHandlerMode } from '@/lib/inbox-ai-handler'
 
 interface MarketingInboxViewProps {
   organizationSlug: string
   permissions: ReturnType<typeof getRolePermissions>
+  selectedAgentFilter?: string
   onOpenConnections?: () => void
 }
 
@@ -94,9 +100,67 @@ function formatShortTime(iso: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+/**
+ * Renders the crisp handler tag on every chat:
+ * - AI mode -> Bot symbol only (🤖)
+ * - Escalated -> "Request Human" badge
+ * - Claimed by a Marketing user -> User's exact name badge
+ */
+function HandlerTagBadge({
+  thread,
+  compact = false,
+}: {
+  thread: InboxThreadRecord
+  compact?: boolean
+}) {
+  const info = getThreadHandlerInfo(thread)
+
+  if (info.mode === 'request_human') {
+    return (
+      <span
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-200 text-[10px] font-black tracking-wide shrink-0 animate-pulse"
+        title={info.humanRequestedReason || 'Delegated to a human team member'}
+      >
+        <Hand className="w-3 h-3 text-amber-300 shrink-0" />
+        <span>Request Human</span>
+      </span>
+    )
+  }
+
+  if (info.mode === 'human' && info.assignedToName) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/45 text-emerald-200 text-[10px] font-bold max-w-[140px] shrink-0"
+        title={`Handled by ${info.assignedToName} (${info.assignedToEmail || ''})`}
+      >
+        <User className="w-3 h-3 text-emerald-300 shrink-0" />
+        <span className="truncate">{info.assignedToName}</span>
+      </span>
+    )
+  }
+
+  // AI-handled -> clean Bot symbol
+  return (
+    <span
+      className={`inline-flex items-center justify-center rounded-full bg-cyan-500/15 border border-cyan-400/45 text-cyan-300 shrink-0 ${
+        compact ? 'w-5 h-5' : 'px-2 py-0.5 gap-1'
+      }`}
+      title={
+        info.lastHandledByName
+          ? `Handled by AI Bot (last human: ${info.lastHandledByName})`
+          : 'Handled by AI Bot'
+      }
+      aria-label="Handled by AI Bot"
+    >
+      <Bot className="w-3.5 h-3.5" />
+    </span>
+  )
+}
+
 export default function MarketingInboxView({
   organizationSlug,
   permissions,
+  selectedAgentFilter = 'all',
   onOpenConnections,
 }: MarketingInboxViewProps) {
   const [threads, setThreads] = useState<InboxThreadRecord[]>([])
@@ -107,11 +171,18 @@ export default function MarketingInboxView({
     whatsapp: 0,
     youtube: 0,
   })
+  const [handlerCounts, setHandlerCounts] = useState({
+    all: 0,
+    ai: 0,
+    request_human: 0,
+    human: 0,
+  })
   const [connectedChannels, setConnectedChannels] = useState<string[]>([])
   const [schemaPending, setSchemaPending] = useState(false)
   const [loadingThreads, setLoadingThreads] = useState(true)
 
   const [channelFilter, setChannelFilter] = useState<string>('all')
+  const [handlerFilter, setHandlerFilter] = useState<'all' | InboxHandlerMode>('all')
   const [statusFilter, setStatusFilter] = useState<'open' | 'resolved' | 'all'>('open')
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -121,6 +192,8 @@ export default function MarketingInboxView({
 
   const [replyText, setReplyText] = useState('')
   const [sendingReply, setSendingReply] = useState(false)
+  const [runningAi, setRunningAi] = useState(false)
+  const [updatingMode, setUpdatingMode] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [syncNotes, setSyncNotes] = useState<ChannelSyncSummary[]>([])
 
@@ -133,6 +206,8 @@ export default function MarketingInboxView({
         org: organizationSlug,
         channel: channelFilter,
         status: statusFilter,
+        handler: handlerFilter,
+        agent: selectedAgentFilter || 'all',
       })
       if (searchQuery.trim()) params.set('q', searchQuery.trim())
 
@@ -145,6 +220,9 @@ export default function MarketingInboxView({
         setChannelCounts(
           json.channelCounts || { all: 0, instagram: 0, facebook: 0, whatsapp: 0, youtube: 0 }
         )
+        setHandlerCounts(
+          json.handlerCounts || { all: 0, ai: 0, request_human: 0, human: 0 }
+        )
         setConnectedChannels(json.connectedChannels || [])
         setSchemaPending(Boolean(json.schema_pending))
       }
@@ -153,7 +231,7 @@ export default function MarketingInboxView({
     } finally {
       setLoadingThreads(false)
     }
-  }, [organizationSlug, channelFilter, statusFilter, searchQuery])
+  }, [organizationSlug, channelFilter, statusFilter, handlerFilter, selectedAgentFilter, searchQuery])
 
   useEffect(() => {
     fetchThreads()
@@ -174,7 +252,6 @@ export default function MarketingInboxView({
         if (res.ok) {
           setMessages(json.messages || [])
           if (json.thread) setActiveThread(json.thread)
-          // Clear unread dot in list
           setThreads((prev) =>
             prev.map((t) => (t.id === thread.id ? { ...t, unread_count: 0 } : t))
           )
@@ -193,6 +270,16 @@ export default function MarketingInboxView({
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages])
+
+  const handleConnectMetaDMs = () => {
+    const returnTo =
+      typeof window !== 'undefined'
+        ? `${window.location.pathname}?marketing_tab=inbox`
+        : '/admin/marketing?marketing_tab=inbox'
+    window.location.href = `/api/marketing/oauth/meta/connect?org=${encodeURIComponent(
+      organizationSlug
+    )}&includeMessaging=true&returnTo=${encodeURIComponent(returnTo)}`
+  }
 
   const handleSyncLive = async () => {
     setSyncing(true)
@@ -251,31 +338,114 @@ export default function MarketingInboxView({
         return
       }
 
+      const updatedThread: InboxThreadRecord = json.thread || {
+        ...activeThread,
+        last_message_preview: replyText.trim(),
+        last_message_at: json.message?.sent_at || new Date().toISOString(),
+      }
+
       if (json.message) {
         setMessages((prev) => [...prev, json.message])
-        setThreads((prev) =>
-          prev.map((t) =>
-            t.id === activeThread.id
-              ? {
-                  ...t,
-                  last_message_preview: replyText.trim(),
-                  last_message_at: json.message.sent_at,
-                }
-              : t
-          )
-        )
       }
+      setActiveThread(updatedThread)
+      setThreads((prev) =>
+        prev.map((t) => (t.id === activeThread.id ? updatedThread : t))
+      )
       setReplyText('')
 
+      const hInfo = getThreadHandlerInfo(updatedThread)
       if (json.deliveryStatus === 'sent') {
-        toast.success(`Reply sent to ${CHANNEL_META[activeThread.channel]?.label || activeThread.channel}!`)
+        toast.success(
+          `Reply sent! Chat is now tagged to ${hInfo.assignedToName || 'you'}.`
+        )
       } else if (json.warning) {
-        toast.warning(json.warning)
+        toast.warning(
+          `${json.warning} (Chat tagged to ${hInfo.assignedToName || 'you'}).`
+        )
       }
+      fetchThreads()
     } catch {
       toast.error('Network error sending reply.')
     } finally {
       setSendingReply(false)
+    }
+  }
+
+  const handleSwitchHandlerMode = async (nextMode: InboxHandlerMode) => {
+    if (!activeThread || updatingMode) return
+    setUpdatingMode(true)
+    try {
+      const res = await fetch(
+        `/api/marketing/inbox/${encodeURIComponent(activeThread.id)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            organization_slug: organizationSlug,
+            handler_mode: nextMode,
+          }),
+        }
+      )
+      const json = await res.json()
+      if (!res.ok) {
+        toast.error(json.error || 'Could not update chat handler.')
+        return
+      }
+      setActiveThread(json.thread)
+      setThreads((prev) =>
+        prev.map((t) => (t.id === activeThread.id ? json.thread : t))
+      )
+      if (nextMode === 'ai') {
+        toast.success('Handed back to AI Bot.')
+      } else if (nextMode === 'request_human') {
+        toast.success('Flagged as Request Human.')
+      }
+      fetchThreads()
+    } catch {
+      toast.error('Failed to update chat handler.')
+    } finally {
+      setUpdatingMode(false)
+    }
+  }
+
+  const handleRunAiReply = async () => {
+    if (!activeThread || runningAi) return
+    setRunningAi(true)
+    try {
+      const res = await fetch(
+        `/api/marketing/inbox/${encodeURIComponent(activeThread.id)}/ai-respond`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ organization_slug: organizationSlug }),
+        }
+      )
+      const json = await res.json()
+      if (!res.ok) {
+        toast.error(json.error || 'AI could not respond.')
+        return
+      }
+      if (json.thread) {
+        setActiveThread(json.thread)
+        setThreads((prev) =>
+          prev.map((t) => (t.id === activeThread.id ? json.thread : t))
+        )
+      }
+      if (json.message) {
+        setMessages((prev) => [...prev, json.message])
+      }
+      if (json.action === 'escalated_human') {
+        toast.warning(json.reason || 'AI delegated this chat — tagged Request Human.')
+      } else if (json.action === 'replied') {
+        toast.success('AI Bot replied to the client.')
+      } else {
+        toast.info(json.reason || 'Chat is currently handled by a human.')
+      }
+      fetchThreads()
+    } catch {
+      toast.error('Network error calling AI Bot.')
+    } finally {
+      setRunningAi(false)
     }
   }
 
@@ -310,6 +480,7 @@ export default function MarketingInboxView({
   }
 
   const filterChannels = ['all', 'instagram', 'facebook', 'whatsapp', 'youtube']
+  const activeHandler = activeThread ? getThreadHandlerInfo(activeThread) : null
 
   return (
     <div className="space-y-4 w-full min-w-0">
@@ -332,7 +503,7 @@ export default function MarketingInboxView({
         </div>
       )}
 
-      {/* Top Controls: Platform Pills + Sync Button */}
+      {/* Top Controls: Platform Pills + Connect DMs + Sync Live Chats */}
       <div className="rounded-2xl bg-[#0F1422] border border-white/10 p-3.5 sm:p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -361,7 +532,18 @@ export default function MarketingInboxView({
             })}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {permissions.canPublishDirectly && (
+              <button
+                type="button"
+                onClick={handleConnectMetaDMs}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/35 text-xs font-bold text-pink-200 transition-colors cursor-pointer"
+                title="Authorize Instagram & Facebook Messenger DM permissions"
+              >
+                <MessagesSquare className="w-3.5 h-3.5 text-pink-400" />
+                <span>Connect IG &amp; FB DMs</span>
+              </button>
+            )}
             {onOpenConnections && (
               <button
                 type="button"
@@ -382,6 +564,70 @@ export default function MarketingInboxView({
               <span>{syncing ? 'Syncing...' : 'Sync Live Chats'}</span>
             </button>
           </div>
+        </div>
+
+        {/* Handler Queue Filter Strip: All | Bot (AI) | Request Human | Human Agents */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-white/[0.06]">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setHandlerFilter('all')}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                handlerFilter === 'all'
+                  ? 'bg-white/10 border-white/25 text-white'
+                  : 'bg-[#090B12] border-white/10 text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>All Handlers</span>
+              <span className="text-[10px] opacity-75">({handlerCounts.all})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setHandlerFilter('ai')}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                handlerFilter === 'ai'
+                  ? 'bg-cyan-500/20 border-cyan-400/60 text-cyan-200'
+                  : 'bg-[#090B12] border-white/10 text-slate-400 hover:text-cyan-200'
+              }`}
+              title="Chats currently handled by AI Bot"
+            >
+              <Bot className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="text-[10px] opacity-80">({handlerCounts.ai})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setHandlerFilter('request_human')}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                handlerFilter === 'request_human'
+                  ? 'bg-amber-500/20 border-amber-400/60 text-amber-200'
+                  : 'bg-[#090B12] border-white/10 text-slate-400 hover:text-amber-200'
+              }`}
+            >
+              <Hand className="w-3 h-3 text-amber-400" />
+              <span>Request Human</span>
+              <span className="text-[10px] opacity-80">({handlerCounts.request_human})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setHandlerFilter('human')}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                handlerFilter === 'human'
+                  ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-200'
+                  : 'bg-[#090B12] border-white/10 text-slate-400 hover:text-emerald-200'
+              }`}
+            >
+              <User className="w-3 h-3 text-emerald-400" />
+              <span>Human Taken Over</span>
+              <span className="text-[10px] opacity-80">({handlerCounts.human})</span>
+            </button>
+          </div>
+
+          <span className="text-[11px] text-slate-500">
+            AI handles first &rarr; escalates to <strong className="text-amber-300">Request Human</strong> &rarr; replying tags you
+          </span>
         </div>
 
         {/* Optional Per-Channel Sync Notes */}
@@ -421,7 +667,7 @@ export default function MarketingInboxView({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search name, @handle, or message..."
+                placeholder="Search client, agent, or message..."
                 className="w-full h-9 pl-8 pr-3 rounded-xl bg-[#090B12] border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B]"
               />
             </div>
@@ -457,11 +703,11 @@ export default function MarketingInboxView({
                   <Inbox className="w-5 h-5 text-[#C9A66B]" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs font-bold text-white">No conversations yet</p>
+                  <p className="text-xs font-bold text-white">No matching conversations</p>
                   <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Click <span className="text-[#E5C687] font-semibold">Sync Live Chats</span> above
-                    to pull comments and messages from your connected YouTube, Facebook, Instagram,
-                    and WhatsApp channels.
+                    Click <span className="text-[#E5C687] font-semibold">Sync Live Chats</span> or{' '}
+                    <span className="text-pink-300 font-semibold">Connect IG &amp; FB DMs</span>{' '}
+                    above to pull messages from your connected platforms.
                   </p>
                 </div>
               </div>
@@ -497,7 +743,7 @@ export default function MarketingInboxView({
                       />
                     </div>
 
-                    <div className="min-w-0 flex-1 space-y-1">
+                    <div className="min-w-0 flex-1 space-y-1.5">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-xs font-bold text-white truncate">
                           {thread.contact_name}
@@ -507,12 +753,16 @@ export default function MarketingInboxView({
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <span
                           className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase border ${meta.badge}`}
                         >
                           {meta.shortLabel} {thread.thread_type === 'comment' ? 'Comment' : 'DM'}
                         </span>
+
+                        {/* Live Bot / Request Human / Assigned Marketing User tag */}
+                        <HandlerTagBadge thread={thread} compact={true} />
+
                         {unread && (
                           <span className="px-1.5 py-0.2 rounded-full bg-[#C9A66B] text-[#090B12] text-[9px] font-black">
                             {thread.unread_count}
@@ -541,7 +791,7 @@ export default function MarketingInboxView({
             activeThread ? 'flex' : 'hidden lg:flex'
           }`}
         >
-          {!activeThread ? (
+          {!activeThread || !activeHandler ? (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-3">
               <div className="w-14 h-14 rounded-2xl bg-[#0F1422] border border-[#C9A66B]/30 flex items-center justify-center">
                 <MessageSquare className="w-7 h-7 text-[#C9A66B]" />
@@ -551,8 +801,10 @@ export default function MarketingInboxView({
                   Unified Multi-Platform Social Inbox
                 </h3>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Select any conversation on the left to read the full thread and reply directly to
-                  Instagram, Facebook, WhatsApp, or YouTube without switching apps.
+                  AI handles incoming chats first (<Bot className="w-3.5 h-3.5 inline text-cyan-400" />
+                  ). When escalated to <strong className="text-amber-300">Request Human</strong> or
+                  when any Marketing user replies, the chat automatically tags that user until
+                  handed back to <Bot className="w-3.5 h-3.5 inline text-cyan-400" />.
                 </p>
               </div>
             </div>
@@ -569,7 +821,7 @@ export default function MarketingInboxView({
                     <ArrowLeft className="w-4 h-4" />
                   </button>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-black text-white truncate">
                         {activeThread.contact_name}
                       </p>
@@ -581,6 +833,7 @@ export default function MarketingInboxView({
                         {(CHANNEL_META[activeThread.channel] || CHANNEL_META.all).label}{' '}
                         {activeThread.thread_type === 'comment' ? 'Comment' : 'DM'}
                       </span>
+                      <HandlerTagBadge thread={activeThread} />
                     </div>
                     {activeThread.post_reference_title && (
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-0.5 truncate">
@@ -602,29 +855,81 @@ export default function MarketingInboxView({
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleToggleResolve}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
-                    activeThread.status === 'resolved'
-                      ? 'bg-amber-500/15 border-amber-500/35 text-amber-300 hover:bg-amber-500/25'
-                      : 'bg-emerald-500/15 border-emerald-500/35 text-emerald-300 hover:bg-emerald-500/25'
-                  }`}
-                >
-                  {activeThread.status === 'resolved' ? (
-                    <>
-                      <RotateCcw className="w-3.5 h-3.5" /> Reopen
-                    </>
+                {/* Action Buttons: Hand Back to Bot / Let AI Reply / Resolve */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {activeHandler.mode !== 'ai' ? (
+                    <button
+                      type="button"
+                      disabled={updatingMode}
+                      onClick={() => handleSwitchHandlerMode('ai')}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/45 text-cyan-200 text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                      title="Hand this conversation back to AI Bot"
+                    >
+                      {updatingMode ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Bot className="w-3.5 h-3.5 text-cyan-300" />
+                      )}
+                      <span>Hand Back to AI</span>
+                    </button>
                   ) : (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Resolve
-                    </>
+                    <button
+                      type="button"
+                      disabled={runningAi}
+                      onClick={handleRunAiReply}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/45 text-cyan-200 text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                      title="Ask AI Bot to evaluate & respond (or escalate to Request Human)"
+                    >
+                      {runningAi ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3.5 h-3.5 text-cyan-300" />
+                      )}
+                      <span>{runningAi ? 'AI Thinking...' : 'AI Reply'}</span>
+                    </button>
                   )}
-                </button>
+
+                  <button
+                    type="button"
+                    onClick={handleToggleResolve}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
+                      activeThread.status === 'resolved'
+                        ? 'bg-amber-500/15 border-amber-500/35 text-amber-300 hover:bg-amber-500/25'
+                        : 'bg-emerald-500/15 border-emerald-500/35 text-emerald-300 hover:bg-emerald-500/25'
+                    }`}
+                  >
+                    {activeThread.status === 'resolved' ? (
+                      <>
+                        <RotateCcw className="w-3.5 h-3.5" /> Reopen
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Resolve
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
+              {/* Escalation Banner when Request Human is active */}
+              {activeHandler.mode === 'request_human' && (
+                <div className="px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/30 flex items-center justify-between gap-2 text-xs text-amber-200">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Hand className="w-4 h-4 text-amber-300 shrink-0" />
+                    <span className="truncate">
+                      <strong>Request Human:</strong>{' '}
+                      {activeHandler.humanRequestedReason ||
+                        'AI delegated this chat for a human team member.'}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-amber-300/90 shrink-0 hidden sm:inline">
+                    Reply below to claim
+                  </span>
+                </div>
+              )}
+
               {/* Messages Stream */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[430px]">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[410px]">
                 {loadingMessages ? (
                   <div className="py-16 flex items-center justify-center gap-2 text-xs text-slate-400">
                     <Loader2 className="w-4 h-4 animate-spin text-[#C9A66B]" />
@@ -637,6 +942,8 @@ export default function MarketingInboxView({
                 ) : (
                   messages.map((msg) => {
                     const isOutbound = msg.direction === 'outbound'
+                    const isBotMsg =
+                      msg.sender_id === 'ai-bot' || msg.sent_by_email === 'ai-bot@cillah.dev'
                     return (
                       <div
                         key={msg.id}
@@ -645,12 +952,19 @@ export default function MarketingInboxView({
                         <div
                           className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed shadow-sm ${
                             isOutbound
-                              ? 'bg-[#C9A66B]/20 border border-[#C9A66B]/45 text-white rounded-br-sm'
+                              ? isBotMsg
+                                ? 'bg-cyan-500/15 border border-cyan-400/40 text-white rounded-br-sm'
+                                : 'bg-[#C9A66B]/20 border border-[#C9A66B]/45 text-white rounded-br-sm'
                               : 'bg-[#0F1422] border border-white/10 text-slate-100 rounded-bl-sm'
                           }`}
                         >
-                          <p className="text-[10px] font-bold text-[#E5C687] mb-1">
-                            {msg.sender_name}
+                          <p
+                            className={`text-[10px] font-bold mb-1 inline-flex items-center gap-1 ${
+                              isBotMsg ? 'text-cyan-300' : 'text-[#E5C687]'
+                            }`}
+                          >
+                            {isBotMsg ? <Bot className="w-3 h-3" /> : null}
+                            <span>{msg.sender_name}</span>
                           </p>
                           <p className="whitespace-pre-wrap break-words">{msg.body}</p>
                         </div>
@@ -683,43 +997,49 @@ export default function MarketingInboxView({
               </div>
 
               {/* Reply Composer */}
-              <form
-                onSubmit={handleSendReply}
-                className="p-3 border-t border-white/[0.08] bg-[#0F1422]/80 flex items-end gap-2"
-              >
-                <textarea
-                  rows={2}
-                  disabled={!permissions.canUploadAndDraft || sendingReply}
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSendReply(e)
+              <div className="border-t border-white/[0.08] bg-[#0F1422]/80 p-3 space-y-1.5">
+                {activeHandler.mode !== 'human' && permissions.canUploadAndDraft && (
+                  <p className="text-[10px] text-slate-400 px-1">
+                    Sending a message will automatically take over from{' '}
+                    {activeHandler.mode === 'request_human' ? 'Request Human' : 'AI Bot'} and tag
+                    this chat to <strong className="text-emerald-300">your name</strong>.
+                  </p>
+                )}
+                <form onSubmit={handleSendReply} className="flex items-end gap-2">
+                  <textarea
+                    rows={2}
+                    disabled={!permissions.canUploadAndDraft || sendingReply}
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        handleSendReply(e)
+                      }
+                    }}
+                    placeholder={
+                      permissions.canUploadAndDraft
+                        ? `Reply to ${activeThread.contact_name} on ${
+                            (CHANNEL_META[activeThread.channel] || CHANNEL_META.all).label
+                          }... (Enter to send)`
+                        : 'Read-only Analyst mode — replying is disabled.'
                     }
-                  }}
-                  placeholder={
-                    permissions.canUploadAndDraft
-                      ? `Reply to ${activeThread.contact_name} on ${
-                          (CHANNEL_META[activeThread.channel] || CHANNEL_META.all).label
-                        }... (Enter to send)`
-                      : 'Read-only Analyst mode — replying is disabled.'
-                  }
-                  className="flex-1 resize-none rounded-xl bg-[#090B12] border border-white/10 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B] disabled:opacity-50"
-                />
-                <button
-                  type="submit"
-                  disabled={!permissions.canUploadAndDraft || !replyText.trim() || sendingReply}
-                  className="h-10 px-4 rounded-xl bg-gradient-to-r from-[#C9A66B] to-[#E5C687] hover:opacity-95 text-[#090B12] font-black text-xs inline-flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-40 shrink-0"
-                >
-                  {sendingReply ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-3.5 h-3.5" />
-                  )}
-                  <span>Send</span>
-                </button>
-              </form>
+                    className="flex-1 resize-none rounded-xl bg-[#090B12] border border-white/10 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#C9A66B] disabled:opacity-50"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!permissions.canUploadAndDraft || !replyText.trim() || sendingReply}
+                    className="h-10 px-4 rounded-xl bg-gradient-to-r from-[#C9A66B] to-[#E5C687] hover:opacity-95 text-[#090B12] font-black text-xs inline-flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-40 shrink-0"
+                  >
+                    {sendingReply ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5" />
+                    )}
+                    <span>Send</span>
+                  </button>
+                </form>
+              </div>
             </>
           )}
         </div>

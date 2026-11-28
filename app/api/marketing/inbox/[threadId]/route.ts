@@ -64,9 +64,16 @@ export async function PATCH(
   const body = await request.json().catch(() => ({}))
   const orgSlug = String(body.organization_slug || 'cillah-dev')
   const nextStatus = body.status
+  const nextHandlerMode = body.handler_mode as 'ai' | 'request_human' | 'human' | undefined
 
-  if (!['open', 'resolved', 'archived'].includes(nextStatus)) {
+  if (nextStatus && !['open', 'resolved', 'archived'].includes(nextStatus)) {
     return NextResponse.json({ error: 'Invalid status value' }, { status: 400 })
+  }
+  if (nextHandlerMode && !['ai', 'request_human', 'human'].includes(nextHandlerMode)) {
+    return NextResponse.json({ error: 'Invalid handler_mode value' }, { status: 400 })
+  }
+  if (!nextStatus && !nextHandlerMode) {
+    return NextResponse.json({ error: 'Provide status or handler_mode to update' }, { status: 400 })
   }
 
   const { context, supabase, error, status } = await resolveMarketingAuth(orgSlug)
@@ -75,9 +82,65 @@ export async function PATCH(
   }
 
   const db = getServiceRoleClient() || supabase
+  const { data: existing } = await db
+    .from('marketing_inbox_threads')
+    .select('*')
+    .eq('id', threadId)
+    .eq('organization_slug', orgSlug)
+    .maybeSingle()
+
+  if (!existing) {
+    return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
+  }
+
+  const updatePayload: Record<string, any> = {
+    updated_at: new Date().toISOString(),
+  }
+
+  if (nextStatus) {
+    updatePayload.status = nextStatus
+  }
+
+  if (nextHandlerMode) {
+    const existingMeta = (existing.metadata || {}) as Record<string, any>
+    const actorName = context.fullName || context.email.split('@')[0]
+
+    if (nextHandlerMode === 'ai') {
+      // Hand back to AI Bot symbol while preserving last_handled_by audit trail
+      updatePayload.assigned_to_email = null
+      updatePayload.metadata = {
+        ...existingMeta,
+        handler_mode: 'ai',
+        assigned_to_name: null,
+        human_requested_reason: null,
+        handed_back_to_ai_by: context.email,
+        handed_back_to_ai_at: new Date().toISOString(),
+      }
+    } else if (nextHandlerMode === 'request_human') {
+      updatePayload.assigned_to_email = null
+      updatePayload.metadata = {
+        ...existingMeta,
+        handler_mode: 'request_human',
+        assigned_to_name: null,
+        human_requested_reason:
+          String(body.reason || '').trim() || 'Escalated for human attention.',
+      }
+    } else if (nextHandlerMode === 'human') {
+      updatePayload.assigned_to_email = context.email
+      updatePayload.metadata = {
+        ...existingMeta,
+        handler_mode: 'human',
+        assigned_to_name: actorName,
+        last_handled_by_email: context.email,
+        last_handled_by_name: actorName,
+        human_requested_reason: null,
+      }
+    }
+  }
+
   const { data, error: updateErr } = await db
     .from('marketing_inbox_threads')
-    .update({ status: nextStatus, updated_at: new Date().toISOString() })
+    .update(updatePayload)
     .eq('id', threadId)
     .eq('organization_slug', orgSlug)
     .select('*')

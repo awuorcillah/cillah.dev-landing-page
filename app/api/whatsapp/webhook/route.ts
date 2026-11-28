@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendWhatsAppTextMessage } from '@/lib/whatsapp'
+import {
+  evaluateAndHandleInboxWithAI,
+  getThreadHandlerInfo,
+} from '@/lib/inbox-ai-handler'
+import type { InboxMessageRecord, InboxThreadRecord } from '@/lib/social-inbox'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hastygfosgyxrxzrzrur.supabase.co'
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -88,7 +93,7 @@ export async function POST(request: Request) {
               },
               { onConflict: 'organization_slug,channel,external_thread_id' }
             )
-            .select('id')
+            .select('*')
             .single()
 
           if (savedThread?.id) {
@@ -110,6 +115,24 @@ export async function POST(request: Request) {
                 ignoreDuplicates: true,
               }
             )
+
+            // AI-first handling for regular text messages (never override a human agent!)
+            const handlerInfo = getThreadHandlerInfo(savedThread as InboxThreadRecord)
+            if (message.type === 'text' && handlerInfo.mode === 'ai') {
+              const { data: recentMsgs } = await supabase
+                .from('marketing_inbox_messages')
+                .select('*')
+                .eq('thread_id', savedThread.id)
+                .order('sent_at', { ascending: true })
+                .limit(12)
+
+              await evaluateAndHandleInboxWithAI({
+                db: supabase,
+                thread: savedThread as InboxThreadRecord,
+                recentMessages: (recentMsgs || []) as InboxMessageRecord[],
+                organizationName: 'cillah.dev',
+              })
+            }
           }
         }
       } catch (inboxErr) {

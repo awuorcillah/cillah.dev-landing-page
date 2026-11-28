@@ -604,6 +604,7 @@ export default function MarketingHub({
         <MarketingInboxView
           organizationSlug={organizationSlug}
           permissions={permissions}
+          selectedAgentFilter={selectedMemberFilter}
           onOpenConnections={() => setActiveAction('connections')}
         />
       )}

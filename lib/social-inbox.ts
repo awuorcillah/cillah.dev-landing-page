@@ -90,7 +90,7 @@ async function upsertThreadWithMessages(
 
   const { data: existingThread } = await db
     .from('marketing_inbox_threads')
-    .select('id, unread_count, last_message_at')
+    .select('id, unread_count, last_message_at, metadata')
     .eq('organization_slug', threadInput.organization_slug)
     .eq('channel', threadInput.channel)
     .eq('external_thread_id', threadInput.external_thread_id)
@@ -108,6 +108,30 @@ async function upsertThreadWithMessages(
     : latest.direction === 'inbound'
     ? 1
     : 0
+
+  // Preserve existing AI/Human handler metadata; default new chats to AI-first ('ai'),
+  // and immediately flag 'request_human' if the latest inbound message asks for a human!
+  const existingMeta = ((existingThread as any)?.metadata || {}) as Record<string, any>
+  const currentHandlerMode = String(existingMeta.handler_mode || 'ai')
+  const asksForHuman =
+    latest.direction === 'inbound' &&
+    /\b(speak|talk|chat|connect|transfer)\s+(to|with)\s+(a\s+)?(human|person|agent|rep|representative|someone|staff|manager|owner|real\s+person)\b|\b(real\s+person|live\s+agent|human\s+agent|human\s+please|need\s+a\s+human|want\s+a\s+human|customer\s+care|call\s+me|not\s+a\s+bot)\b/i.test(
+      latest.body
+    )
+
+  const mergedMetadata: Record<string, any> = {
+    ...existingMeta,
+    ...(threadInput.metadata || {}),
+    handler_mode:
+      currentHandlerMode === 'human'
+        ? 'human'
+        : asksForHuman
+        ? 'request_human'
+        : currentHandlerMode || 'ai',
+    ...(asksForHuman && currentHandlerMode !== 'human'
+      ? { human_requested_reason: 'Client requested a human agent.' }
+      : {}),
+  }
 
   const { data: savedThread, error: threadErr } = await db
     .from('marketing_inbox_threads')
@@ -127,7 +151,7 @@ async function upsertThreadWithMessages(
         last_message_preview: latest.body.slice(0, 280),
         last_message_at: latest.sent_at,
         unread_count: nextUnread,
-        metadata: threadInput.metadata || {},
+        metadata: mergedMetadata,
         updated_at: nowIso,
       },
       { onConflict: 'organization_slug,channel,external_thread_id' }

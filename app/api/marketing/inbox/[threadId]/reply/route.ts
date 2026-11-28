@@ -43,6 +43,8 @@ export async function POST(
     const dispatch = await dispatchInboxReply(db, thread as InboxThreadRecord, replyText)
     const nowIso = new Date().toISOString()
 
+    const senderDisplayName = context.fullName || context.email.split('@')[0]
+
     const { data: savedMsg, error: insertErr } = await db
       .from('marketing_inbox_messages')
       .insert({
@@ -51,7 +53,7 @@ export async function POST(
         channel: thread.channel,
         external_message_id: dispatch.externalMessageId,
         direction: 'outbound',
-        sender_name: context.fullName || context.email.split('@')[0],
+        sender_name: senderDisplayName,
         sender_id: context.userId,
         body: replyText,
         sent_at: nowIso,
@@ -66,18 +68,33 @@ export async function POST(
       return NextResponse.json({ error: insertErr.message }, { status: 500 })
     }
 
-    await db
+    // Automatically claim & tag this chat with the exact Marketing user who replied!
+    const nextMetadata = {
+      ...(thread.metadata || {}),
+      handler_mode: 'human',
+      assigned_to_name: senderDisplayName,
+      last_handled_by_email: context.email,
+      last_handled_by_name: senderDisplayName,
+      human_requested_reason: null,
+    }
+
+    const { data: updatedThread } = await db
       .from('marketing_inbox_threads')
       .update({
+        assigned_to_email: context.email,
         last_message_preview: replyText.slice(0, 280),
         last_message_at: nowIso,
         unread_count: 0,
+        metadata: nextMetadata,
         updated_at: nowIso,
       })
       .eq('id', thread.id)
+      .select('*')
+      .single()
 
     return NextResponse.json({
       message: savedMsg,
+      thread: updatedThread || { ...thread, assigned_to_email: context.email, metadata: nextMetadata },
       deliveryStatus: dispatch.deliveryStatus,
       warning: dispatch.errorMessage || null,
     })
