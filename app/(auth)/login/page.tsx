@@ -24,7 +24,7 @@ export default function LoginPage() {
   // Prefetch destination routes immediately & auto-redirect if already signed in
   useEffect(() => {
     router.prefetch('/user/dashboard')
-    router.prefetch('/admin/dashboard')
+    router.prefetch('/admin')
 
     if (typeof window !== 'undefined') {
       const searchParams = new URLSearchParams(window.location.search)
@@ -46,7 +46,7 @@ export default function LoginPage() {
       if (user) {
         const userEmail = user.email?.toLowerCase() || ''
         if (isAdminAccount(userEmail, null)) {
-          router.replace('/admin/dashboard')
+          router.replace('/admin')
           return
         }
         const { data: profile } = await supabase
@@ -56,7 +56,7 @@ export default function LoginPage() {
           .maybeSingle()
 
         const isAdmin = isAdminAccount(userEmail, profile?.role)
-        router.replace(isAdmin ? '/admin/dashboard' : '/user/dashboard')
+        router.replace(isAdmin ? '/admin' : '/user/dashboard')
       }
     }
     checkActiveUser()
@@ -140,7 +140,7 @@ export default function LoginPage() {
         }
 
         toast.success(`Welcome back, ${userName}!`, { position: 'top-center' })
-        router.replace(isAdmin ? '/admin/dashboard' : '/user/dashboard')
+        router.replace(isAdmin ? '/admin' : '/user/dashboard')
       }
     } catch (err: any) {
       toast.error(err.message || 'Invalid login credentials', {

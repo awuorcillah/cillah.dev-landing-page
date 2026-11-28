@@ -11,27 +11,20 @@ import {
   type UserWorkspaceRole,
 } from '@/lib/auth-roles'
 import {
-  LayoutDashboard,
-  ChevronRight,
-  ChevronLeft,
   ChevronDown,
   Users,
+  User,
   UserCheck,
-  Menu,
-  X,
   Layers,
   TrendingUp,
   Building2,
   Megaphone,
-  BarChart3,
   DollarSign,
-  Stethoscope,
-  Globe2,
-  HeartPulse,
-  Briefcase,
-  Cpu,
   Video,
-  ShieldCheck,
+  Home,
+  LogOut,
+  Check,
+  ArrowLeft,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -44,46 +37,40 @@ export function isSuperAdminEmail(email?: string | null): boolean {
   return SUPER_ADMIN_EMAILS.map((e) => e.toLowerCase().trim()).includes(email.toLowerCase().trim())
 }
 
-const PATH_LABELS: Record<string, string> = {
-  admin: 'Admin',
-  dashboard: 'Sales Dashboard',
-  pipeline: 'Sales CRM Pipeline',
-  appointments: 'Upcoming Appointments',
-  marketing: 'Marketing Department',
-  finance: 'Finance Department',
-  sessions: 'Sessions',
-  organizations: 'Organizations',
-  sales: 'Sales Department',
-  users: 'Users & Access',
-  'cillah-dev': 'cillah.dev',
-  'rosy-realtors': 'Rosy Realtors Nairobi',
-  'stage-properties': 'Rosy Realtors Nairobi',
-}
-
-function getBreadcrumbs(pathname: string) {
-  const parts = pathname.split('/').filter(Boolean)
-  const crumbs: { label: string; href: string }[] = []
-  let path = ''
-  for (const part of parts) {
-    path += '/' + part
-    if (PATH_LABELS[part]) crumbs.push({ label: PATH_LABELS[part], href: path })
+const DEPARTMENT_META: Record<
+  UserWorkspaceRole,
+  {
+    label: string
+    subtitle: string
+    icon: typeof TrendingUp
+    accentClass: string
   }
-  return crumbs
-}
-
-function navCls(active: boolean, sub = false) {
-  const base = `flex items-center gap-2.5 px-3 rounded-lg text-sm font-medium transition-all duration-150 border-l-2 ${
-    sub ? 'py-1.5 text-xs' : 'py-2 text-xs'
-  }`
-  return active
-    ? `${base} bg-[#C9A66B]/15 text-[#C9A66B] border-[#C9A66B]`
-    : `${base} text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 border-transparent`
+> = {
+  sales: {
+    label: 'Sales',
+    subtitle: 'Pipeline, leads & follow-ups',
+    icon: TrendingUp,
+    accentClass: 'text-emerald-400',
+  },
+  marketing: {
+    label: 'Marketing',
+    subtitle: 'Posts, channels & analytics',
+    icon: Megaphone,
+    accentClass: 'text-[#C9A66B]',
+  },
+  finance: {
+    label: 'Finance',
+    subtitle: 'Invoices, M-Pesa & Paystack',
+    icon: DollarSign,
+    accentClass: 'text-sky-400',
+  },
 }
 
 interface AdminProfileState {
   id: string
   email: string
   full_name: string
+  avatar_url: string | null
   isSuperAdmin: boolean
   orgId: string
   orgSlug: string
@@ -91,35 +78,69 @@ interface AdminProfileState {
   departments: UserWorkspaceRole[]
 }
 
+function resolveRouteContext(
+  pathname: string,
+  allOrgs: Array<{ slug: string; name: string }>
+): { orgSlug: string; orgName: string; department: UserWorkspaceRole | null; isUsersPage: boolean } {
+  const isUsersPage = pathname.endsWith('/users')
+  const orgMatch = pathname.match(/^\/admin\/organizations\/([^/]+)/)
+  let orgSlug = orgMatch ? orgMatch[1] : 'cillah-dev'
+  if (orgSlug === 'stage-properties') orgSlug = 'rosy-realtors'
+
+  const matchedOrg = allOrgs.find((o) => o.slug === orgSlug)
+  const fallbackName =
+    orgSlug === 'cillah-dev'
+      ? 'cillah.dev'
+      : orgSlug === 'rosy-realtors'
+      ? 'Rosy Realtors Nairobi'
+      : orgSlug === 'chetu-healthcare'
+      ? 'Chetu Healthcare Clinic'
+      : orgSlug === 'dendri-africa'
+      ? 'Dendri Africa'
+      : orgSlug
+
+  let department: UserWorkspaceRole | null = null
+  if (
+    pathname.startsWith('/admin/dashboard') ||
+    pathname.startsWith('/admin/pipeline') ||
+    pathname.includes('/sales')
+  ) {
+    department = 'sales'
+  } else if (pathname.startsWith('/admin/marketing') || pathname.includes('/marketing')) {
+    department = 'marketing'
+  } else if (pathname.startsWith('/admin/finance') || pathname.includes('/finance')) {
+    department = 'finance'
+  }
+
+  return {
+    orgSlug,
+    orgName: matchedOrg?.name || fallbackName,
+    department,
+    isUsersPage,
+  }
+}
+
+function getDepartmentHref(orgSlug: string, dept: UserWorkspaceRole): string {
+  if (orgSlug === 'cillah-dev') {
+    if (dept === 'sales') return '/admin/dashboard'
+    if (dept === 'marketing') return '/admin/marketing'
+    return '/admin/finance'
+  }
+  return `/admin/organizations/${orgSlug}/${dept}`
+}
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
 
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [mobileOpen, setMobileOpen] = useState(false)
-
-  // Collapsible Organization Dropdowns (open/close departments per org)
-  const [cillahOrgOpen, setCillahOrgOpen] = useState(true)
-  const [rosyOrgOpen, setRosyOrgOpen] = useState(true)
-  const [chetuOrgOpen, setChetuOrgOpen] = useState(false)
-  const [dendriOrgOpen, setDendriOrgOpen] = useState(false)
-
-  // Department dropdowns inside cillah.dev
-  const [cillahSalesOpen, setCillahSalesOpen] = useState(true)
-  const [cillahMarketingOpen, setCillahMarketingOpen] = useState(false)
-  const [cillahFinanceOpen, setCillahFinanceOpen] = useState(false)
-
-  // Department dropdowns inside Rosy Realtors Nairobi
-  const [rosySalesOpen, setRosySalesOpen] = useState(true)
-  const [rosyMarketingOpen, setRosyMarketingOpen] = useState(false)
-  const [rosyFinanceOpen, setRosyFinanceOpen] = useState(false)
-
-  const [orgSwitcherOpen, setOrgSwitcherOpen] = useState(false)
   const [adminProfile, setAdminProfile] = useState<AdminProfileState | null>(null)
+  const [allOrgs, setAllOrgs] = useState<Array<{ id: string; name: string; slug: string }>>([])
+  const [deptMenuOpen, setDeptMenuOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [extraOrgs, setExtraOrgs] = useState<Array<{ id: string; name: string; slug: string }>>([])
-  const [openExtraOrgs, setOpenExtraOrgs] = useState<Record<string, boolean>>({})
+
+  const deptMenuRef = useRef<HTMLDivElement>(null)
+  const profileRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     supabase
@@ -128,50 +149,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       .order('name', { ascending: true })
       .then(({ data }) => {
         if (!data) return
-        const builtins = new Set(['cillah-dev', 'rosy-realtors', 'stage-properties', 'chetu-healthcare', 'dendri-africa'])
-        setExtraOrgs(data.filter((o: any) => !builtins.has(String(o.slug || '').toLowerCase())))
+        setAllOrgs(
+          data.filter((o: any) => String(o.slug || '').toLowerCase() !== 'stage-properties')
+        )
       })
   }, [supabase, pathname])
-
-  const profileRef = useRef<HTMLDivElement>(null)
-  const orgSwitcherRef = useRef<HTMLDivElement>(null)
-  const breadcrumbs = getBreadcrumbs(pathname)
-
-  useEffect(() => {
-    const saved = localStorage.getItem('admin_sidebar_open')
-    if (saved !== null) setSidebarOpen(saved === 'true')
-  }, [])
-
-  // Auto-expand active organization & department based on current URL
-  useEffect(() => {
-    if (pathname.includes('/rosy-realtors')) {
-      setRosyOrgOpen(true)
-      if (pathname.includes('/rosy-realtors/marketing')) setRosyMarketingOpen(true)
-      if (pathname.includes('/rosy-realtors/finance')) setRosyFinanceOpen(true)
-      if (pathname.includes('/rosy-realtors/sales')) setRosySalesOpen(true)
-    } else if (pathname.includes('/chetu-healthcare')) {
-      setChetuOrgOpen(true)
-    } else if (pathname.includes('/dendri-africa')) {
-      setDendriOrgOpen(true)
-    } else {
-      setCillahOrgOpen(true)
-      if (pathname.includes('/cillah-dev/marketing') || pathname.startsWith('/admin/marketing')) {
-        setCillahMarketingOpen(true)
-      }
-      if (pathname.includes('/cillah-dev/finance') || pathname.startsWith('/admin/finance')) {
-        setCillahFinanceOpen(true)
-      }
-    }
-  }, [pathname])
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false)
-      if (orgSwitcherRef.current && !orgSwitcherRef.current.contains(e.target as Node)) setOrgSwitcherOpen(false)
+      if (deptMenuRef.current && !deptMenuRef.current.contains(e.target as Node)) setDeptMenuOpen(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  useEffect(() => {
+    setDeptMenuOpen(false)
+    setProfileOpen(false)
+  }, [pathname])
 
   // Load authenticated user + strict organization & department scope
   useEffect(() => {
@@ -188,7 +184,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const isSuper = checkSuperAdminEmail(email)
 
       const [{ data: profile }, { data: staffRow }] = await Promise.all([
-        supabase.from('profiles').select('role, full_name').eq('id', user.id).maybeSingle(),
+        supabase.from('profiles').select('role, full_name, avatar_url').eq('id', user.id).maybeSingle(),
         supabase
           .from('staff_members')
           .select('full_name, role, status, org_id')
@@ -233,6 +229,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         full_name: isSuper
           ? 'Cillah Awuor (CEO)'
           : staffRow?.full_name || profile?.full_name || email.split('@')[0] || 'Admin',
+        avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url || null,
         isSuperAdmin: isSuper,
         orgId,
         orgSlug,
@@ -248,16 +245,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Org Admins can ONLY access their own organization and their assigned departments!
   useEffect(() => {
     if (!adminProfile || adminProfile.isSuperAdmin) return
+    if (pathname === '/admin') return
 
     const { orgSlug, departments } = adminProfile
-    const fallbackHome =
-      orgSlug === 'cillah-dev'
-        ? departments.includes('sales')
-          ? '/admin/dashboard'
-          : departments.includes('marketing')
-          ? '/admin/marketing'
-          : '/admin/finance'
-        : `/admin/organizations/${orgSlug}/${departments[0] || 'sales'}`
+    const fallbackHome = `/admin?org=${encodeURIComponent(orgSlug)}`
 
     // 1. Block Super-Admin-only global pages
     if (
@@ -278,7 +269,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         router.replace(fallbackHome)
         return
       }
-      // Enforce department-level access within their own org
       if (pathname.includes('/sales') && !departments.includes('sales')) {
         toast.error('No Sales Department access assigned.')
         router.replace(fallbackHome)
@@ -295,7 +285,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return
       }
     } else {
-      // Org Admin belongs to cillah-dev — block other client organizations
       if (
         pathname.startsWith('/admin/organizations/') &&
         !pathname.startsWith('/admin/organizations/cillah-dev')
@@ -304,7 +293,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         router.replace(fallbackHome)
         return
       }
-      // Enforce department-level access within cillah.dev
       if (
         (pathname.startsWith('/admin/dashboard') ||
           pathname.startsWith('/admin/pipeline') ||
@@ -334,13 +322,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [pathname, adminProfile, router])
 
-  const toggleSidebar = () => {
-    const next = !sidebarOpen
-    setSidebarOpen(next)
-    localStorage.setItem('admin_sidebar_open', String(next))
-  }
-
   const handleLogout = async () => {
+    setProfileOpen(false)
     try {
       await Promise.race([
         supabase.auth.signOut({ scope: 'local' }),
@@ -353,894 +336,267 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }
 
-  const isExact = (href: string) => pathname === href
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
-
   const isSuperAdmin = adminProfile?.isSuperAdmin === true
-  const canSeeCillah = isSuperAdmin || adminProfile?.orgSlug === 'cillah-dev'
-  const canSeeRosy = isSuperAdmin || adminProfile?.orgSlug === 'rosy-realtors'
-  const canSeeChetu = isSuperAdmin || adminProfile?.orgSlug === 'chetu-healthcare'
-  const canSeeDendri = isSuperAdmin || adminProfile?.orgSlug === 'dendri-africa'
-
-  const hasDept = (dept: UserWorkspaceRole) =>
-    isSuperAdmin || (adminProfile?.departments || []).includes(dept)
-
-  function SidebarContent({ mobile = false }: { mobile?: boolean }) {
-    const expanded = sidebarOpen || mobile
-
-    return (
-      <div
-        className={`flex flex-col h-full bg-slate-900 border-r border-slate-800 transition-all duration-300 ${
-          expanded ? 'w-64' : 'w-14'
-        } overflow-hidden`}
-      >
-        {/* Brand Header */}
-        <div className="flex items-center gap-3 px-3 py-4 border-b border-slate-800 flex-shrink-0">
-          <div className="w-8 h-8 rounded-full overflow-hidden border border-[#C9A66B]/40 flex-shrink-0">
-            <img src="/images/cillah-emblem.png" alt="Logo" className="w-full h-full object-cover" />
-          </div>
-          {expanded && (
-            <div className="overflow-hidden">
-              <p className="text-sm font-bold text-slate-100 leading-none truncate">
-                {isSuperAdmin ? 'cillah.dev' : adminProfile?.orgName || 'Organization'}
-              </p>
-              <p className="text-[10px] text-[#C9A66B] mt-0.5 font-semibold truncate">
-                {isSuperAdmin ? 'CEO / Platform Owner' : 'Organization Admin'}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Nav Links */}
-        <nav className="flex-1 px-2 py-3 space-y-3 overflow-y-auto">
-          {/* ============================================================== */}
-          {/* ORGANIZATION: cillah.dev (Collapsible Org Dropdown)            */}
-          {/* ============================================================== */}
-          {canSeeCillah && (
-            <div className="space-y-2">
-              {expanded ? (
-                <div className="px-1 space-y-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setCillahOrgOpen((p) => !p)}
-                    className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-800/70 transition-colors cursor-pointer"
-                  >
-                    <span className="text-xs font-extrabold text-white tracking-wide flex items-center gap-1.5">
-                      <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-                      cillah.dev
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950/70 border border-cyan-500/30 text-cyan-300 font-bold uppercase">
-                        Live
-                      </span>
-                      <ChevronDown
-                        className={`w-3.5 h-3.5 text-slate-400 transition-transform ${
-                          cillahOrgOpen ? 'rotate-180' : ''
-                        }`}
-                      />
-                    </div>
-                  </button>
-
-                  {cillahOrgOpen && (
-                    <div className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#C9A66B]/20 via-[#C9A66B]/10 to-transparent border border-[#C9A66B]/35 flex items-center gap-1.5">
-                      <ShieldCheck className="w-3 h-3 text-[#C9A66B] shrink-0" />
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#C9A66B]">
-                        Departments, Users &amp; Access
-                      </span>
-                    </div>
-                  )}
-                </div>
-              ) : null}
-
-              {(cillahOrgOpen || !expanded) && (
-                <div className={expanded ? 'ml-2 pl-2 border-l border-cyan-500/35 space-y-1' : 'space-y-1'}>
-                  {/* 1. Sales Department */}
-                  {hasDept('sales') && (
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => setCillahSalesOpen((p) => !p)}
-                        className={`w-full ${navCls(false, true)} ${
-                          pathname === '/admin/dashboard' || pathname.includes('/cillah-dev/sales')
-                            ? 'text-slate-100'
-                            : ''
-                        } cursor-pointer`}
-                      >
-                        <BarChart3 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />
-                        {expanded && (
-                          <>
-                            <span className="flex-1 text-left font-semibold text-emerald-400">
-                              Sales Department
-                            </span>
-                            <ChevronDown
-                              className={`w-3 h-3 transition-transform ${cillahSalesOpen ? 'rotate-180' : ''}`}
-                            />
-                          </>
-                        )}
-                      </button>
-
-                      {cillahSalesOpen && expanded && (
-                        <div className="ml-3 mt-0.5 pl-2.5 border-l border-emerald-500/30 space-y-0.5">
-                          <Link
-                            href="/admin/dashboard"
-                            className={navCls(isExact('/admin/dashboard') || isExact('/admin/pipeline'), true)}
-                          >
-                            <LayoutDashboard className="w-3 h-3 flex-shrink-0 text-[#C9A66B]" />
-                            <span>Dashboard</span>
-                          </Link>
-                          <Link
-                            href="/admin/organizations/cillah-dev/sales/users"
-                            className={navCls(isActive('/admin/organizations/cillah-dev/sales/users'), true)}
-                          >
-                            <Users className="w-3 h-3 flex-shrink-0 text-cyan-400" />
-                            <span>Users</span>
-                          </Link>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* 2. Marketing Department */}
-                  {hasDept('marketing') && (
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => setCillahMarketingOpen((p) => !p)}
-                        className={`w-full ${navCls(false, true)} ${
-                          pathname.startsWith('/admin/marketing') || pathname.includes('/cillah-dev/marketing')
-                            ? 'text-slate-100'
-                            : ''
-                        } cursor-pointer`}
-                      >
-                        <Megaphone className="w-3.5 h-3.5 flex-shrink-0 text-purple-400" />
-                        {expanded && (
-                          <>
-                            <span className="flex-1 text-left font-semibold text-purple-300">
-                              Marketing Department
-                            </span>
-                            <ChevronDown
-                              className={`w-3 h-3 transition-transform ${cillahMarketingOpen ? 'rotate-180' : ''}`}
-                            />
-                          </>
-                        )}
-                      </button>
-
-                      {cillahMarketingOpen && expanded && (
-                        <div className="ml-3 mt-0.5 pl-2.5 border-l border-purple-500/30 space-y-0.5">
-                          <Link href="/admin/marketing" className={navCls(isExact('/admin/marketing'), true)}>
-                            <LayoutDashboard className="w-3 h-3 flex-shrink-0 text-purple-400" />
-                            <span>Dashboard</span>
-                          </Link>
-                          <Link
-                            href="/admin/organizations/cillah-dev/marketing/users"
-                            className={navCls(isActive('/admin/organizations/cillah-dev/marketing/users'), true)}
-                          >
-                            <Users className="w-3 h-3 flex-shrink-0 text-cyan-400" />
-                            <span>Users</span>
-                          </Link>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* 3. Finance Department */}
-                  {hasDept('finance') && (
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => setCillahFinanceOpen((p) => !p)}
-                        className={`w-full ${navCls(false, true)} ${
-                          pathname.startsWith('/admin/finance') || pathname.includes('/cillah-dev/finance')
-                            ? 'text-slate-100'
-                            : ''
-                        } cursor-pointer`}
-                      >
-                        <DollarSign className="w-3.5 h-3.5 flex-shrink-0 text-sky-400" />
-                        {expanded && (
-                          <>
-                            <span className="flex-1 text-left font-semibold text-sky-300">
-                              Finance Department
-                            </span>
-                            <ChevronDown
-                              className={`w-3 h-3 transition-transform ${cillahFinanceOpen ? 'rotate-180' : ''}`}
-                            />
-                          </>
-                        )}
-                      </button>
-
-                      {cillahFinanceOpen && expanded && (
-                        <div className="ml-3 mt-0.5 pl-2.5 border-l border-sky-500/30 space-y-0.5">
-                          <Link href="/admin/finance" className={navCls(isExact('/admin/finance'), true)}>
-                            <LayoutDashboard className="w-3 h-3 flex-shrink-0 text-sky-400" />
-                            <span>Dashboard</span>
-                          </Link>
-                          <Link
-                            href="/admin/organizations/cillah-dev/finance/users"
-                            className={navCls(isActive('/admin/organizations/cillah-dev/finance/users'), true)}
-                          >
-                            <Users className="w-3 h-3 flex-shrink-0 text-cyan-400" />
-                            <span>Users</span>
-                          </Link>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Super Admin internal tools */}
-                  {isSuperAdmin && (
-                    <>
-                      <Link
-                        href="/admin/organizations/cillah-dev/teams"
-                        className={navCls(isActive('/admin/organizations/cillah-dev/teams'), true)}
-                      >
-                        <Users className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
-                        {expanded && <span>All Teams &amp; Roles</span>}
-                      </Link>
-                      <Link href="/admin/sessions" className={navCls(isActive('/admin/sessions'), true)}>
-                        <Video className="w-3.5 h-3.5 flex-shrink-0 text-sky-400" />
-                        {expanded && <span>Sessions</span>}
-                      </Link>
-                      <Link href="/admin/clients" className={navCls(isActive('/admin/clients'), true)}>
-                        <UserCheck className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
-                        {expanded && <span>Monthly Retainers</span>}
-                      </Link>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ============================================================== */}
-          {/* CLIENT ORGANIZATIONS (Super Admin sees all; Org Admin sees OWN) */}
-          {/* ============================================================== */}
-          {(isSuperAdmin || canSeeRosy || canSeeChetu || canSeeDendri) && (
-            <div className={`space-y-2.5 ${canSeeCillah ? 'pt-3 border-t border-slate-800/80' : ''}`}>
-              {isSuperAdmin && (
-                <div className="px-2 flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  <div className="flex items-center gap-1.5">
-                    <Building2 className="w-3.5 h-3.5 text-[#C9A66B]" />
-                    {expanded && <span>Client Organizations</span>}
-                  </div>
-                  {expanded && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-950/60 border border-amber-500/30 text-amber-300">
-                      Multi-Tenant
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* CLIENT 1: ROSY REALTORS NAIROBI (Collapsible Org Dropdown) */}
-              {canSeeRosy && (
-                <div className="space-y-1">
-                  {expanded && (
-                    <button
-                      type="button"
-                      onClick={() => setRosyOrgOpen((p) => !p)}
-                      className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-800/70 transition-colors cursor-pointer"
-                    >
-                      <span className="text-[11px] font-extrabold text-[#C9A66B] uppercase tracking-wider truncate">
-                        Rosy Realtors Nairobi
-                      </span>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-[8px] px-1.5 py-0.5 rounded bg-[#C9A66B]/15 text-[#C9A66B] font-bold uppercase">
-                          Demo
-                        </span>
-                        <ChevronDown
-                          className={`w-3.5 h-3.5 text-[#C9A66B]/80 transition-transform ${
-                            rosyOrgOpen ? 'rotate-180' : ''
-                          }`}
-                        />
-                      </div>
-                    </button>
-                  )}
-
-                  {!isSuperAdmin && expanded && rosyOrgOpen && (
-                    <div className="mx-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#C9A66B]/20 via-[#C9A66B]/10 to-transparent border border-[#C9A66B]/35 flex items-center gap-1.5">
-                      <ShieldCheck className="w-3 h-3 text-[#C9A66B] shrink-0" />
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#C9A66B]">
-                        Departments, Users &amp; Access
-                      </span>
-                    </div>
-                  )}
-
-                  {(rosyOrgOpen || !expanded) && (
-                    <div className={expanded ? 'ml-2 pl-2 border-l border-[#C9A66B]/50 space-y-1' : 'space-y-1'}>
-                      {hasDept('sales') && (
-                        <div>
-                          <button
-                            type="button"
-                            onClick={() => setRosySalesOpen((p) => !p)}
-                            className={`w-full ${navCls(false, true)} ${
-                              pathname.includes('/rosy-realtors/sales') ? 'text-slate-100' : ''
-                            } cursor-pointer`}
-                          >
-                            <BarChart3 className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
-                            {expanded && (
-                              <>
-                                <span className="flex-1 text-left font-semibold text-amber-400">
-                                  Sales Department
-                                </span>
-                                <ChevronDown
-                                  className={`w-3 h-3 transition-transform ${rosySalesOpen ? 'rotate-180' : ''}`}
-                                />
-                              </>
-                            )}
-                          </button>
-
-                          {rosySalesOpen && expanded && (
-                            <div className="ml-3 mt-0.5 pl-2.5 border-l border-amber-500/30 space-y-0.5">
-                              <Link
-                                href="/admin/organizations/rosy-realtors/sales"
-                                className={navCls(isExact('/admin/organizations/rosy-realtors/sales'), true)}
-                              >
-                                <TrendingUp className="w-3 h-3 flex-shrink-0 text-[#C9A66B]" />
-                                <span>Executive &amp; Pipeline</span>
-                              </Link>
-                              <Link
-                                href="/admin/organizations/rosy-realtors/sales/users"
-                                className={navCls(isActive('/admin/organizations/rosy-realtors/sales/users'), true)}
-                              >
-                                <Users className="w-3 h-3 flex-shrink-0 text-cyan-400" />
-                                <span>Users</span>
-                              </Link>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {hasDept('marketing') && (
-                        <div>
-                          <button
-                            type="button"
-                            onClick={() => setRosyMarketingOpen((p) => !p)}
-                            className={`w-full ${navCls(false, true)} ${
-                              pathname.includes('/rosy-realtors/marketing') ? 'text-slate-100' : ''
-                            } cursor-pointer`}
-                          >
-                            <Megaphone className="w-3.5 h-3.5 flex-shrink-0 text-purple-400" />
-                            {expanded && (
-                              <>
-                                <span className="flex-1 text-left font-semibold text-purple-300">
-                                  Marketing Department
-                                </span>
-                                <ChevronDown
-                                  className={`w-3 h-3 transition-transform ${rosyMarketingOpen ? 'rotate-180' : ''}`}
-                                />
-                              </>
-                            )}
-                          </button>
-
-                          {rosyMarketingOpen && expanded && (
-                            <div className="ml-3 mt-0.5 pl-2.5 border-l border-purple-500/30 space-y-0.5">
-                              <Link
-                                href="/admin/organizations/rosy-realtors/marketing"
-                                className={navCls(isExact('/admin/organizations/rosy-realtors/marketing'), true)}
-                              >
-                                <LayoutDashboard className="w-3 h-3 flex-shrink-0 text-purple-400" />
-                                <span>Dashboard</span>
-                              </Link>
-                              <Link
-                                href="/admin/organizations/rosy-realtors/marketing/users"
-                                className={navCls(
-                                  isActive('/admin/organizations/rosy-realtors/marketing/users'),
-                                  true
-                                )}
-                              >
-                                <Users className="w-3 h-3 flex-shrink-0 text-cyan-400" />
-                                <span>Users</span>
-                              </Link>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {hasDept('finance') && (
-                        <div>
-                          <button
-                            type="button"
-                            onClick={() => setRosyFinanceOpen((p) => !p)}
-                            className={`w-full ${navCls(false, true)} ${
-                              pathname.includes('/rosy-realtors/finance') ? 'text-slate-100' : ''
-                            } cursor-pointer`}
-                          >
-                            <DollarSign className="w-3.5 h-3.5 flex-shrink-0 text-sky-400" />
-                            {expanded && (
-                              <>
-                                <span className="flex-1 text-left font-semibold text-sky-300">
-                                  Finance Department
-                                </span>
-                                <ChevronDown
-                                  className={`w-3 h-3 transition-transform ${rosyFinanceOpen ? 'rotate-180' : ''}`}
-                                />
-                              </>
-                            )}
-                          </button>
-
-                          {rosyFinanceOpen && expanded && (
-                            <div className="ml-3 mt-0.5 pl-2.5 border-l border-sky-500/30 space-y-0.5">
-                              <Link
-                                href="/admin/organizations/rosy-realtors/finance"
-                                className={navCls(isExact('/admin/organizations/rosy-realtors/finance'), true)}
-                              >
-                                <LayoutDashboard className="w-3 h-3 flex-shrink-0 text-sky-400" />
-                                <span>Dashboard</span>
-                              </Link>
-                              <Link
-                                href="/admin/organizations/rosy-realtors/finance/users"
-                                className={navCls(isActive('/admin/organizations/rosy-realtors/finance/users'), true)}
-                              >
-                                <Users className="w-3 h-3 flex-shrink-0 text-cyan-400" />
-                                <span>Users</span>
-                              </Link>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* CLIENT 2: CHETU HEALTHCARE (Collapsible Org Dropdown) */}
-              {canSeeChetu && (
-                <div className="space-y-1">
-                  {expanded && (
-                    <button
-                      type="button"
-                      onClick={() => setChetuOrgOpen((p) => !p)}
-                      className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-800/70 transition-colors cursor-pointer"
-                    >
-                      <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
-                        Chetu Healthcare
-                      </span>
-                      <ChevronDown
-                        className={`w-3.5 h-3.5 text-emerald-400/80 transition-transform ${
-                          chetuOrgOpen ? 'rotate-180' : ''
-                        }`}
-                      />
-                    </button>
-                  )}
-
-                  {(chetuOrgOpen || !expanded) && (
-                    <div className={expanded ? 'ml-2 pl-2 border-l border-emerald-500/40 space-y-0.5' : 'space-y-1'}>
-                      {hasDept('sales') && (
-                        <>
-                          <Link
-                            href="/admin/organizations/chetu-healthcare/sales"
-                            className={navCls(isExact('/admin/organizations/chetu-healthcare/sales'), true)}
-                          >
-                            <TrendingUp className="w-3.5 h-3.5 flex-shrink-0 text-[#C9A66B]" />
-                            {expanded && <span>Sales</span>}
-                          </Link>
-                          <Link
-                            href="/admin/organizations/chetu-healthcare/sales/users"
-                            className={navCls(isActive('/admin/organizations/chetu-healthcare/sales/users'), true)}
-                          >
-                            <Users className="w-3 h-3 flex-shrink-0 text-cyan-400" />
-                            {expanded && <span>Sales Users</span>}
-                          </Link>
-                        </>
-                      )}
-                      {hasDept('marketing') && (
-                        <Link
-                          href="/admin/organizations/chetu-healthcare/marketing"
-                          className={navCls(isActive('/admin/organizations/chetu-healthcare/marketing'), true)}
-                        >
-                          <Megaphone className="w-3.5 h-3.5 flex-shrink-0 text-purple-400" />
-                          {expanded && <span>Marketing</span>}
-                        </Link>
-                      )}
-                      {hasDept('finance') && (
-                        <Link
-                          href="/admin/organizations/chetu-healthcare/finance"
-                          className={navCls(isActive('/admin/organizations/chetu-healthcare/finance'), true)}
-                        >
-                          <DollarSign className="w-3.5 h-3.5 flex-shrink-0 text-sky-400" />
-                          {expanded && <span>Finance</span>}
-                        </Link>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* CLIENT 3: DENDRI AFRICA (Collapsible Org Dropdown) */}
-              {canSeeDendri && (
-                <div className="space-y-1">
-                  {expanded && (
-                    <button
-                      type="button"
-                      onClick={() => setDendriOrgOpen((p) => !p)}
-                      className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-800/70 transition-colors cursor-pointer"
-                    >
-                      <span className="text-[11px] font-bold text-purple-400 uppercase tracking-wider">
-                        Dendri Africa
-                      </span>
-                      <ChevronDown
-                        className={`w-3.5 h-3.5 text-purple-400/80 transition-transform ${
-                          dendriOrgOpen ? 'rotate-180' : ''
-                        }`}
-                      />
-                    </button>
-                  )}
-
-                  {(dendriOrgOpen || !expanded) && (
-                    <div className={expanded ? 'ml-2 pl-2 border-l border-purple-500/40 space-y-0.5' : 'space-y-1'}>
-                      {hasDept('sales') && (
-                        <>
-                          <Link
-                            href="/admin/organizations/dendri-africa/sales"
-                            className={navCls(isExact('/admin/organizations/dendri-africa/sales'), true)}
-                          >
-                            <TrendingUp className="w-3.5 h-3.5 flex-shrink-0 text-[#C9A66B]" />
-                            {expanded && <span>Sales</span>}
-                          </Link>
-                          <Link
-                            href="/admin/organizations/dendri-africa/sales/users"
-                            className={navCls(isActive('/admin/organizations/dendri-africa/sales/users'), true)}
-                          >
-                            <Users className="w-3 h-3 flex-shrink-0 text-cyan-400" />
-                            {expanded && <span>Sales Users</span>}
-                          </Link>
-                        </>
-                      )}
-                      {hasDept('marketing') && (
-                        <Link
-                          href="/admin/organizations/dendri-africa/marketing"
-                          className={navCls(isActive('/admin/organizations/dendri-africa/marketing'), true)}
-                        >
-                          <Megaphone className="w-3.5 h-3.5 flex-shrink-0 text-purple-400" />
-                          {expanded && <span>Marketing</span>}
-                        </Link>
-                      )}
-                      {hasDept('finance') && (
-                        <Link
-                          href="/admin/organizations/dendri-africa/finance"
-                          className={navCls(isActive('/admin/organizations/dendri-africa/finance'), true)}
-                        >
-                          <DollarSign className="w-3.5 h-3.5 flex-shrink-0 text-sky-400" />
-                          {expanded && <span>Finance</span>}
-                        </Link>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* DYNAMICALLY ADDED CLIENT ORGANIZATIONS (from All Organizations Hub) */}
-              {extraOrgs
-                .filter((o) => isSuperAdmin || adminProfile?.orgSlug === o.slug)
-                .map((org) => {
-                  const isOpen = Boolean(openExtraOrgs[org.slug] || pathname.includes(`/organizations/${org.slug}`))
-                  return (
-                    <div key={org.id} className="space-y-1">
-                      {expanded && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setOpenExtraOrgs((prev) => ({ ...prev, [org.slug]: !isOpen }))
-                          }
-                          className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-800/70 transition-colors cursor-pointer"
-                        >
-                          <span className="text-[11px] font-bold text-sky-400 uppercase tracking-wider truncate">
-                            {org.name}
-                          </span>
-                          <ChevronDown
-                            className={`w-3.5 h-3.5 text-sky-400/80 transition-transform shrink-0 ${
-                              isOpen ? 'rotate-180' : ''
-                            }`}
-                          />
-                        </button>
-                      )}
-
-                      {(isOpen || !expanded) && (
-                        <div className={expanded ? 'ml-2 pl-2 border-l border-sky-500/40 space-y-0.5' : 'space-y-0.5'}>
-                          {hasDept('sales') && (
-                            <>
-                              <Link
-                                href={`/admin/organizations/${org.slug}/sales`}
-                                className={navCls(isExact(`/admin/organizations/${org.slug}/sales`), true)}
-                              >
-                                <TrendingUp className="w-3 h-3 flex-shrink-0 text-[#C9A66B]" />
-                                {expanded && <span>Sales Dashboard</span>}
-                              </Link>
-                              <Link
-                                href={`/admin/organizations/${org.slug}/sales/users`}
-                                className={navCls(isActive(`/admin/organizations/${org.slug}/sales/users`), true)}
-                              >
-                                <Users className="w-3 h-3 flex-shrink-0 text-cyan-400" />
-                                {expanded && <span>Sales Users</span>}
-                              </Link>
-                            </>
-                          )}
-                          {hasDept('marketing') && (
-                            <Link
-                              href={`/admin/organizations/${org.slug}/marketing`}
-                              className={navCls(isExact(`/admin/organizations/${org.slug}/marketing`), true)}
-                            >
-                              <Megaphone className="w-3 h-3 flex-shrink-0 text-purple-400" />
-                              {expanded && <span>Marketing</span>}
-                            </Link>
-                          )}
-                          {hasDept('finance') && (
-                            <Link
-                              href={`/admin/organizations/${org.slug}/finance`}
-                              className={navCls(isExact(`/admin/organizations/${org.slug}/finance`), true)}
-                            >
-                              <DollarSign className="w-3 h-3 flex-shrink-0 text-sky-400" />
-                              {expanded && <span>Finance</span>}
-                            </Link>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-
-              {/* Master Organizations Hub — Super Admin ONLY */}
-              {isSuperAdmin && (
-                <div className="pt-1">
-                  <Link href="/admin/organizations" className={navCls(pathname === '/admin/organizations')}>
-                    <Layers className="w-4 h-4 flex-shrink-0 text-sky-400" />
-                    {expanded && <span>All Organizations Hub</span>}
-                  </Link>
-                </div>
-              )}
-            </div>
-          )}
-        </nav>
-
-        {/* Sidebar Collapse Button */}
-        {!mobile && (
-          <div className="p-2 border-t border-slate-800 flex-shrink-0">
-            <button
-              onClick={toggleSidebar}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-all cursor-pointer"
-            >
-              {sidebarOpen ? (
-                <>
-                  <ChevronLeft className="w-3.5 h-3.5" /> <span>Collapse Sidebar</span>
-                </>
-              ) : (
-                <ChevronRight className="w-3.5 h-3.5" />
-              )}
-            </button>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  const initials = adminProfile?.full_name?.[0]?.toUpperCase() || 'A'
+  const isLauncherHome = pathname === '/admin'
+  const routeCtx = resolveRouteContext(pathname, allOrgs)
+  const activeDeptMeta = routeCtx.department ? DEPARTMENT_META[routeCtx.department] : null
+  const ActiveDeptIcon = activeDeptMeta?.icon
+  const allowedDepts = adminProfile?.departments || ['sales', 'marketing', 'finance']
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex">
-      {/* Desktop Sidebar */}
-      <div className="hidden lg:flex flex-col flex-shrink-0 h-screen sticky top-0">
-        <SidebarContent />
-      </div>
-
-      {/* Mobile Sidebar Overlay */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div
-            className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
-            onClick={() => setMobileOpen(false)}
-          />
-          <div className="absolute left-0 top-0 bottom-0 flex shadow-2xl">
-            <SidebarContent mobile />
-            <button
-              onClick={() => setMobileOpen(false)}
-              className="absolute top-3 right-3 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="h-14 border-b border-slate-800 bg-slate-900/70 backdrop-blur-xl flex items-center justify-between px-4 flex-shrink-0 sticky top-0 z-40">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="lg:hidden text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800"
-            >
-              <Menu className="w-4.5 h-4.5" />
-            </button>
-
-            <nav className="flex items-center gap-1 text-xs text-slate-500 min-w-0">
-              {breadcrumbs.map((crumb, i) => (
-                <span key={crumb.href} className="flex items-center gap-1 min-w-0">
-                  {i > 0 && <ChevronRight className="w-3 h-3 flex-shrink-0" />}
-                  {i === breadcrumbs.length - 1 ? (
-                    <span className="text-slate-300 font-medium truncate">{crumb.label}</span>
-                  ) : (
-                    <Link href={crumb.href} className="hover:text-slate-300 transition-colors truncate">
-                      {crumb.label}
-                    </Link>
-                  )}
+    <div className="min-h-screen bg-[#090B12] text-slate-100 flex flex-col selection:bg-[#C9A66B]/30">
+      {/* CLEAN LUXURY TOP BAR (Matches Atulah /user/dashboard — zero cluttered multi-org sidebar!) */}
+      <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-[#090B12]/90 backdrop-blur-xl">
+        <div className="max-w-[1600px] mx-auto px-3.5 sm:px-6 h-14 flex items-center justify-between gap-3">
+          {/* Left: Organization & Active Department Switcher */}
+          <div className="flex items-center gap-2 min-w-0">
+            {isLauncherHome ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-[#C9A66B]/30 text-[11px] font-bold text-[#E5C687] truncate">
+                <Building2 className="w-3 h-3 shrink-0" />
+                <span className="truncate">
+                  {isSuperAdmin ? 'CEO / Chief Developer' : adminProfile?.orgName || 'Workspace'}
                 </span>
-              ))}
-            </nav>
+              </span>
+            ) : (
+              <>
+                {/* Organization Pill (Click to return to Organizations / Departments chooser) */}
+                <Link
+                  href={isSuperAdmin ? '/admin' : `/admin?org=${encodeURIComponent(routeCtx.orgSlug)}`}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-[#C9A66B]/30 text-[11px] font-bold text-[#E5C687] transition-colors truncate max-w-[165px] sm:max-w-[220px]"
+                  title={isSuperAdmin ? 'Switch Organization' : 'Back to Departments'}
+                >
+                  <ArrowLeft className="w-3 h-3 shrink-0" />
+                  <Building2 className="w-3 h-3 shrink-0 hidden sm:inline" />
+                  <span className="truncate">{routeCtx.orgName}</span>
+                </Link>
+
+                {/* Active Department Dropdown (Scoped strictly to the chosen organization) */}
+                {routeCtx.department && activeDeptMeta ? (
+                  <div className="relative" ref={deptMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setDeptMenuOpen((o) => !o)}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.07] border border-white/10 hover:border-[#C9A66B]/50 text-xs font-bold text-white transition-all cursor-pointer"
+                    >
+                      {ActiveDeptIcon && (
+                        <ActiveDeptIcon className={`w-3.5 h-3.5 ${activeDeptMeta.accentClass}`} />
+                      )}
+                      <span>
+                        {activeDeptMeta.label}
+                        {routeCtx.isUsersPage ? ' · Users' : ''}
+                      </span>
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 text-[#C9A66B] transition-transform ${
+                          deptMenuOpen ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+
+                    {deptMenuOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40 bg-black/40 sm:hidden"
+                          onClick={() => setDeptMenuOpen(false)}
+                        />
+                        <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:left-0 sm:top-11 sm:w-64 rounded-2xl bg-[#0E131F] border border-[#C9A66B]/35 shadow-2xl overflow-hidden divide-y divide-white/[0.06] z-50">
+                          <div className="px-3.5 py-2.5 bg-white/[0.02] flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#C9A66B] truncate">
+                              {routeCtx.orgName}
+                            </span>
+                            <Link
+                              href={`/admin?org=${encodeURIComponent(routeCtx.orgSlug)}`}
+                              className="text-[11px] font-semibold text-slate-300 hover:text-white inline-flex items-center gap-1 shrink-0"
+                            >
+                              <Home className="w-3 h-3" /> Departments
+                            </Link>
+                          </div>
+
+                          <div className="p-1.5 space-y-1">
+                            {allowedDepts.map((dept) => {
+                              const meta = DEPARTMENT_META[dept]
+                              const Icon = meta.icon
+                              const isSelected = dept === routeCtx.department && !routeCtx.isUsersPage
+                              return (
+                                <Link
+                                  key={dept}
+                                  href={getDepartmentHref(routeCtx.orgSlug, dept)}
+                                  className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${
+                                    isSelected
+                                      ? 'bg-[#C9A66B]/15 border border-[#C9A66B]/40'
+                                      : 'hover:bg-white/[0.05] border border-transparent'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <Icon className={`w-4 h-4 ${meta.accentClass} shrink-0`} />
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-bold text-white">{meta.label}</p>
+                                      <p className="text-[10px] text-slate-400 truncate">
+                                        {meta.subtitle}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {isSelected && <Check className="w-4 h-4 text-[#C9A66B] shrink-0" />}
+                                </Link>
+                              )
+                            })}
+                          </div>
+
+                          <div className="p-1.5 space-y-0.5 text-xs">
+                            <Link
+                              href={`/admin/organizations/${routeCtx.orgSlug}/${routeCtx.department}/users`}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl font-semibold text-cyan-300 hover:bg-white/[0.05] transition-colors"
+                            >
+                              <Users className="w-3.5 h-3.5" />
+                              <span>Manage {activeDeptMeta.label} Users</span>
+                            </Link>
+                            {isSuperAdmin && (
+                              <Link
+                                href="/admin"
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl font-semibold text-[#E5C687] hover:bg-white/[0.05] transition-colors"
+                              >
+                                <Building2 className="w-3.5 h-3.5" />
+                                <span>Switch Organization</span>
+                              </Link>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <Link
+                    href="/admin"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs font-bold text-white transition-colors"
+                  >
+                    <Home className="w-3.5 h-3.5 text-[#C9A66B]" />
+                    <span>All Organizations</span>
+                  </Link>
+                )}
+              </>
+            )}
           </div>
 
-          {/* Org Switcher (Super Admin ONLY) & Profile */}
-          <div className="flex items-center gap-3">
-            {isSuperAdmin ? (
-              <div className="relative" ref={orgSwitcherRef}>
-                <button
-                  onClick={() => setOrgSwitcherOpen((p) => !p)}
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-xs font-semibold text-slate-200 transition-all shadow-sm cursor-pointer"
-                >
-                  <Building2 className="w-3.5 h-3.5 text-[#C9A66B]" />
-                  <span className="hidden md:inline text-slate-400">Org:</span>
-                  <span className="text-[#C9A66B] max-w-[150px] truncate">
-                    {pathname.includes('rosy-realtors') || pathname.includes('stage-properties')
-                      ? 'Rosy Realtors Nairobi'
-                      : pathname.includes('chetu-healthcare')
-                      ? 'Chetu Healthcare'
-                      : pathname.includes('dendri-africa')
-                      ? 'Dendri Africa'
-                      : 'cillah.dev'}
-                  </span>
-                  <ChevronDown className="w-3 h-3 text-slate-400" />
-                </button>
-
-                {orgSwitcherOpen && (
-                  <div className="absolute right-0 top-10 w-64 bg-slate-900 border border-slate-700/90 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-800">
-                    <div className="px-3 py-2 bg-slate-950/60">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        Switch Organization
-                      </p>
-                    </div>
-                    <div className="p-1 space-y-0.5">
-                      <Link
-                        href="/admin/dashboard"
-                        onClick={() => setOrgSwitcherOpen(false)}
-                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs hover:bg-cyan-950/30 text-slate-200 hover:text-cyan-300 transition-colors"
-                      >
-                        <Cpu className="w-4 h-4 text-cyan-400" />
-                        <div>
-                          <p className="font-semibold text-white">cillah.dev</p>
-                          <p className="text-[10px] text-slate-400">Live Production Organization</p>
-                        </div>
-                      </Link>
-
-                      <Link
-                        href="/admin/organizations/rosy-realtors/sales"
-                        onClick={() => setOrgSwitcherOpen(false)}
-                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs hover:bg-[#C9A66B]/15 text-slate-200 hover:text-[#C9A66B] transition-colors"
-                      >
-                        <Building2 className="w-4 h-4 text-[#C9A66B]" />
-                        <div>
-                          <p className="font-semibold text-white">Rosy Realtors Nairobi</p>
-                          <p className="text-[10px] text-slate-400">Nairobi Real Estate Demo Org</p>
-                        </div>
-                      </Link>
-
-                      <Link
-                        href="/admin/organizations/chetu-healthcare/sales"
-                        onClick={() => setOrgSwitcherOpen(false)}
-                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs hover:bg-emerald-950/30 text-slate-200 hover:text-emerald-300 transition-colors"
-                      >
-                        <Stethoscope className="w-4 h-4 text-emerald-400" />
-                        <div>
-                          <p className="font-semibold text-white">Chetu Healthcare</p>
-                          <p className="text-[10px] text-slate-400">Sales · Marketing · Finance</p>
-                        </div>
-                      </Link>
-
-                      <Link
-                        href="/admin/organizations/dendri-africa/sales"
-                        onClick={() => setOrgSwitcherOpen(false)}
-                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs hover:bg-purple-950/30 text-slate-200 hover:text-purple-300 transition-colors"
-                      >
-                        <Globe2 className="w-4 h-4 text-purple-400" />
-                        <div>
-                          <p className="font-semibold text-white">Dendri Africa</p>
-                          <p className="text-[10px] text-slate-400">Sales · Marketing · Finance</p>
-                        </div>
-                      </Link>
-                    </div>
-                  </div>
+          {/* Far Right: Profile Avatar Dropdown (Identical clean luxury feel to Atulah's dashboard) */}
+          <div className="relative shrink-0" ref={profileRef}>
+            <button
+              type="button"
+              onClick={() => setProfileOpen((p) => !p)}
+              aria-label="Open profile menu"
+              className="flex items-center gap-2 p-0.5 pr-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-[#C9A66B]/40 hover:border-[#C9A66B] transition-all cursor-pointer shadow-sm"
+            >
+              <div className="h-9 w-9 rounded-full overflow-hidden bg-gradient-to-br from-[#1B1F2E] to-[#0E131F] flex items-center justify-center border border-[#C9A66B]/30 shrink-0">
+                {adminProfile?.avatar_url ? (
+                  <img
+                    src={adminProfile.avatar_url}
+                    alt={adminProfile.full_name || 'Profile'}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <User className="w-4 h-4 text-[#C9A66B]" />
                 )}
               </div>
-            ) : (
-              adminProfile?.orgName && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-[#C9A66B]">
-                  <Building2 className="w-3.5 h-3.5" />
-                  <span>{adminProfile.orgName}</span>
-                </div>
-              )
-            )}
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-slate-400 transition-transform ${
+                  profileOpen ? 'rotate-180 text-[#C9A66B]' : ''
+                }`}
+              />
+            </button>
 
-            {/* Profile Dropdown */}
-            <div className="relative" ref={profileRef}>
-              <button
-                onClick={() => setProfileOpen((p) => !p)}
-                className="flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 rounded-lg hover:bg-slate-800 transition-all cursor-pointer"
-              >
-                <div className="w-7 h-7 rounded-full bg-[#C9A66B]/20 border border-[#C9A66B]/40 flex items-center justify-center text-xs font-bold text-[#C9A66B]">
-                  {initials}
-                </div>
-                <span className="text-xs font-medium text-slate-300 hidden sm:block">
-                  {adminProfile?.full_name || 'Admin'}
-                </span>
-                <ChevronDown className="w-3 h-3 text-slate-500" />
-              </button>
-
-              {profileOpen && (
-                <div className="absolute right-0 top-11 w-52 bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl z-50 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-slate-800">
-                    <p className="text-xs font-semibold text-white">{adminProfile?.full_name}</p>
-                    <p className="text-[10px] text-slate-400">{adminProfile?.email}</p>
-                    <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#C9A66B]/10 border border-[#C9A66B]/30 text-[10px] font-bold uppercase tracking-wider text-[#E5C687]">
-                      <span>
-                        Access:{' '}
-                        {pathname.includes('/marketing')
-                          ? 'Marketing Admin'
-                          : pathname.includes('/finance')
-                          ? 'Finance Admin'
-                          : pathname.includes('/sales') ||
-                            pathname.startsWith('/admin/dashboard') ||
-                            pathname.startsWith('/admin/pipeline')
-                          ? 'Sales Admin'
-                          : adminProfile?.isSuperAdmin
-                          ? 'Super Admin'
-                          : 'Admin'}
-                      </span>
-                    </div>
+            {profileOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40 bg-black/35 sm:hidden"
+                  onClick={() => setProfileOpen(false)}
+                />
+                <div className="absolute right-0 top-12 w-60 rounded-2xl bg-[#0E131F] border border-white/10 shadow-2xl overflow-hidden divide-y divide-white/[0.06] z-50">
+                  <div className="px-4 py-3 bg-white/[0.02]">
+                    <p className="text-xs font-bold text-white truncate">
+                      {adminProfile?.full_name || 'Admin'}
+                    </p>
+                    <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                      {adminProfile?.email}
+                    </p>
+                    <span className="inline-flex items-center mt-2 px-2 py-0.5 rounded-full bg-[#C9A66B]/15 border border-[#C9A66B]/35 text-[10px] font-bold text-[#E5C687]">
+                      {isSuperAdmin
+                        ? 'Access: CEO / Chief Developer'
+                        : routeCtx.department === 'marketing'
+                        ? 'Access: Marketing Admin'
+                        : routeCtx.department === 'finance'
+                        ? 'Access: Finance Admin'
+                        : 'Access: Org Admin'}
+                    </span>
                   </div>
-                  <div className="py-1">
+
+                  <div className="p-1.5 space-y-0.5 text-xs">
+                    <Link
+                      href="/admin"
+                      onClick={() => setProfileOpen(false)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold text-slate-200 hover:bg-white/[0.05] transition-colors"
+                    >
+                      <Building2 className="w-4 h-4 text-[#C9A66B]" />
+                      <span>{isSuperAdmin ? 'Switch Organization' : 'All Departments'}</span>
+                    </Link>
+
                     <Link
                       href="/user/profile"
                       onClick={() => setProfileOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 text-xs text-slate-300 hover:bg-slate-800"
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold text-slate-200 hover:bg-white/[0.05] transition-colors"
                     >
-                      Profile
+                      <User className="w-4 h-4 text-sky-400" />
+                      <span>Profile</span>
                     </Link>
+
                     {isSuperAdmin && (
                       <>
                         <Link
-                          href="/admin/dashboard"
+                          href="/admin/organizations"
                           onClick={() => setProfileOpen(false)}
-                          className="flex items-center gap-2 px-4 py-2.5 text-xs text-slate-300 hover:bg-slate-800"
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold text-slate-300 hover:bg-white/[0.05] transition-colors"
                         >
-                          cillah.dev Sales Dashboard
+                          <Layers className="w-4 h-4 text-sky-400" />
+                          <span>Manage Organizations</span>
                         </Link>
                         <Link
-                          href="/admin/organizations/rosy-realtors/sales"
+                          href="/admin/sessions"
                           onClick={() => setProfileOpen(false)}
-                          className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#C9A66B] font-bold hover:bg-slate-800"
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold text-slate-300 hover:bg-white/[0.05] transition-colors"
                         >
-                          Rosy Realtors Demo
+                          <Video className="w-4 h-4 text-cyan-400" />
+                          <span>Sessions</span>
+                        </Link>
+                        <Link
+                          href="/admin/clients"
+                          onClick={() => setProfileOpen(false)}
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold text-slate-300 hover:bg-white/[0.05] transition-colors"
+                        >
+                          <UserCheck className="w-4 h-4 text-amber-400" />
+                          <span>Monthly Retainers</span>
                         </Link>
                       </>
                     )}
                   </div>
-                  <div className="border-t border-slate-800" />
-                  <div className="py-1">
+
+                  <div className="p-1.5 text-xs">
                     <button
+                      type="button"
                       onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-red-400 hover:bg-red-500/10 cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
                     >
-                      Log Out
+                      <LogOut className="w-4 h-4" />
+                      <span>Log Out</span>
                     </button>
                   </div>
                 </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
-        </header>
+        </div>
+      </header>
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 bg-[#090B12] p-2 sm:p-5 md:p-6">
-          {children}
-        </main>
-      </div>
+      {/* FULL-WIDTH FOCUSED CONTENT */}
+      <main className="flex-1 flex flex-col min-w-0 w-full overflow-x-hidden bg-[#090B12]">
+        {children}
+      </main>
     </div>
   )
 }

@@ -107,7 +107,7 @@ export async function GET(request: Request) {
 
       const isUserAdmin = isAdminAccount(email, role)
       const safeNext = next && next.startsWith('/') && next !== '/' ? next : ''
-      const redirectPath = safeNext || (isUserAdmin ? '/admin/dashboard' : '/user/dashboard')
+      const redirectPath = safeNext || (isUserAdmin ? '/admin' : '/user/dashboard')
 
       return NextResponse.redirect(`${origin}${redirectPath}`)
     }

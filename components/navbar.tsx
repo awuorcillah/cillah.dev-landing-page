@@ -189,28 +189,12 @@ export function Navbar() {
                     <p className="text-[11px] text-white/60 truncate">{user.email}</p>
                   </div>
                   <Link
-                    href="/user/profile"
+                    href={role === "admin" ? "/admin" : "/user/dashboard"}
                     onClick={() => setIsOpen(false)}
-                    className="px-3 py-2.5 rounded-xl text-[14px] text-white hover:bg-[#C9A66B]/20 hover:text-[#C9A66B] transition-colors"
-                  >
-                    Profile
-                  </Link>
-                  <Link
-                    href={role === "admin" ? "/admin/dashboard" : "/user/dashboard"}
-                    onClick={() => setIsOpen(false)}
-                    className="px-3 py-2.5 rounded-xl text-[14px] text-white hover:bg-[#C9A66B]/20 hover:text-[#C9A66B] transition-colors"
+                    className="px-3 py-3 rounded-xl text-[14px] font-semibold bg-[#C9A66B]/15 border border-[#C9A66B]/40 text-[#E5C687] hover:bg-[#C9A66B]/25 text-center transition-colors"
                   >
                     Dashboard
                   </Link>
-                  {role === "admin" && (
-                    <Link
-                      href="/admin/pipeline"
-                      onClick={() => setIsOpen(false)}
-                      className="px-3 py-2.5 rounded-xl text-[14px] font-semibold text-[#C9A66B] hover:bg-[#C9A66B]/20 transition-colors"
-                    >
-                      Sales Pipeline
-                    </Link>
-                  )}
                   <button
                     type="button"
                     onClick={async () => {

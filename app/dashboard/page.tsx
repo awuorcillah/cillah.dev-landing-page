@@ -30,7 +30,7 @@ export default function UnifiedDashboardRedirect() {
       const isAdmin = isAdminAccount(email, role)
 
       if (isAdmin) {
-        window.location.href = '/admin/dashboard'
+        window.location.href = '/admin'
       } else {
         window.location.href = '/user/dashboard'
       }
