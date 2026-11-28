@@ -67,7 +67,7 @@ async function fetchLiveTikTokInsights(orgSlug: string, persistToMetrics: boolea
 
   const [userRes, videosRes] = await Promise.all([
     fetch(
-      'https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url,username,follower_count,following_count,likes_count,video_count',
+      'https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url,follower_count,following_count,likes_count,video_count',
       {
         headers: { Authorization: `Bearer ${accessToken}` },
         cache: 'no-store',

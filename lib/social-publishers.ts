@@ -1,3 +1,4 @@
+import https from 'https'
 import { decryptToken, encryptToken } from '@/lib/social-crypto'
 import type {
   ChannelDeliveryStatus,
@@ -508,21 +509,50 @@ async function publishToTikTok(
     }
   }
 
-  // Step 2: PUT the video binary directly to TikTok's signed upload_url
-  const putRes = await fetch(data.data.upload_url, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': mimeType,
-      'Content-Length': String(videoSize),
-      'Content-Range': `bytes 0-${videoSize - 1}/${videoSize}`,
-    },
-    body: videoBytes,
-  })
+  // Step 2: PUT the video binary directly to TikTok's signed upload_url over strict HTTP/1.1 (with retry on transient 502/503)
+  const videoBuffer = Buffer.from(videoBytes)
+  const putTikTokBinary = (targetUrl: string): Promise<{ status: number; body: string }> =>
+    new Promise((resolve, reject) => {
+      const parsedUrl = new URL(targetUrl)
+      const req = https.request(
+        {
+          hostname: parsedUrl.hostname,
+          port: parsedUrl.port || 443,
+          path: `${parsedUrl.pathname}${parsedUrl.search}`,
+          method: 'PUT',
+          headers: {
+            'Content-Type': mimeType,
+            'Content-Length': videoBuffer.length,
+            'Content-Range': `bytes 0-${videoBuffer.length - 1}/${videoBuffer.length}`,
+          },
+        },
+        (resp) => {
+          let respBody = ''
+          resp.on('data', (chunk) => {
+            respBody += chunk.toString()
+          })
+          resp.on('end', () => {
+            resolve({ status: resp.statusCode || 0, body: respBody })
+          })
+        }
+      )
+      req.on('error', reject)
+      req.write(videoBuffer)
+      req.end()
+    })
 
-  if (!putRes.ok) {
+  let putResult = { status: 0, body: '' }
+  for (let attempt = 0; attempt < 3; attempt++) {
+    putResult = await putTikTokBinary(data.data.upload_url)
+    if (putResult.status >= 200 && putResult.status < 300) break
+    if (putResult.status !== 502 && putResult.status !== 503 && putResult.status !== 504) break
+    await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)))
+  }
+
+  if (putResult.status < 200 || putResult.status >= 300) {
     return {
       state: 'failed',
-      note: `TikTok binary video upload failed (HTTP ${putRes.status}).`,
+      note: `TikTok binary video upload failed (HTTP ${putResult.status})${putResult.body ? `: ${putResult.body.slice(0, 140)}` : ''}`,
       updated_at: now,
     }
   }

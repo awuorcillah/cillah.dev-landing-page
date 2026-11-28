@@ -386,7 +386,7 @@ export async function GET(
       }
 
       const userRes = await fetch(
-        'https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url,username',
+        'https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url',
         { headers: { Authorization: `Bearer ${tokenData.access_token}` } }
       )
       const userJson = await userRes.json()
@@ -405,8 +405,8 @@ export async function GET(
             provider: 'tiktok',
             channel: 'tiktok',
             account_id: String(openId),
-            account_name: user.display_name || user.username || 'TikTok Account',
-            account_handle: user.username ? `@${user.username}` : null,
+            account_name: user.display_name || 'TikTok Account',
+            account_handle: user.display_name ? `@${user.display_name.replace(/\s+/g, '').toLowerCase()}` : null,
             account_avatar_url: user.avatar_url || null,
             access_token_enc: encryptToken(tokenData.access_token),
             refresh_token_enc: tokenData.refresh_token
