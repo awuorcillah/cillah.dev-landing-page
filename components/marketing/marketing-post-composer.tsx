@@ -70,6 +70,7 @@ export default function MarketingPostComposer({
   const [directVideoFile, setDirectVideoFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadingLabel, setUploadingLabel] = useState('')
+  const [mediaUploadPct, setMediaUploadPct] = useState<number>(0)
   const [ytUploadProgress, setYtUploadProgress] = useState<{
     pct: number
     uploadedBytes: number
@@ -133,36 +134,53 @@ export default function MarketingPostComposer({
     }
 
     setUploading(true)
+    setMediaUploadPct(0)
     try {
       const uploaded: MarketingMediaFile[] = []
       let attachedLargeYouTubeVideo = false
 
+      const putFileWithProgress = (
+        signedUrl: string,
+        file: File,
+        isSupabase: boolean
+      ): Promise<{ ok: boolean; status: number; responseText: string }> =>
+        new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest()
+          xhr.open('PUT', signedUrl, true)
+          xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream')
+          if (isSupabase) {
+            xhr.setRequestHeader('x-upsert', 'true')
+          }
+          xhr.upload.onprogress = (ev) => {
+            if (ev.lengthComputable) {
+              const pct = Math.min(99, Math.round((ev.loaded / ev.total) * 100))
+              setMediaUploadPct(pct)
+              setUploadingLabel(
+                `Uploading ${file.name} (${formatFileSize(ev.loaded)} / ${formatFileSize(ev.total)})`
+              )
+            }
+          }
+          xhr.onload = () =>
+            resolve({
+              ok: xhr.status >= 200 && xhr.status < 300,
+              status: xhr.status,
+              responseText: xhr.responseText || '',
+            })
+          xhr.onerror = () => reject(new Error('Network error uploading file to storage.'))
+          xhr.send(file)
+        })
+
       for (const file of Array.from(fileList)) {
         const video = isVideoFile(file)
-
-        // Large videos (> 50 MB) stream directly from browser -> YouTube (up to 256 GB, zero server limit!)
-        if (video && file.size > 50 * 1024 * 1024) {
-          setDirectVideoFile(file)
-          attachedLargeYouTubeVideo = true
-          toast.success(
-            `${file.name} (${formatFileSize(file.size)}) attached for Direct YouTube Upload — it will stream straight to YouTube with a live progress bar when you post or schedule.`
-          )
-          continue
-        }
-
-        if (file.size > 50 * 1024 * 1024) {
-          toast.error(`${file.name} is ${formatFileSize(file.size)} — max upload size for non-video files is 50 MB.`)
-          continue
-        }
-
         if (video) {
-          // Keep local video reference too so YouTube uploads directly with a live progress bar
+          // Keep local video reference so YouTube still streams directly with chunked resumable upload
           setDirectVideoFile(file)
         }
 
-        setUploadingLabel(`Uploading ${file.name} (${formatFileSize(file.size)})...`)
+        setMediaUploadPct(0)
+        setUploadingLabel(`Preparing upload for ${file.name} (${formatFileSize(file.size)})...`)
 
-        // Step 1: Request a direct-to-Supabase signed upload URL (bypasses Vercel's 4.5 MB body limit!)
+        // Step 1: Request signed upload URL (Cloudflare R2 up to 2 GB when configured, else Supabase 50 MB)
         const signRes = await fetch(
           `/api/marketing/upload?org=${encodeURIComponent(organizationSlug)}`,
           {
@@ -177,27 +195,37 @@ export default function MarketingPostComposer({
         )
         const signJson = await signRes.json().catch(() => ({}))
 
+        // If R2 isn't configured yet and video > 50 MB, fall back gracefully to Direct YouTube Upload!
+        if (!signRes.ok && signJson.code === 'SUPABASE_VIDEO_LIMIT' && video) {
+          attachedLargeYouTubeVideo = true
+          toast.success(
+            `${file.name} (${formatFileSize(file.size)}) attached for Direct YouTube Upload (add Cloudflare R2 keys to also post large videos to TikTok/IG/FB).`
+          )
+          continue
+        }
+
         if (!signRes.ok || !signJson.signedUrl || !signJson.file) {
           toast.error(signJson.error || `Failed to prepare upload for ${file.name}`)
           continue
         }
 
-        // Step 2: PUT file directly to Supabase Storage
-        const putRes = await fetch(signJson.signedUrl, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': file.type || 'application/octet-stream',
-            'x-upsert': 'true',
-          },
-          body: file,
-        })
+        // Step 2: PUT file directly from browser to Cloudflare R2 (or Supabase Storage) with live progress!
+        const putRes = await putFileWithProgress(
+          signJson.signedUrl,
+          file,
+          signJson.provider !== 'r2'
+        )
 
         if (!putRes.ok) {
-          const errText = await putRes.text().catch(() => '')
-          toast.error(`Storage upload failed for ${file.name}${errText ? `: ${errText.slice(0, 120)}` : ''}`)
+          toast.error(
+            `Storage upload failed for ${file.name} (HTTP ${putRes.status})${
+              putRes.responseText ? `: ${putRes.responseText.slice(0, 120)}` : ''
+            }`
+          )
           continue
         }
 
+        setMediaUploadPct(100)
         uploaded.push(signJson.file)
       }
 
@@ -214,6 +242,7 @@ export default function MarketingPostComposer({
     } finally {
       setUploading(false)
       setUploadingLabel('')
+      setMediaUploadPct(0)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
@@ -732,9 +761,20 @@ export default function MarketingPostComposer({
               }`}
             >
               {uploading ? (
-                <div className="flex flex-col items-center gap-2 text-[#C9A66B]">
+                <div className="flex flex-col items-center gap-2.5 text-[#C9A66B] max-w-md mx-auto">
                   <Loader2 className="w-7 h-7 animate-spin" />
-                  <p className="text-xs font-semibold">{uploadingLabel || 'Uploading...'}</p>
+                  <p className="text-xs font-semibold">
+                    {uploadingLabel || 'Uploading...'}
+                    {mediaUploadPct > 0 ? ` • ${mediaUploadPct}%` : ''}
+                  </p>
+                  {mediaUploadPct > 0 && (
+                    <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-[#C9A66B] to-emerald-400 transition-all duration-200"
+                        style={{ width: `${mediaUploadPct}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-1.5">
@@ -748,9 +788,10 @@ export default function MarketingPostComposer({
               )}
             </div>
 
-            {(mediaFiles.length > 0 || (directVideoFile && directVideoFile.size > 50 * 1024 * 1024)) && (
+            {(mediaFiles.length > 0 ||
+              (directVideoFile && !mediaFiles.some((f) => f.kind === 'video'))) && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                {directVideoFile && directVideoFile.size > 50 * 1024 * 1024 && (
+                {directVideoFile && !mediaFiles.some((f) => f.kind === 'video') && (
                   <div className="flex items-center gap-3 p-2.5 rounded-xl bg-red-500/10 border border-red-500/35">
                     <div className="w-11 h-11 rounded-lg bg-red-500/20 border border-red-500/35 flex items-center justify-center text-red-300 shrink-0">
                       <Film className="w-5 h-5" />

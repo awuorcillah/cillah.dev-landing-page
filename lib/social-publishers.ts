@@ -1,5 +1,6 @@
 import https from 'https'
 import { decryptToken, encryptToken } from '@/lib/social-crypto'
+import { getR2PublicBaseUrl } from '@/lib/r2-storage'
 import type {
   ChannelDeliveryStatus,
   MarketingMediaFile,
@@ -453,7 +454,66 @@ async function publishToTikTok(
     return { state: 'failed', note: 'TikTok OAuth token missing or expired.', updated_at: now }
   }
 
-  // Download uploaded video bytes and stream via TikTok FILE_UPLOAD (avoids URL ownership verification issues)
+  const useDirectPost = process.env.TIKTOK_DIRECT_POST_APPROVED === 'true'
+  const endpoint = useDirectPost
+    ? 'https://open.tiktokapis.com/v2/post/publish/video/init/'
+    : 'https://open.tiktokapis.com/v2/post/publish/inbox/video/init/'
+
+  // If the video is hosted on our verified Cloudflare R2 domain (e.g. https://media.cillah.dev/...),
+  // TikTok pulls even multi-GB videos directly from R2 in ~1s with ZERO Vercel memory/bandwidth!
+  const r2Base = getR2PublicBaseUrl()
+  const isVerifiedR2Url = Boolean(r2Base && firstVideo.url.startsWith(r2Base))
+
+  if (isVerifiedR2Url) {
+    const pullPayload = useDirectPost
+      ? {
+          post_info: {
+            title: `${post.title} ${post.hashtags || ''}`.trim().slice(0, 2200),
+            privacy_level: 'PUBLIC_TO_EVERYONE',
+          },
+          source_info: {
+            source: 'PULL_FROM_URL',
+            video_url: firstVideo.url,
+          },
+        }
+      : {
+          source_info: {
+            source: 'PULL_FROM_URL',
+            video_url: firstVideo.url,
+          },
+        }
+
+    const pullRes = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: JSON.stringify(pullPayload),
+    })
+    const pullData = await pullRes.json().catch(() => ({}))
+
+    if (!pullRes.ok || (pullData.error && pullData.error.code !== 'ok')) {
+      return {
+        state: 'failed',
+        note: pullData?.error?.message || `TikTok Pull-from-URL failed (HTTP ${pullRes.status}).`,
+        updated_at: now,
+      }
+    }
+
+    return {
+      state: useDirectPost ? 'live' : 'dispatched',
+      url: conn.account_handle
+        ? `https://www.tiktok.com/${conn.account_handle.startsWith('@') ? conn.account_handle : `@${conn.account_handle}`}`
+        : undefined,
+      note: useDirectPost
+        ? `Published directly to TikTok from Cloudflare R2 (${conn.account_name})`
+        : `Sent to TikTok Inbox/Drafts via Cloudflare R2 (${conn.account_name}) — open TikTok notifications to publish`,
+      updated_at: now,
+    }
+  }
+
+  // Fallback for non-R2 videos (e.g. Supabase Storage <= 50 MB): stream via TikTok FILE_UPLOAD over HTTP/1.1
   const videoRes = await fetch(firstVideo.url)
   if (!videoRes.ok) {
     return {
@@ -465,12 +525,6 @@ async function publishToTikTok(
   const videoBytes = await videoRes.arrayBuffer()
   const videoSize = videoBytes.byteLength
   const mimeType = firstVideo.mime_type || 'video/mp4'
-
-  // Use TikTok Inbox/Drafts FILE_UPLOAD (or Direct Post once TIKTOK_DIRECT_POST_APPROVED=true)
-  const useDirectPost = process.env.TIKTOK_DIRECT_POST_APPROVED === 'true'
-  const endpoint = useDirectPost
-    ? 'https://open.tiktokapis.com/v2/post/publish/video/init/'
-    : 'https://open.tiktokapis.com/v2/post/publish/inbox/video/init/'
 
   const sourceInfo = {
     source: 'FILE_UPLOAD',
