@@ -12,6 +12,7 @@ import {
   type BillingCycle,
   type OnboardingDepartmentId,
 } from '@/lib/onboarding-plans'
+import { COUNTRY_DIAL_CODES } from '@/lib/country-codes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -36,17 +37,6 @@ import {
 } from 'lucide-react'
 
 const DRAFT_STORAGE_KEY = 'cillah_org_onboarding_draft_v1'
-
-const PHONE_PREFIXES = [
-  { code: '+254', label: '🇰🇪 +254' },
-  { code: '+1', label: '🇺🇸 +1' },
-  { code: '+44', label: '🇬🇧 +44' },
-  { code: '+27', label: '🇿🇦 +27' },
-  { code: '+233', label: '🇬🇭 +233' },
-  { code: '+234', label: '🇳🇬 +234' },
-  { code: '+255', label: '🇹🇿 +255' },
-  { code: '+256', label: '🇺🇬 +256' },
-]
 
 const DEPT_ICONS: Record<
   OnboardingDepartmentId,
@@ -950,10 +940,10 @@ function SignUpOnboardingInner() {
                           />
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="space-y-1.5">
+                        <div className="grid grid-cols-5 gap-2">
+                          <div className="col-span-2 space-y-1.5">
                             <Label htmlFor="phonePrefix" className="text-slate-300 text-xs">
-                              Code
+                              Country Code
                             </Label>
                             <select
                               id="phonePrefix"
@@ -961,14 +951,18 @@ function SignUpOnboardingInner() {
                               onChange={(e) => setPhonePrefix(e.target.value)}
                               className="w-full h-10 px-2 rounded-md bg-[#090B12] border border-white/10 text-white focus:border-[#C9A66B] focus:outline-none text-xs"
                             >
-                              {PHONE_PREFIXES.map((p) => (
-                                <option key={p.code} value={p.code} className="bg-[#0F1422]">
-                                  {p.label}
+                              {COUNTRY_DIAL_CODES.map((c) => (
+                                <option
+                                  key={`${c.iso}-${c.code}`}
+                                  value={c.code}
+                                  className="bg-[#0F1422]"
+                                >
+                                  {c.flag} {c.name} ({c.code})
                                 </option>
                               ))}
                             </select>
                           </div>
-                          <div className="col-span-2 space-y-1.5">
+                          <div className="col-span-3 space-y-1.5">
                             <Label htmlFor="phone" className="text-slate-300 text-xs">
                               Phone / M-Pesa Number
                             </Label>
