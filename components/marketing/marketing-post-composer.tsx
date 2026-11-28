@@ -79,11 +79,8 @@ export default function MarketingPostComposer({
   } | null>(null)
   const [isDragging, setIsDragging] = useState(false)
 
-  // Selected Channels (controlled from Channel ▾ dropdown in MarketingHub, with local fallback)
-  const [localChannels, setLocalChannels] = useState<MarketingChannelId[]>([
-    'instagram',
-    'whatsapp_status',
-  ])
+  // Selected Channels (controlled from Channel ▾ dropdown in MarketingHub, with empty default)
+  const [localChannels, setLocalChannels] = useState<MarketingChannelId[]>([])
   const selectedChannels = controlledChannels ?? localChannels
 
   // Post Copy (Website slug, read time & teaser are generated automatically!)

@@ -56,10 +56,7 @@ export default function MarketingHub({
   const dropdownRef = useRef<HTMLDivElement>(null)
   const channelDropdownRef = useRef<HTMLDivElement>(null)
 
-  const [selectedChannels, setSelectedChannels] = useState<MarketingChannelId[]>([
-    'instagram',
-    'whatsapp_status',
-  ])
+  const [selectedChannels, setSelectedChannels] = useState<MarketingChannelId[]>([])
 
   const [posts, setPosts] = useState<MarketingPostRecord[]>([])
   const [loadingPosts, setLoadingPosts] = useState(true)
